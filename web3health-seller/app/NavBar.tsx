@@ -1,20 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView } from 'react-native';
 import { useAuth } from '../hooks/AuthContext'; // Assumes AuthContext.tsx is in the same folder
-import { NavigationProp, ParamListBase } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 
-// Define the props the Navbar component expects
-interface NavbarProps {
-  navigation: NavigationProp<ParamListBase>;
-}
-
-export const Navbar: React.FC<NavbarProps> = ({ navigation }) => {
+export const Navbar: React.FC = () => {
   const auth = useAuth();
+  const router = useRouter();
 
   return (
     <SafeAreaView style={styles.headerSafeArea}>
         <View style={styles.portalHeader}>
-            <TouchableOpacity onPress={() => navigation.navigate('Home')} style={styles.brand}>
+            <TouchableOpacity onPress={() => router.push('/')} style={styles.brand}>
                 <Image 
                     source={require('../assets/images/Web3Health.png')} // Make sure this path is correct
                     style={styles.brandLogo} 
@@ -24,7 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({ navigation }) => {
             <View style={styles.nav}>
                 {auth.isAuthenticated ? (
                     <>
-                        <TouchableOpacity onPress={() => navigation.navigate('Studies')}>
+                        <TouchableOpacity onPress={() => router.push('/studies')}>
                             <Text style={styles.navLink}>Studies</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => auth.logout()}>
@@ -33,10 +29,10 @@ export const Navbar: React.FC<NavbarProps> = ({ navigation }) => {
                     </>
                 ) : (
                     <>
-                        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                        <TouchableOpacity onPress={() => router.push('/login')}>
                             <Text style={styles.navLink}>Sign In</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+                        <TouchableOpacity onPress={() => router.push('/register')}>
                             <Text style={styles.navLink}>Register</Text>
                         </TouchableOpacity>
                     </>

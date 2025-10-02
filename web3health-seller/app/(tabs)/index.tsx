@@ -7,7 +7,7 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 
 // Re-importing the simple FeatureCard and StudyCard components from earlier
 import FeatureCard from '../../components/FeatureCard';
@@ -43,7 +43,7 @@ const howItWorksSteps = [
 
 // --- HomeScreen Component ---
 const HomeScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProp<ParamListBase>>();
+  const router = useRouter();
 
   return (
     <SafeAreaView style={styles.root}>
@@ -58,7 +58,7 @@ const HomeScreen: React.FC = () => {
               <View style={styles.heroActions}>
                 <TouchableOpacity 
                   style={[styles.btn, styles.btnPrimary]} 
-                  onPress={() => navigation.navigate('Login')}
+                  onPress={() => router.push('/login')}
                 >
                   <Text style={styles.btnTextPrimary}>Get started</Text>
                 </TouchableOpacity>
