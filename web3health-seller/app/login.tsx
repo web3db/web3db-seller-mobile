@@ -38,7 +38,7 @@ const LoginScreen: React.FC = () => {
     
     // UI-only: call the auth context. The useEffect will handle navigation.
     console.log("Attempting to log in with:", email);
-    auth.login({ email });
+    auth.login(email, password);
   };
 
   return (

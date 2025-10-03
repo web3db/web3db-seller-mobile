@@ -1,9 +1,15 @@
 import React, { useState, useMemo, useContext, createContext, ReactNode } from 'react';
 
+interface User {
+  id: string;
+  name: string;
+}
+
 // Define the shape of the context data
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: () => void;
+  user: User | null;
+  login: (username: string, password: string) => void;
   logout: () => void;
 }
 
@@ -13,19 +19,22 @@ const AuthContext = createContext<AuthContextType | null>(null);
 // Create the provider component
 export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   // Example: Toggle auth state for demonstration
   // In a real app, these would handle tokens, API calls, etc.
-  const login = () => {
+  const login = (username: string, password: string) => {
     console.log("User logged in");
     setIsAuthenticated(true);
+    setUser({ id: "1", name: username });
   };
   const logout = () => {
     console.log("User logged out");
     setIsAuthenticated(false);
+    setUser(null);
   };
 
-  const value = useMemo(() => ({ isAuthenticated, login, logout }), [isAuthenticated]);
+  const value = useMemo(() => ({ isAuthenticated, user, login, logout }), [isAuthenticated, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
