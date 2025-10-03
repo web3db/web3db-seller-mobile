@@ -11,11 +11,13 @@ import {
 import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
 import { StackActions } from '@react-navigation/native';
 import { useAuth } from '../hooks/AuthContext'; // Adjust path as needed
+import { useRouter } from 'expo-router';
 
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const auth = useAuth();
-  
+  const router = useRouter();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -26,6 +28,7 @@ const LoginScreen: React.FC = () => {
       // StackActions.replace() removes the login screen from the history,
       // so the user can't go "back" to it.
       navigation.dispatch(StackActions.replace('Studies'));
+      router.replace('/studies');
     }
   }, [auth.isAuthenticated, navigation]);
 

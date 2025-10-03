@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useContext, createContext, ReactNode } from 'react';
+import { useRouter } from 'expo-router';
 
 interface User {
   id: string;
@@ -16,6 +17,8 @@ interface AuthContextType {
 // Create the context
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const router = useRouter();
+
 // Create the provider component
 export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -23,10 +26,11 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
   // Example: Toggle auth state for demonstration
   // In a real app, these would handle tokens, API calls, etc.
-  const login = (username: string, password: string) => {
+  const login = async (username: string, password: string) => {
     console.log("User logged in");
     setIsAuthenticated(true);
     setUser({ id: "1", name: username });
+    return isAuthenticated;
   };
   const logout = () => {
     console.log("User logged out");
