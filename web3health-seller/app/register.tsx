@@ -42,7 +42,7 @@ const RegisterScreen: React.FC = () => {
       
       // 2. UI-only: call the auth context. The useEffect will handle navigation.
       console.log("Registering and logging in with:", email);
-      auth.login({ email, org: org.name });
+      auth.login(email, password);
     } catch (error) {
       console.error("Failed to save organization data", error);
       Alert.alert("Error", "Could not save registration data.");

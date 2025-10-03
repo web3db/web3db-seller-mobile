@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 
 // Define a type for the study object to ensure data consistency
 type Study = {
@@ -17,6 +18,8 @@ type StudyCardProps = {
   study: Study;
 };
 
+const router = useRouter();
+
 // Define the component using React.FC (Functional Component) with its props type
 const StudyCard: React.FC<StudyCardProps> = ({ study }) => {
   // Type the navigation hook for better type safety.
@@ -26,12 +29,20 @@ const StudyCard: React.FC<StudyCardProps> = ({ study }) => {
   // Navigation functions to call on button press
   const handleViewPress = () => {
     // Navigate to a screen named 'StudyDetail', passing the study's ID as a parameter
-    navigation.navigate('StudyDetail', { studyId: study.id });
+    //navigation.navigate('Studies', { studyId: study.id });
+    router.push({
+      pathname: "/studies/[studyId]",
+      params: { studyId: study.id },
+    });
   };
 
   const handleManagePress = () => {
     // Navigate to a screen named 'ManageStudy', passing the study's ID
-    navigation.navigate('ManageStudy', { studyId: study.id });
+    //navigation.navigate('ManageStudy', { studyId: study.id });
+    router.push({
+      pathname: "/studies/[studyId]/manage",
+      params: { studyId: study.id },
+    });
   };
 
   return (
