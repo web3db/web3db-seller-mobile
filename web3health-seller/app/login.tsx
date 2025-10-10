@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { useAuth } from '../hooks/AuthContext'; // Adjust path as needed
 import { useRouter } from 'expo-router';
-import { useRouter } from 'expo-router';
 
 const LoginScreen: React.FC = () => {
   const auth = useAuth();
