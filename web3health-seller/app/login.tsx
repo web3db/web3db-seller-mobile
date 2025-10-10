@@ -8,16 +8,13 @@ import {
   StyleSheet,
   Alert
 } from 'react-native';
-import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
-import { StackActions } from '@react-navigation/native';
 import { useAuth } from '../hooks/AuthContext'; // Adjust path as needed
 import { useRouter } from 'expo-router';
 
 const LoginScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const auth = useAuth();
-  const router = useRouter();
-
+    const router = useRouter();
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -26,11 +23,10 @@ const LoginScreen: React.FC = () => {
   useEffect(() => {
     if (auth.isAuthenticated) {
       // StackActions.replace() removes the login screen from the history,
-      // so the user can't go "back" to it.
-      navigation.dispatch(StackActions.replace('Studies'));
+      // so the user can't go "back" to it. We use router.replace for this.
       router.replace('/studies');
     }
-  }, [auth.isAuthenticated, navigation]);
+  }, [auth.isAuthenticated, router]);
 
   const handleLogin = () => {
     // In a real app, you would add validation and an API call here.
@@ -76,7 +72,7 @@ const LoginScreen: React.FC = () => {
           <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={handleLogin}>
             <Text style={styles.btnPrimaryText}>Sign in</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+          <TouchableOpacity onPress={() => router.push('/register')}>
             <Text style={styles.link}>Register</Text>
           </TouchableOpacity>
         </View>

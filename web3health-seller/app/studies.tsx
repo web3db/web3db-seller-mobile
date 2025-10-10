@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -9,6 +9,8 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useAuth } from "../hooks/AuthContext";
+import { useFocusEffect, useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import StudyCard from "../components/StudyCard";
 
 // --- Data ---
@@ -42,59 +44,74 @@ const sampleStudies: Study[] = [
   },
 ];
 
+const initializeStudies = async () => {
+    try {
+        const existingStudies = await AsyncStorage.getItem('studies');
+        if (!existingStudies) {
+            await AsyncStorage.setItem('studies', JSON.stringify(sampleStudies));
+        }
+    } catch (e) {
+        console.error("Failed to initialize studies in AsyncStorage", e);
+    }
+};
+
+// Initialize once
+initializeStudies();
+
 const StudiesScreen: React.FC = () => {
-  const auth = useAuth();
-  const { width } = useWindowDimensions();
+    const auth = useAuth();
+    const router = useRouter();
+    const [studies, setStudies] = useState<Study[]>([]);
+  
+    useFocusEffect(
+        useCallback(() => {
+            const loadStudies = async () => {
+                const studiesJSON = await AsyncStorage.getItem('studies');
+                const loadedStudies = studiesJSON ? JSON.parse(studiesJSON) : [];
+                setStudies(loadedStudies);
+            };
 
-  // responsive title size
-  const titleFontSize = width < 420 ? 28 : 40;
-  const headerPaddingVertical = width < 420 ? 24 : 48;
+            loadStudies();
+        }, [])
+    );
 
-  return (
-    <SafeAreaView style={styles.root}>
-      <ScrollView contentContainerStyle={styles.homeRoot}>
-        <View style={[styles.header, { paddingVertical: headerPaddingVertical }]}>
-          {/* left column: allow shrinking on small screens */}
-          <View style={styles.leftColumn}>
-            <Text style={[styles.title, { fontSize: titleFontSize }]}>Your Studies</Text>
-            <Text style={styles.subtitle}>
-              Below are the studies your organization currently manages. Click a study to view
-              details or manage recruitment.
-            </Text>
-          </View>
-
-          {/* button placed to the right, but won't push the left column off-screen */}
-          <TouchableOpacity
-            style={[styles.btn, styles.btnPrimary, styles.addButton]}
-            onPress={() => auth.logout()}
-          >
-            <Text style={styles.btnTextPrimary}>+ Add Study</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.stats}>
-          <View style={styles.statBox}>
-            <Text style={{ fontSize: 32, fontWeight: "bold", margin: 16 }}>2</Text>
-            <Text style={{ fontSize: 14, color: "gray", marginBottom: 16 }}>Active Studies</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={{ fontSize: 32, fontWeight: "bold", margin: 16 }}>800</Text>
-            <Text style={{ fontSize: 14, color: "gray", marginBottom: 16 }}>Total Participants</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={{ fontSize: 32, fontWeight: "bold", margin: 16 }}>120</Text>
-            <Text style={{ fontSize: 14, color: "gray", marginBottom: 16 }}>Open Spots</Text>
-          </View>
-        </View>
-
-        <View>
-          {sampleStudies.map((study) => (
-            <StudyCard key={study.id} study={study} />
-          ))}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+    return (
+        <SafeAreaView style={styles.root}>
+            <ScrollView contentContainerStyle={styles.homeRoot}>
+                <View style={styles.header}>
+                    <View>
+                        <Text style={styles.title}>Your Studies</Text>
+                        <Text style={styles.subtitle}>Below are the studies your organization currently manages. Click a study to view details or manage recruitment.</Text>
+                    </View>
+                    <TouchableOpacity
+                        style={[styles.btn, styles.btnPrimary]}
+                        onPress={() => auth.logout()}
+                    >
+                        <Text style={styles.btnTextPrimary}>+ Add Study</Text>
+                    </TouchableOpacity>
+                </View>
+                <View style={styles.stats}>
+                    <View style={styles.statBox}>
+                        <Text style={{ fontSize: 32, fontWeight: 'bold', margin: 16 }}>2</Text>
+                        <Text style={{ fontSize: 14, color: 'gray', marginBottom: 16 }}>Active Studies</Text>
+                    </View>
+                    <View style={styles.statBox}>
+                        <Text style={{ fontSize: 32, fontWeight: 'bold', margin: 16 }}>800</Text>
+                        <Text style={{ fontSize: 14, color: 'gray', marginBottom: 16 }}>Total Participants</Text>
+                    </View>
+                    <View style={styles.statBox}>
+                        <Text style={{ fontSize: 32, fontWeight: 'bold', margin: 16 }}>120</Text>
+                        <Text style={{ fontSize: 14, color: 'gray', marginBottom: 16 }}>Open Spots</Text>
+                    </View>
+                </View>
+                <View>
+                    {sampleStudies.map((study) => (
+                        <StudyCard key={study.id} study={study} />
+                    ))}
+                </View>
+            </ScrollView>
+        </SafeAreaView>
+    );
 };
 
 const styles = StyleSheet.create({
