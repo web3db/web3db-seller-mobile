@@ -1,61 +1,55 @@
 import React, { useState } from 'react';
 import {
-  SafeAreaView,
-  ScrollView,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
+    SafeAreaView,
+    ScrollView,
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    StyleSheet,
+    Alert,
 } from 'react-native';
-import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Picker } from '@react-native-picker/picker';
+// No longer need to import Picker
 
-// --- Utility Function to Save Data (Async) ---
-const saveStudy = async (study: object) => {
-  try {
-    const rawStudies = await AsyncStorage.getItem('studies');
-    const studies = rawStudies ? JSON.parse(rawStudies) : [];
-    studies.unshift(study);
-    await AsyncStorage.setItem('studies', JSON.stringify(studies));
-  } catch (e) {
-    console.error("Failed to save study.", e);
-    Alert.alert("Error", "There was an issue saving the study.");
-  }
+type Study = {
+    id: string; title: string; type: string; description: string; organizer: string; spots: number;
 };
 
-
-// --- The Screen Component ---
 const AddStudyScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProp<ParamListBase>>();
+  const router = useRouter();
   
-  // State for each form field
   const [title, setTitle] = useState('');
-  const [type, setType] = useState('Remote'); // Default value for the picker
+  const [type, setType] = useState('Remote'); // State is still 'Remote' or 'In-Person'
   const [description, setDescription] = useState('');
   const [organizer, setOrganizer] = useState('Your Organization');
   const [spots, setSpots] = useState('');
 
   const handleSubmit = async () => {
-    if (!title || !description) {
-      Alert.alert("Validation Error", "Please fill out the Title and Description fields.");
-      return;
+    if (!title || !description || !organizer || !spots) {
+        Alert.alert('Error', 'Please fill out all fields.');
+        return;
     }
 
-    const study = {
-      id: 's_' + Date.now(),
-      title,
-      type,
-      description,
-      organizer,
-      spots: Number(spots) || 0,
-      participants: 0,
+    const newStudy: Study = {
+        id: `study_${Date.now()}`, // Simple unique ID
+        title,
+        type,
+        description,
+        organizer,
+        spots: parseInt(spots, 10),
     };
 
-    await saveStudy(study);
-    navigation.navigate('Studies'); // Navigate after saving
+    try {
+        const existingStudiesJSON = await AsyncStorage.getItem('studies');
+        const existingStudies: Study[] = existingStudiesJSON ? JSON.parse(existingStudiesJSON) : [];
+        await AsyncStorage.setItem('studies', JSON.stringify([...existingStudies, newStudy]));
+        router.replace('/studies');
+    } catch (error) {
+        Alert.alert('Error', 'Failed to save the study.');
+        console.error('Failed to save study to AsyncStorage', error);
+    }
   };
 
   return (
@@ -64,49 +58,51 @@ const AddStudyScreen: React.FC = () => {
         <View style={styles.card}>
           <Text style={styles.header}>Create a new study</Text>
           <Text style={styles.subHeader}>
-            Fill out the details below to create a new research study. This will be visible to potential participants.
+            Fill out the details below to create a new research study.
           </Text>
 
+          {/* ... Title input ... */}
           <View style={styles.formGroup}>
             <Text style={styles.label}>Title</Text>
             <TextInput style={styles.input} value={title} onChangeText={setTitle} />
           </View>
-
+          
+          {/* --- NEW SEGMENTED CONTROL --- */}
           <View style={styles.formGroup}>
             <Text style={styles.label}>Type</Text>
-            <View style={styles.pickerContainer}>
-              <Picker selectedValue={type} onValueChange={(itemValue) => setType(itemValue)}>
-                <Picker.Item label="Remote" value="Remote" />
-                <Picker.Item label="In-person" value="In-person" />
-              </Picker>
+            <View style={styles.segmentedControlContainer}>
+              <TouchableOpacity
+                style={[styles.segmentButton, type === 'Remote' && styles.segmentButtonActive]}
+                onPress={() => setType('Remote')}
+              >
+                <Text style={[styles.segmentButtonText, type === 'Remote' && styles.segmentButtonTextActive]}>
+                  Remote
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.segmentButton, type === 'In-Person' && styles.segmentButtonActive]}
+                onPress={() => setType('In-Person')}
+              >
+                <Text style={[styles.segmentButtonText, type === 'In-Person' && styles.segmentButtonTextActive]}>
+                  In-Person
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
+          {/* --- END OF NEW CODE --- */}
 
+          {/* ... Other inputs ... */}
           <View style={styles.formGroup}>
             <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.textarea]}
-              value={description}
-              onChangeText={setDescription}
-              multiline={true}
-              numberOfLines={4}
-            />
+            <TextInput style={[styles.input, styles.textarea]} value={description} onChangeText={setDescription} multiline={true} numberOfLines={4}/>
           </View>
-
           <View style={styles.formGroup}>
             <Text style={styles.label}>Organizer</Text>
             <TextInput style={styles.input} value={organizer} onChangeText={setOrganizer} />
           </View>
-
           <View style={styles.formGroup}>
             <Text style={styles.label}>Available Spots</Text>
-            <TextInput
-              style={styles.input}
-              value={spots}
-              onChangeText={setSpots}
-              placeholder="e.g., 500"
-              keyboardType="numeric"
-            />
+            <TextInput style={styles.input} value={spots} onChangeText={setSpots} keyboardType="numeric" />
           </View>
 
           <TouchableOpacity style={styles.button} onPress={handleSubmit}>
@@ -118,74 +114,53 @@ const AddStudyScreen: React.FC = () => {
   );
 };
 
-// --- Styles based on your provided CSS ---
+
 const styles = StyleSheet.create({
-  container: {
+  // ... (previous styles for container, card, header, etc. remain the same)
+  container: { flex: 1, backgroundColor: '#f0f2f5' },
+  scrollContainer: { padding: 16 },
+  card: { backgroundColor: '#ffffff', padding: 24, borderRadius: 12, elevation: 3 },
+  header: { fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
+  subHeader: { fontSize: 14, color: '#6b7280', marginBottom: 24 },
+  formGroup: { marginBottom: 16 },
+  label: { fontSize: 16, fontWeight: '500', marginBottom: 8, color: '#374151' },
+  input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, backgroundColor: '#ffffff' },
+  textarea: { minHeight: 100, textAlignVertical: 'top' },
+  button: { backgroundColor: '#4f46e5', padding: 14, borderRadius: 8, alignItems: 'center', marginTop: 16 },
+  buttonText: { color: '#ffffff', fontWeight: 'bold', fontSize: 16 },
+
+  // --- NEW STYLES FOR SEGMENTED CONTROL ---
+  segmentedControlContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#e5e7eb',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  segmentButton: {
     flex: 1,
-    backgroundColor: '#f0f2f5',
-  },
-  scrollContainer: {
-    padding: 16,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    padding: 24, // Converted from 1.5rem and 2em
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  header: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subHeader: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 24,
-  },
-  formGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 8,
-    color: '#374151',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    backgroundColor: '#ffffff',
-  },
-  textarea: {
-    minHeight: 100,
-    textAlignVertical: 'top', // Ensures text starts at the top
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
-  },
-  button: {
-    backgroundColor: '#4f46e5',
-    padding: 14,
-    borderRadius: 8,
+    paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 16,
+    justifyContent: 'center',
   },
-  buttonText: {
-    color: '#ffffff',
-    fontWeight: 'bold',
+  segmentButtonActive: {
+    backgroundColor: '#ffffff',
+    borderRadius: 7,
+    margin: 2,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  segmentButtonText: {
     fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  segmentButtonTextActive: {
+    fontWeight: 'bold',
+    color: '#4f46e5',
   },
 });
 
