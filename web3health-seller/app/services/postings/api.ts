@@ -46,16 +46,25 @@ function buildUrl(name: string, qs?: Record<string, unknown>) {
  * In a real app, this would be in a separate mapper.ts file.
  */
 function mapRawToStudy(raw: PostingDTO): Study {
-    return {
-        id: raw.PostingId,
-        title: raw.Title,
-        summary: raw.Summary,
-        description: raw.Description,
-        statusId: raw.PostingStatusId,
-        // Mocking display fields as they are not available from the raw PostgREST data here
-        organizer: "Web3Health", 
-        spots: 500, // Placeholder
-    };
+  // support both snake/PascalCase coming from different backends and camelCase
+  const anyRaw: any = raw as any;
+  const id = anyRaw.postingId ?? anyRaw.PostingId ?? anyRaw.PostingID ?? anyRaw.id
+  const title = anyRaw.title ?? anyRaw.Title ?? ''
+  const summary = anyRaw.summary ?? anyRaw.Summary ?? ''
+  const description = anyRaw.description ?? anyRaw.Description ?? ''
+  const statusId = anyRaw.postingStatusId ?? anyRaw.PostingStatusId ?? anyRaw.PostingStatusID ?? 0
+
+  return {
+    id,
+    title,
+    summary,
+    description,
+    statusId,
+    // Mocking display fields as they are not available from the raw PostgREST data here
+    organizer: anyRaw.buyerDisplayName ?? "Web3Health",
+    // 'spots' doesn't exist on the API response; keep a reasonable default so UI math works
+    spots: typeof anyRaw.spots === 'number' ? anyRaw.spots : 0,
+  };
 }
 
 
@@ -68,7 +77,7 @@ export async function listTrnPostings(
   
   // NOTE: Assuming you have deployed a Supabase Edge Function named 'list_postings'
   // that queries the TRN_Posting table and returns the results.
-  const u = buildUrl("buyers_postings_detail", params as Record<string, unknown>);
+  const u = buildUrl("buyers_postings_list/3", params as Record<string, unknown>);
   if (__DEV__) console.log("[listTrnPostings] GET", u);
 
   const res = await fetch(u, {
@@ -88,12 +97,15 @@ export async function listTrnPostings(
     throw new Error(`list_postings API failed: ${res.status} ${res.statusText} ${txt}`);
   }
 
-  // The API returns an array of raw posting objects
-  const rawPostings = (await res.json()) as PostingsResponseDTO; 
-  
-  const items: Study[] = Array.isArray(rawPostings)
-    ? rawPostings.map((p: PostingDTO) => mapRawToStudy(p))
-    : [];
+  // The API may return either an array or a paged response { items: [], page, pageSize }
+  const json = await res.json().catch(() => null)
+  let rawPostings: any[] = []
+  if (!json) rawPostings = []
+  else if (Array.isArray(json)) rawPostings = json
+  else if (json.items && Array.isArray(json.items)) rawPostings = json.items
+  else rawPostings = []
+
+  const items: Study[] = rawPostings.map((p: PostingDTO) => mapRawToStudy(p))
 
   if (__DEV__) {
     console.log(`[listTrnPostings] ✓ items=${items.length}`);

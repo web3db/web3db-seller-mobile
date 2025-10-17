@@ -24,7 +24,7 @@ const RegisterScreen: React.FC = () => {
   // This effect handles redirection if the user is already authenticated.
   useEffect(() => {
     if (auth.isAuthenticated) {
-      navigation.replace('Studies');
+      navigation.replace('studies');
     }
   }, [auth.isAuthenticated, navigation]);
 
