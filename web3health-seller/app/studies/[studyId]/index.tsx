@@ -12,18 +12,33 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-type Study = {
-  id: string;
+type StudyDetail = {
+  postingId: number;
+  buyerUserId: number;
+  buyerDisplayName: string;
+  postingStatusId: number;
+  postingStatusDisplayName: string;
   title: string;
-  type: string;
-  description: string;
-  organizer: string;
-  spots: number;
-  participants?: string[];
-  active?: boolean;
+  summary: string;
+  description: string | null;
+  applyOpenAt: string | null;
+  applyCloseAt: string | null;
+  dataCoverageDaysRequired: number | null;
+  minAge: number;
+  rewardTypeId: number | null;
+  rewardTypeDisplayName: string | null;
+  metrics: { id: number; displayName: string }[];
+  viewPolicies: any[];
+  healthConditions: { id: number; displayName: string }[];
+  tags: string[];
+  images: any[];
+  isActive: boolean;
+  isModified: boolean | null;
+  createdOn: string | null;
+  modifiedOn: string | null;
 };
 
-export default function StudyDetail(): JSX.Element {
+export default function StudyDetail() {
   const { studyId, saved } = useLocalSearchParams() as { studyId?: string; saved?: string };
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -31,36 +46,47 @@ export default function StudyDetail(): JSX.Element {
 
   const [showSaved, setShowSaved] = useState<boolean>(saved === "1" || saved === "true");
   const [bannerOpacity] = useState(new Animated.Value(showSaved ? 1 : 0));
-
-  // Replace this with a real fetch/useStudy hook when available.
-  const study: Study = {
-    id: studyId ?? "unknown",
-    title: "4‑Week Physical Activity Study",
-    type: "Remote",
-    description:
-      "A four-week study collecting step counts and activity patterns from participants who already use an activity tracker (phone or wearable).",
-    organizer: "Web3Health",
-    spots: 500,
-    participants: ["alice", "bob", "carol"],
-    active: true,
-  };
+  const [study, setStudy] = useState<StudyDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (showSaved) {
-      // fade in (already visible) then hide after 3s and remove query param
+    async function fetchStudyDetail() {
+      if (!studyId) return;
+      setLoading(true);
+      setError(null);
+      try {
+        // Hardcoded buyerId for now (should be dynamic in real app)
+        const buyerId = 3;
+        const endpoint = `/buyers_postings_detail/${buyerId}/${studyId}`;
+        const { FUNCTIONS_BASE } = await import("../../services/postings/api");
+        const url = `${FUNCTIONS_BASE}${endpoint}`;
+        const res = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+        if (!res.ok) throw new Error(`Failed to fetch study detail: ${res.status}`);
+        const data = await res.json();
+        const detail = Array.isArray(data) ? data[0] : data;
+        setStudy(detail);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load study');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchStudyDetail();
+  }, [studyId]);
+
+  useEffect(() => {
+    if (showSaved && study) {
       Animated.timing(bannerOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
       const t = setTimeout(() => {
         Animated.timing(bannerOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
         setShowSaved(false);
-        // remove query param so refresh doesn't show banner again
-        // replace to same path without query
-        router.replace(`/studies/${study.id}`);
+        router.replace(`/studies/${study.postingId}`);
       }, 3000);
       return () => clearTimeout(t);
     }
-    // If saved param was not present, ensure banner hidden
     bannerOpacity.setValue(0);
-  }, [showSaved, bannerOpacity, router, study.id]);
+  }, [showSaved, bannerOpacity, router, study]);
 
   useEffect(() => {
     // In case the page was opened with the param, ensure internal state is set
@@ -78,12 +104,39 @@ export default function StudyDetail(): JSX.Element {
       </SafeAreaView>
     );
   }
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.root}>
+        <View style={styles.center}>
+          <Text>Loading study...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  if (error) {
+    return (
+      <SafeAreaView style={styles.root}>
+        <View style={styles.center}>
+          <Text style={styles.error}>{error}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  if (!study) {
+    return (
+      <SafeAreaView style={styles.root}>
+        <View style={styles.center}>
+          <Text style={styles.error}>Study not found</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.root}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {showSaved && (
-          <Animated.View style={[styles.banner, { opacity: bannerOpacity }]}>
+          <Animated.View style={[styles.banner, { opacity: bannerOpacity }]}> 
             <Text style={styles.bannerText}>Changes saved successfully</Text>
           </Animated.View>
         )}
@@ -101,26 +154,76 @@ export default function StudyDetail(): JSX.Element {
             <Text style={styles.label}>Title</Text>
             <Text style={styles.value}>{study.title}</Text>
 
-            <Text style={styles.label}>Type</Text>
-            <Text style={styles.value}>{study.type}</Text>
+            <Text style={styles.label}>Summary</Text>
+            <Text style={styles.value}>{study.summary}</Text>
 
             <Text style={styles.label}>Description</Text>
             <Text style={[styles.value, styles.multilineValue]}>{study.description}</Text>
 
-            <Text style={styles.label}>Spots</Text>
-            <Text style={styles.value}>{study.spots}</Text>
+            <Text style={styles.label}>Status</Text>
+            <Text style={styles.value}>{study.postingStatusDisplayName}</Text>
 
-            <Text style={styles.label}>Active</Text>
-            <Text style={styles.value}>{study.active ? "Yes" : "No"}</Text>
+            <Text style={styles.label}>Min Age</Text>
+            <Text style={styles.value}>{study.minAge}</Text>
 
-            <Text style={[styles.label, { marginTop: 12 }]}>Participants</Text>
+            <Text style={styles.label}>Data Coverage Days Required</Text>
+            <Text style={styles.value}>{study.dataCoverageDaysRequired ?? "-"}</Text>
+
+            <Text style={styles.label}>Apply Open At</Text>
+            <Text style={styles.value}>{study.applyOpenAt ?? "-"}</Text>
+
+            <Text style={styles.label}>Apply Close At</Text>
+            <Text style={styles.value}>{study.applyCloseAt ?? "-"}</Text>
+
+            <Text style={styles.label}>Reward Type</Text>
+            <Text style={styles.value}>{study.rewardTypeDisplayName ?? "-"} (ID: {study.rewardTypeId ?? "-"})</Text>
+
+            <Text style={styles.label}>Buyer</Text>
+            <Text style={styles.value}>{study.buyerDisplayName}</Text>
+
+            <Text style={styles.label}>Study ID</Text>
+            <Text style={styles.value}>{study.postingId}</Text>
+
+            <Text style={styles.label}>Created On</Text>
+            <Text style={styles.value}>{study.createdOn ?? "-"}</Text>
+
+            <Text style={styles.label}>Modified On</Text>
+            <Text style={styles.value}>{study.modifiedOn ?? "-"}</Text>
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Tags</Text>
             <View style={styles.participantsList}>
-              {(!study.participants || study.participants.length === 0) ? (
-                <Text style={styles.muted}>No participants</Text>
+              {(!study.tags || study.tags.length === 0) ? (
+                <Text style={styles.muted}>No tags</Text>
               ) : (
-                study.participants.map((p, i) => (
-                  <View key={`${p}-${i}`} style={styles.participantRow}>
-                    <Text>{p}</Text>
+                study.tags.map((tag, i) => (
+                  <View key={tag + i} style={styles.participantRow}>
+                    <Text>{tag}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
+            <View style={styles.participantsList}>
+              {(!study.metrics || study.metrics.length === 0) ? (
+                <Text style={styles.muted}>No metrics</Text>
+              ) : (
+                study.metrics.map((m, i) => (
+                  <View key={m.id + '-' + i} style={styles.participantRow}>
+                    <Text>{m.displayName}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Health Conditions</Text>
+            <View style={styles.participantsList}>
+              {(!study.healthConditions || study.healthConditions.length === 0) ? (
+                <Text style={styles.muted}>No conditions</Text>
+              ) : (
+                study.healthConditions.map((c, i) => (
+                  <View key={c.id + '-' + i} style={styles.participantRow}>
+                    <Text>{c.displayName}</Text>
                   </View>
                 ))
               )}
@@ -129,7 +232,7 @@ export default function StudyDetail(): JSX.Element {
             <View style={styles.formActions}>
               <TouchableOpacity
                 style={[styles.btn, styles.btnPrimary]}
-                onPress={() => router.push(`/studies/${study.id}/manage`)}
+                onPress={() => router.push(`/studies/${study.postingId}/manage`)}
               >
                 <Text style={styles.btnPrimaryText}>Manage Study</Text>
               </TouchableOpacity>
@@ -149,29 +252,34 @@ export default function StudyDetail(): JSX.Element {
 
             <View style={styles.statRow}>
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{study.participants?.length ?? 0}</Text>
-                <Text style={styles.statLabel}>Participants</Text>
+                <Text style={styles.statNumber}>{study.metrics?.length ?? 0}</Text>
+                <Text style={styles.statLabel}>Metrics</Text>
               </View>
 
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{study.spots}</Text>
-                <Text style={styles.statLabel}>Spots</Text>
+                <Text style={styles.statNumber}>{study.healthConditions?.length ?? 0}</Text>
+                <Text style={styles.statLabel}>Health Conditions</Text>
+              </View>
+
+              <View style={styles.statBox}>
+                <Text style={styles.statNumber}>{study.tags?.length ?? 0}</Text>
+                <Text style={styles.statLabel}>Tags</Text>
               </View>
             </View>
 
             <View style={styles.metaBlock}>
-              <Text style={styles.metaLabel}>Organizer</Text>
-              <Text style={styles.metaValue}>{study.organizer}</Text>
+              <Text style={styles.metaLabel}>Buyer</Text>
+              <Text style={styles.metaValue}>{study.buyerDisplayName}</Text>
             </View>
 
             <View style={styles.metaBlock}>
               <Text style={styles.metaLabel}>Study ID</Text>
-              <Text style={styles.metaValue}>{study.id}</Text>
+              <Text style={styles.metaValue}>{study.postingId}</Text>
             </View>
 
             <View style={styles.metaBlock}>
               <Text style={styles.metaLabel}>Status</Text>
-              <Text style={styles.metaValue}>{study.active ? "Active" : "Inactive"}</Text>
+              <Text style={styles.metaValue}>{study.postingStatusDisplayName}</Text>
             </View>
 
             <View style={styles.helpBox}>
@@ -187,7 +295,7 @@ export default function StudyDetail(): JSX.Element {
   );
 }
 
-/* Styles: intentionally matches manage.tsx for consistent layout */
+// Styles: intentionally matches manage.tsx for consistent layout
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#ffffff" },
   scrollContainer: { padding: 16, paddingBottom: 48 },

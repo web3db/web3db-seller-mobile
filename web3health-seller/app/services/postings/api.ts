@@ -1,3 +1,27 @@
+/**
+ * GET DETAIL - Fetches a single posting's details via the Edge Function
+ * /buyers_postings_detail/{buyerId}/{postingId}
+ */
+export async function getTrnPostingDetail(buyerId: number | string, postingId: number | string) {
+  const u = buildUrl(`buyers_postings_detail/3/${postingId}`);
+  if (__DEV__) console.log('[getTrnPostingDetail] GET', u);
+
+  const res = await fetch(u, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    mode: 'cors',
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    if (__DEV__) console.warn('[getTrnPostingDetail] ✗', res.status, res.statusText, txt);
+    throw new Error(`buyers_postings_detail API failed: ${res.status} ${res.statusText} ${txt}`);
+  }
+
+  const json = await res.json().catch(() => null);
+  // If the API returns an array, use the first item
+  return Array.isArray(json) ? json[0] : json;
+}
 // src/services/postings/api.ts
 import type { Study, PostingsResponseDTO, PostingDTO } from "./types";
 
@@ -112,4 +136,28 @@ export async function listTrnPostings(
   }
 
   return items; // Returns the mapped array of Study objects
+}
+
+/** UPDATE - sends an update payload for a posting to the Edge Function 'buyers_postings_update' */
+export async function updateTrnPosting(postingId: number | string, payload: Record<string, any>) {
+  const u = buildUrl(`buyers_postings_update/3/${postingId}`, undefined);
+  if (__DEV__) console.log('[updateTrnPosting] PATCH', u, postingId, payload)
+
+  const body = { postingId, ...payload }
+
+  const res = await fetch(u, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    mode: 'cors',
+  })
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '')
+    if (__DEV__) console.warn('[updateTrnPosting] ✗', res.status, res.statusText, txt)
+    throw new Error(`buyers_postings_update API failed: ${res.status} ${res.statusText} ${txt}`)
+  }
+
+  const json = await res.json().catch(() => null)
+  return json
 }
