@@ -63,7 +63,7 @@ const StudiesScreen: React.FC = () => {
                     </View>
                     <TouchableOpacity
                         style={[styles.btn, styles.btnPrimary, styles.addButton]}
-                        onPress={() => router.push('/studies/new')} 
+                        onPress={() => router.push('/addstudy')} 
                     >
                         <Text style={styles.btnTextPrimary}>+ Add Study</Text>
                     </TouchableOpacity>
