@@ -27,5 +27,13 @@ export type PostingDTO = {
     // ... other raw fields from TRN_Posting
 };
 
+export type Metric = {
+  metricId: number;
+  code: string;
+  displayName: string;
+  canonicalUnitCode: string;
+  isActive: boolean;
+};
+
 // Assuming the response is an array of raw objects (common for simple functions)
 export type PostingsResponseDTO = PostingDTO[];

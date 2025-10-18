@@ -9,10 +9,12 @@ import {
   TextInput,
   useWindowDimensions,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "../hooks/AuthContext"; // Adjust path as needed
-import { createTrnPosting } from "./services/postings/api";
+import { createTrnPosting, listMetrics } from "./services/postings/api";
+import { Metric } from "./services/postings/types";
 
 type Study = {
   id: string;
@@ -38,37 +40,72 @@ export default function ManageStudy(): JSX.Element {
   const [description, setDescription] = useState("");
   const [length, setLength] = useState("");
   const [active, setActive] = useState(true);
-  useEffect(() => {
-    // In a real app fetch the study using studyId and populate state.
-    // Here initial state is already set above.
-  }, [studyId]);
 
+  // metrics state
+  const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [metricsLoading, setMetricsLoading] = useState(false);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
+
+  // dropdown state / selected metric ids
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [selectedMetricIds, setSelectedMetricIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadMetrics() {
+      setMetricsLoading(true);
+      setMetricsError(null);
+      try {
+        const items = await listMetrics();
+        if (!mounted) return;
+        setMetrics(items);
+      } catch (err) {
+        console.error("Failed to load metrics", err);
+        if (mounted) setMetricsError(String(err ?? "Failed to load metrics"));
+      } finally {
+        if (mounted) setMetricsLoading(false);
+      }
+    }
+    void loadMetrics();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  function toggleMetric(metricId: number) {
+    setSelectedMetricIds((prev) =>
+      prev.includes(metricId) ? prev.filter((id) => id !== metricId) : [...prev, metricId],
+    );
+  }
+
+  function selectedNames() {
+    return metrics
+      .filter((m) => selectedMetricIds.includes(m.metricId))
+      .map((m) => m.displayName)
+      .join(", ");
+  }
 
   async function handlePublish() {
-    // In a real app call the API here.
-    // For now navigate back to the read-only detail and show the banner via query param.
-
-
     try {
-      const payload = {
+      const payload: any = {
         title,
         summary,
         description,
         dataCoverageDaysRequired: Number(length) || 1,
         postingStatusId: active ? 1 : 0,
+        postingMetricsIds: selectedMetricIds,
       };
-      
-      const response = await createTrnPosting(payload as any);
-      
 
-      // Navigate to the index with a query flag that signals "saved"
-      // index.tsx will read the param and show a temporary banner.
-      router.replace(`/studies/${response.id}?saved=1`);
+      console.log("Publishing payload:", payload);
+      const response = await createTrnPosting(payload as any);
+
+      // Navigate to created study detail
+      router.replace(`/studies/${response.id}`);
     } catch (error) {
       console.error("Error saving study:", error);
+      // show minimal feedback — you can replace with a toast
+      alert("Failed to publish study. See console for details.");
     }
-
-
   }
 
   function handleCancel() {
@@ -78,12 +115,7 @@ export default function ManageStudy(): JSX.Element {
   return (
     <SafeAreaView style={styles.root}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View
-          style={[
-            styles.contentRow,
-            isNarrow ? styles.columnLayout : styles.rowLayout,
-          ]}
-        >
+        <View style={[styles.contentRow, isNarrow ? styles.columnLayout : styles.rowLayout]}>
           {/* LEFT: Form Card */}
           <View style={[styles.card, isNarrow ? styles.fullWidth : styles.leftColumn]}>
             <Text style={styles.heading}>Create A New Study</Text>
@@ -102,7 +134,7 @@ export default function ManageStudy(): JSX.Element {
               multiline
             />
 
-            <Text style={styles.label}>Length</Text>
+            <Text style={styles.label}>Length (days)</Text>
             <TextInput
               value={length}
               onChangeText={(t) => setLength(t.replace(/[^0-9]/g, ""))}
@@ -121,6 +153,49 @@ export default function ManageStudy(): JSX.Element {
                   {active ? "Active" : "Inactive"}
                 </Text>
               </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
+
+            <View>
+              <TouchableOpacity
+                style={[styles.dropdownToggle, dropdownOpen && styles.dropdownOpen]}
+                onPress={() => setDropdownOpen((v) => !v)}
+              >
+                <Text style={styles.dropdownText}>
+                  {selectedMetricIds.length > 0 ? selectedNames() : "Select metrics..."}
+                </Text>
+                <Text style={styles.dropdownChevron}>{dropdownOpen ? "▴" : "▾"}</Text>
+              </TouchableOpacity>
+
+              {dropdownOpen && (
+                <View style={styles.dropdownPane}>
+                  {metricsLoading ? (
+                    <ActivityIndicator />
+                  ) : metricsError ? (
+                    <Text style={{ color: "red" }}>{metricsError}</Text>
+                  ) : metrics.length === 0 ? (
+                    <Text style={styles.muted}>No metrics available</Text>
+                  ) : (
+                    metrics.map((m) => {
+                      const picked = selectedMetricIds.includes(m.metricId);
+                      if (!m.isActive) return null; // skip inactive if you want
+                      return (
+                        <TouchableOpacity
+                          key={m.metricId}
+                          style={styles.metricRow}
+                          onPress={() => toggleMetric(m.metricId)}
+                        >
+                          <View style={[styles.checkbox, picked && styles.checkboxChecked]}>
+                            {picked && <Text style={styles.checkboxTick}>✓</Text>}
+                          </View>
+                          <Text style={styles.metricLabel}>{m.displayName}</Text>
+                        </TouchableOpacity>
+                      );
+                    })
+                  )}
+                </View>
+              )}
             </View>
 
             <View style={styles.formActions}>
@@ -157,8 +232,8 @@ export default function ManageStudy(): JSX.Element {
             <View style={styles.helpBox}>
               <Text style={styles.helpTitle}>Tips</Text>
               <Text style={styles.helpText}>
-                Use the form to adjust title, length and description. Use "Add Participant" to add
-                demo participants while testing locally.
+                Select metrics that participants should provide. When published the payload will
+                include postingMetricsIds in the request body.
               </Text>
             </View>
           </View>
@@ -225,17 +300,51 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  participantsList: { marginTop: 6 },
-
-  participantRow: {
+  dropdownToggle: {
+    borderWidth: 1,
+    borderColor: "#e6e6e6",
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: "#fff",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f3f3f3",
   },
-  removeText: { color: "#d00", fontWeight: "600" },
+  dropdownOpen: { borderColor: "#0b74ff", shadowColor: "#0b74ff", elevation: 2 },
+  dropdownText: { color: "#111827" },
+  dropdownChevron: { color: "#6b7280", marginLeft: 8 },
+
+  dropdownPane: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#e6e6e6",
+    borderRadius: 8,
+    maxHeight: 240,
+    backgroundColor: "#fff",
+    paddingVertical: 6,
+  },
+
+  metricRow: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  checkbox: {
+    height: 20,
+    width: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    marginRight: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxChecked: { backgroundColor: "#0b74ff", borderColor: "#0b74ff" },
+  checkboxTick: { color: "#fff", fontSize: 12 },
+  metricLabel: { fontSize: 14 },
+
+  participantsList: { marginTop: 6 },
 
   formActions: {
     marginTop: 16,
@@ -253,8 +362,6 @@ const styles = StyleSheet.create({
   btnPrimaryText: { color: "#fff", fontWeight: "700" },
   btnGhost: { backgroundColor: "transparent", borderWidth: 1, borderColor: "#cbd5e1" },
   btnGhostText: { color: "#374151", fontWeight: "600" },
-  btnSmall: { backgroundColor: "#eef2ff", paddingHorizontal: 10 },
-  btnSmallText: { color: "#4f46e5", fontWeight: "600" },
 
   toggleBtn: {
     paddingVertical: 6,

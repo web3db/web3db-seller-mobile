@@ -1,5 +1,5 @@
 // src/services/postings/api.ts
-import type { Study, PostingsResponseDTO, PostingDTO } from "./types";
+import type { Study, PostingsResponseDTO, PostingDTO, Metric } from "./types";
 
 // --- Configuration & Utilities (Copied from original example) ---
 
@@ -145,4 +145,44 @@ export async function createTrnPosting(
   }
 
   return item; // Returns the mapped Study object
+}
+
+// add to app/services/postings/api.ts
+
+/**
+ * Fetch metrics from the Edge Function: GET /functions/v1/metrics
+ */
+export async function listMetrics(): Promise<Metric[]> {
+  const u = buildUrl("metrics");
+  if (__DEV__) console.log("[listMetrics] GET", u);
+
+  const res = await fetch(u, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    mode: "cors",
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    if (__DEV__) console.warn("[listMetrics] ✗", res.status, res.statusText, txt);
+    throw new Error(`metrics API failed: ${res.status} ${res.statusText} ${txt}`);
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json) return [];
+
+  // API returns { items: [...] }
+  const rawItems: any[] = Array.isArray(json.items) ? json.items : [];
+  const items: Metric[] = rawItems.map((it) => ({
+    metricId: Number(it.metricId ?? it.metric_id ?? it.id),
+    code: String(it.code ?? it.Code ?? ""),
+    displayName: String(it.displayName ?? it.display_name ?? it.DisplayName ?? ""),
+    canonicalUnitCode: String(it.canonicalUnitCode ?? it.canonical_unit_code ?? it.CanonicalUnitCode ?? ""),
+    isActive: Boolean(it.isActive ?? it.is_active ?? true),
+  }));
+
+  if (__DEV__) console.log(`[listMetrics] ✓ items=${items.length}`);
+  return items;
 }
