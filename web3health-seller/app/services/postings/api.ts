@@ -5,7 +5,8 @@ import type {
   PostingDTO, 
   Metric, 
   PostingStatus, 
-  RewardType 
+  RewardType,
+  HealthCondition
 } from "./types";
 
 // --- Configuration & Utilities (Copied from original example) ---
@@ -255,5 +256,39 @@ export async function listRewardTypes(): Promise<RewardType[]> {
   }));
 
   if (__DEV__) console.log(`[listRewardTypes] ✓ items=${items.length}`);
+  return items;
+}
+
+/** Fetch health conditions: GET /functions/v1/health_conditions */
+export async function listHealthConditions(): Promise<HealthCondition[]> {
+  const u = buildUrl("health_conditions");
+  if (__DEV__) console.log("[listHealthConditions] GET", u);
+
+  const res = await fetch(u, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    mode: "cors",
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    if (__DEV__) console.warn("[listHealthConditions] ✗", res.status, res.statusText, txt);
+    throw new Error(`health_conditions API failed: ${res.status} ${res.statusText} ${txt}`);
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json) return [];
+
+  // the function returns an array (per your example) or { items: [...] } in other endpoints
+  // handle both shapes for safety:
+  const rawArr: any[] = Array.isArray(json) ? json : Array.isArray(json.items) ? json.items : [];
+
+  const items: HealthCondition[] = rawArr.map((r) => ({
+    healthConditionId: Number(r.healthConditionId ?? r.health_condition_id ?? r.id),
+    code: String(r.code ?? ""),
+    displayName: String(r.displayName ?? r.display_name ?? ""),
+  }));
+
+  if (__DEV__) console.log(`[listHealthConditions] ✓ items=${items.length}`);
   return items;
 }

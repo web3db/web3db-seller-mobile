@@ -10,11 +10,18 @@ import {
   useWindowDimensions,
   Platform,
   ActivityIndicator,
+  FlatList,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "../hooks/AuthContext"; // Adjust path as needed
-import { createTrnPosting, listMetrics, listPostingStatuses, listRewardTypes } from "./services/postings/api";
-import { Metric, PostingStatus, RewardType } from "./services/postings/types";
+import {
+  createTrnPosting,
+  listMetrics,
+  listPostingStatuses,
+  listRewardTypes,
+  listHealthConditions
+} from "./services/postings/api";
+import { Metric, PostingStatus, RewardType, HealthCondition } from "./services/postings/types";
 import SingleSelectDropdown from "../components/SingleSelectDropdown";
 
 type Study = {
@@ -63,6 +70,16 @@ export default function ManageStudy(): JSX.Element {
   const [rewardTypesError, setRewardTypesError] = useState<string | null>(null);
   // default selected reward type id = 1 (Points)
   const [selectedRewardTypeId, setSelectedRewardTypeId] = useState<number>(1);
+
+  // health conditions
+  const [healthConditions, setHealthConditions] = useState<HealthCondition[]>([]);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const [selectedHealthConditionIds, setSelectedHealthConditionIds] = useState<number[]>([]);
+  const [healthDropdownOpen, setHealthDropdownOpen] = useState(false);
+
+  // reward value
+  const [rewardValue, setRewardValue] = useState("");
 
   // mount metrics
   useEffect(() => {
@@ -139,9 +156,36 @@ export default function ManageStudy(): JSX.Element {
     return () => { mounted = false; };
   }, []);
 
+  // mount health conditions
+  useEffect(() => {
+    let mounted = true;
+    async function loadHealth() {
+      setHealthLoading(true);
+      setHealthError(null);
+      try {
+        const items = await listHealthConditions();
+        if (!mounted) return;
+        setHealthConditions(items);
+      } catch (err) {
+        console.error("Failed to load health conditions", err);
+        if (mounted) setHealthError(String(err ?? "Failed to load health conditions"));
+      } finally {
+        if (mounted) setHealthLoading(false);
+      }
+    }
+    void loadHealth();
+    return () => { mounted = false; };
+  }, []);
+
   function toggleMetric(metricId: number) {
     setSelectedMetricIds((prev) =>
       prev.includes(metricId) ? prev.filter((id) => id !== metricId) : [...prev, metricId],
+    );
+  }
+
+  function toggleHealthCondition(id: number) {
+    setSelectedHealthConditionIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   }
 
@@ -161,6 +205,9 @@ export default function ManageStudy(): JSX.Element {
         dataCoverageDaysRequired: Number(length) || 1,
         postingStatusId: active ? 1 : 0,
         postingMetricsIds: selectedMetricIds,
+        rewardTypeId: selectedRewardTypeId,
+        rewardValue: Number(rewardValue) || 0,
+        healthConditionsIds: selectedHealthConditionIds,
       };
 
       console.log("Publishing payload:", payload);
@@ -245,78 +292,145 @@ export default function ManageStudy(): JSX.Element {
                   ) : metrics.length === 0 ? (
                     <Text style={styles.muted}>No metrics available</Text>
                   ) : (
-                    metrics.map((m) => {
-                      const picked = selectedMetricIds.includes(m.metricId);
-                      if (!m.isActive) return null; // skip inactive if you want
-                      return (
-                        <TouchableOpacity
-                          key={m.metricId}
-                          style={styles.metricRow}
-                          onPress={() => toggleMetric(m.metricId)}
-                        >
-                          <View style={[styles.checkbox, picked && styles.checkboxChecked]}>
-                            {picked && <Text style={styles.checkboxTick}>✓</Text>}
-                          </View>
-                          <Text style={styles.metricLabel}>{m.displayName}</Text>
-                        </TouchableOpacity>
-                      );
-                    })
+                    <FlatList
+                      data={metrics}
+                      keyExtractor={(m) => String(m.metricId)}
+                      style={{ maxHeight: 240 }}
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={true}
+                      renderItem={({ item: m }) => {
+                        const picked = selectedMetricIds.includes(m.metricId);
+                        if (!m.isActive) return null; // skip inactive if you want
+                        return (
+                          <TouchableOpacity
+                            style={styles.metricRow}
+                            onPress={() => toggleMetric(m.metricId)}
+                          >
+                            <View style={[styles.checkbox, picked && styles.checkboxChecked]}>
+                              {picked && <Text style={styles.checkboxTick}>✓</Text>}
+                            </View>
+                            <Text style={styles.metricLabel}>{m.displayName}</Text>
+                          </TouchableOpacity>
+                        );
+                      }}
+                    />
                   )}
                 </View>
               )}
-            </View>
 
-            <Text style={styles.label}>Reward Type</Text>
-            {rewardTypesLoading ? (
-              <ActivityIndicator />
-            ) : rewardTypesError ? (
-              <Text style={{ color: "red" }}>{rewardTypesError}</Text>
-            ) : (
-              <SingleSelectDropdown
-                items={rewardTypes.map((r) => ({ id: r.rewardTypeId, displayName: r.displayName }))}
-                selectedId={selectedRewardTypeId}
-                onSelect={(id) => setSelectedRewardTypeId(Number(id))}
-                placeholder="Select reward type..."
-              />
-            )}
+              <Text style={[styles.label, { marginTop: 12 }]}>Health Conditions</Text>
 
-            <View style={styles.formActions}>
-              <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={handlePublish}>
-                <Text style={styles.btnPrimaryText}>Publish</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={handleCancel}>
-                <Text style={styles.btnGhostText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+              <View>
+                <TouchableOpacity
+                  style={[styles.dropdownToggle, healthDropdownOpen && styles.dropdownOpen]}
+                  onPress={() => setHealthDropdownOpen((v) => !v)}
+                >
+                  <Text style={styles.dropdownText}>
+                    {selectedHealthConditionIds.length > 0
+                      ? healthConditions
+                        .filter((h) => selectedHealthConditionIds.includes(h.healthConditionId))
+                        .map((h) => h.displayName)
+                        .join(", ")
+                      : "Select health conditions..."}
+                  </Text>
+                  <Text style={styles.dropdownChevron}>{healthDropdownOpen ? "▴" : "▾"}</Text>
+                </TouchableOpacity>
 
-          {/* RIGHT: Stats Card */}
-          <View style={[styles.card, isNarrow ? styles.fullWidth : styles.rightColumn]}>
-            <Text style={styles.statHeading}>Study Statistics</Text>
+                {healthDropdownOpen && (
+                  <View style={styles.dropdownPane}>
+                    {healthLoading ? (
+                      <ActivityIndicator />
+                    ) : healthError ? (
+                      <Text style={{ color: "red" }}>{healthError}</Text>
+                    ) : healthConditions.length === 0 ? (
+                      <Text style={styles.muted}>No health conditions available</Text>
+                    ) : (
+                      <FlatList
+                        data={healthConditions}
+                        keyExtractor={(hc) => String(hc.healthConditionId)}
+                        style={{ maxHeight: 240 }}
+                        keyboardShouldPersistTaps="handled"
+                        renderItem={({ item: hc }) => {
+                          const picked = selectedHealthConditionIds.includes(hc.healthConditionId);
+                          return (
+                            <TouchableOpacity
+                              key={hc.healthConditionId}
+                              style={styles.metricRow}
+                              onPress={() => toggleHealthCondition(hc.healthConditionId)}
+                            >
+                              <View style={[styles.checkbox, picked && styles.checkboxChecked]}>
+                                {picked && <Text style={styles.checkboxTick}>✓</Text>}
+                              </View>
+                              <Text style={styles.metricLabel}>{hc.displayName}</Text>
+                            </TouchableOpacity>
+                          );
+                        }}
+                      />
+                    )}
+                  </View>
+                )}
 
-            <View style={styles.statRow}>
-              <View style={styles.statBox}>
-                <Text style={styles.statNumber}>0</Text>
-                <Text style={styles.statLabel}>Participants</Text>
+                <Text style={styles.label}>Reward Type</Text>
+                {rewardTypesLoading ? (
+                  <ActivityIndicator />
+                ) : rewardTypesError ? (
+                  <Text style={{ color: "red" }}>{rewardTypesError}</Text>
+                ) : (
+                  <SingleSelectDropdown
+                    items={rewardTypes.map((r) => ({ id: r.rewardTypeId, displayName: r.displayName }))}
+                    selectedId={selectedRewardTypeId}
+                    onSelect={(id) => setSelectedRewardTypeId(Number(id))}
+                    placeholder="Select reward type..."
+                  />
+                )}
+
+                <Text style={styles.label}>Reward Value</Text>
+                <TextInput
+                  value={rewardValue}
+                  onChangeText={(t) => setRewardValue(t.replace(/[^0-9]/g, ""))}
+                  style={styles.input}
+                  keyboardType="numeric"
+                />
+
+                <View style={styles.formActions}>
+                  <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={handlePublish}>
+                    <Text style={styles.btnPrimaryText}>Publish</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={handleCancel}>
+                    <Text style={styles.btnGhostText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
-              <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{Number(length) || 0}</Text>
-                <Text style={styles.statLabel}>Days</Text>
+              {/* RIGHT: Stats Card */}
+              <View style={[styles.card, isNarrow ? styles.fullWidth : styles.rightColumn]}>
+                <Text style={styles.statHeading}>Study Statistics</Text>
+
+                <View style={styles.statRow}>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statNumber}>0</Text>
+                    <Text style={styles.statLabel}>Participants</Text>
+                  </View>
+
+                  <View style={styles.statBox}>
+                    <Text style={styles.statNumber}>{Number(length) || 0}</Text>
+                    <Text style={styles.statLabel}>Days</Text>
+                  </View>
+                </View>
+
+                <View style={styles.metaBlock}>
+                  <Text style={styles.metaLabel}>Organizer</Text>
+                  <Text style={styles.metaValue}>{auth.user?.name ? auth.user.name : "Unknown"}</Text>
+                </View>
+
+                <View style={styles.helpBox}>
+                  <Text style={styles.helpTitle}>Tips</Text>
+                  <Text style={styles.helpText}>
+                    Select metrics that participants should provide. When published the payload will
+                    include postingMetricsIds in the request body.
+                  </Text>
+                </View>
               </View>
-            </View>
-
-            <View style={styles.metaBlock}>
-              <Text style={styles.metaLabel}>Organizer</Text>
-              <Text style={styles.metaValue}>{auth.user?.name ? auth.user.name : "Unknown"}</Text>
-            </View>
-
-            <View style={styles.helpBox}>
-              <Text style={styles.helpTitle}>Tips</Text>
-              <Text style={styles.helpText}>
-                Select metrics that participants should provide. When published the payload will
-                include postingMetricsIds in the request body.
-              </Text>
             </View>
           </View>
         </View>
