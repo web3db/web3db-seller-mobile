@@ -13,8 +13,9 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "../hooks/AuthContext"; // Adjust path as needed
-import { createTrnPosting, listMetrics } from "./services/postings/api";
-import { Metric } from "./services/postings/types";
+import { createTrnPosting, listMetrics, listPostingStatuses } from "./services/postings/api";
+import { Metric, PostingStatus } from "./services/postings/types";
+import SingleSelectDropdown from "../components/SingleSelectDropdown";
 
 type Study = {
   id: string;
@@ -50,6 +51,13 @@ export default function ManageStudy(): JSX.Element {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedMetricIds, setSelectedMetricIds] = useState<number[]>([]);
 
+  // statuses
+  const [statuses, setStatuses] = useState<PostingStatus[]>([]);
+  const [statusesLoading, setStatusesLoading] = useState(false);
+  const [statusesError, setStatusesError] = useState<string | null>(null);
+  const [selectedStatusId, setSelectedStatusId] = useState<number>(2);
+
+  // mount metrics
   useEffect(() => {
     let mounted = true;
     async function loadMetrics() {
@@ -70,6 +78,32 @@ export default function ManageStudy(): JSX.Element {
     return () => {
       mounted = false;
     };
+  }, []);
+
+  // mount posting statuses
+  useEffect(() => {
+    let mounted = true;
+    async function loadStatuses() {
+      setStatusesLoading(true);
+      setStatusesError(null);
+      try {
+        const items = await listPostingStatuses();
+        if (!mounted) return;
+        setStatuses(items);
+        // if returned items don't include default 2, optionally set first active
+        if (!items.some((i) => i.postingStatusId === 2)) {
+          const first = items.find((i) => i.isActive);
+          if (first) setSelectedStatusId(first.postingStatusId);
+        }
+      } catch (err) {
+        console.error("Failed to load statuses", err);
+        if (mounted) setStatusesError(String(err ?? "Failed to load statuses"));
+      } finally {
+        if (mounted) setStatusesLoading(false);
+      }
+    }
+    void loadStatuses();
+    return () => { mounted = false; }
   }, []);
 
   function toggleMetric(metricId: number) {
@@ -142,18 +176,19 @@ export default function ManageStudy(): JSX.Element {
               keyboardType="numeric"
             />
 
-            <Text style={styles.label}>Active</Text>
-            <View style={styles.rowBetween}>
-              <Text style={styles.metaText}>{active ? "Yes" : "No"}</Text>
-              <TouchableOpacity
-                onPress={() => setActive((v) => !v)}
-                style={[styles.toggleBtn, active && styles.toggleBtnActive]}
-              >
-                <Text style={[styles.toggleText, active && styles.toggleTextActive]}>
-                  {active ? "Active" : "Inactive"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.label}>Status</Text>
+            {statusesLoading ? (
+              <ActivityIndicator />
+            ) : statusesError ? (
+              <Text style={{ color: "red" }}>{statusesError}</Text>
+            ) : (
+              <SingleSelectDropdown
+                items={statuses.map((s) => ({ id: s.postingStatusId, displayName: s.displayName }))}
+                selectedId={selectedStatusId}
+                onSelect={(id) => setSelectedStatusId(Number(id))}
+                placeholder="Select status..."
+              />
+            )}
 
             <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
 

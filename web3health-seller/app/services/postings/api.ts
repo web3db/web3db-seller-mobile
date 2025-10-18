@@ -1,5 +1,5 @@
 // src/services/postings/api.ts
-import type { Study, PostingsResponseDTO, PostingDTO, Metric } from "./types";
+import type { Study, PostingsResponseDTO, PostingDTO, Metric, PostingStatus } from "./types";
 
 // --- Configuration & Utilities (Copied from original example) ---
 
@@ -184,5 +184,37 @@ export async function listMetrics(): Promise<Metric[]> {
   }));
 
   if (__DEV__) console.log(`[listMetrics] ✓ items=${items.length}`);
+  return items;
+}
+
+/** Fetch posting statuses: GET /functions/v1/posting_statuses */
+export async function listPostingStatuses(): Promise<PostingStatus[]> {
+  const u = buildUrl("posting_statuses");
+  if (__DEV__) console.log("[listPostingStatuses] GET", u);
+
+  const res = await fetch(u, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    mode: "cors",
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    if (__DEV__) console.warn("[listPostingStatuses] ✗", res.status, res.statusText, txt);
+    throw new Error(`posting_statuses API failed: ${res.status} ${res.statusText} ${txt}`);
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json) return [];
+
+  const raw: any[] = Array.isArray(json.items) ? json.items : [];
+  const items: PostingStatus[] = raw.map((r) => ({
+    postingStatusId: Number(r.postingStatusId ?? r.posting_status_id ?? r.id),
+    code: String(r.code ?? ""),
+    displayName: String(r.displayName ?? r.display_name ?? ""),
+    isActive: Boolean(r.isActive ?? r.is_active ?? true),
+  }));
+
+  if (__DEV__) console.log(`[listPostingStatuses] ✓ items=${items.length}`);
   return items;
 }
