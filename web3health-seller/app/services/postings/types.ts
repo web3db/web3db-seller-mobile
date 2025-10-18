@@ -42,5 +42,12 @@ export type PostingStatus = {
   isActive: boolean;
 };
 
+export type RewardType = {
+  rewardTypeId: number;
+  code: string;
+  displayName: string;
+  isActive: boolean;
+};
+
 // Assuming the response is an array of raw objects (common for simple functions)
 export type PostingsResponseDTO = PostingDTO[];

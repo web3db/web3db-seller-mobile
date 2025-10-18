@@ -1,5 +1,12 @@
 // src/services/postings/api.ts
-import type { Study, PostingsResponseDTO, PostingDTO, Metric, PostingStatus } from "./types";
+import type { 
+  Study, 
+  PostingsResponseDTO, 
+  PostingDTO, 
+  Metric, 
+  PostingStatus, 
+  RewardType 
+} from "./types";
 
 // --- Configuration & Utilities (Copied from original example) ---
 
@@ -216,5 +223,37 @@ export async function listPostingStatuses(): Promise<PostingStatus[]> {
   }));
 
   if (__DEV__) console.log(`[listPostingStatuses] ✓ items=${items.length}`);
+  return items;
+}
+
+/** Fetch reward types: GET /functions/v1/reward_types */
+export async function listRewardTypes(): Promise<RewardType[]> {
+  const u = buildUrl("reward_types");
+  if (__DEV__) console.log("[listRewardTypes] GET", u);
+
+  const res = await fetch(u, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    mode: "cors",
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    if (__DEV__) console.warn("[listRewardTypes] ✗", res.status, res.statusText, txt);
+    throw new Error(`reward_types API failed: ${res.status} ${res.statusText} ${txt}`);
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json) return [];
+
+  const raw: any[] = Array.isArray(json.items) ? json.items : [];
+  const items: RewardType[] = raw.map((r) => ({
+    rewardTypeId: Number(r.rewardTypeId ?? r.reward_type_id ?? r.id),
+    code: String(r.code ?? ""),
+    displayName: String(r.displayName ?? r.display_name ?? ""),
+    isActive: Boolean(r.isActive ?? r.is_active ?? true),
+  }));
+
+  if (__DEV__) console.log(`[listRewardTypes] ✓ items=${items.length}`);
   return items;
 }

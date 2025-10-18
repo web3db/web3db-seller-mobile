@@ -13,8 +13,8 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "../hooks/AuthContext"; // Adjust path as needed
-import { createTrnPosting, listMetrics, listPostingStatuses } from "./services/postings/api";
-import { Metric, PostingStatus } from "./services/postings/types";
+import { createTrnPosting, listMetrics, listPostingStatuses, listRewardTypes } from "./services/postings/api";
+import { Metric, PostingStatus, RewardType } from "./services/postings/types";
 import SingleSelectDropdown from "../components/SingleSelectDropdown";
 
 type Study = {
@@ -56,6 +56,13 @@ export default function ManageStudy(): JSX.Element {
   const [statusesLoading, setStatusesLoading] = useState(false);
   const [statusesError, setStatusesError] = useState<string | null>(null);
   const [selectedStatusId, setSelectedStatusId] = useState<number>(2);
+
+  // reward types
+  const [rewardTypes, setRewardTypes] = useState<RewardType[]>([]);
+  const [rewardTypesLoading, setRewardTypesLoading] = useState(false);
+  const [rewardTypesError, setRewardTypesError] = useState<string | null>(null);
+  // default selected reward type id = 1 (Points)
+  const [selectedRewardTypeId, setSelectedRewardTypeId] = useState<number>(1);
 
   // mount metrics
   useEffect(() => {
@@ -104,6 +111,32 @@ export default function ManageStudy(): JSX.Element {
     }
     void loadStatuses();
     return () => { mounted = false; }
+  }, []);
+
+  // mount reward types
+  useEffect(() => {
+    let mounted = true;
+    async function loadRewardTypes() {
+      setRewardTypesLoading(true);
+      setRewardTypesError(null);
+      try {
+        const items = await listRewardTypes();
+        if (!mounted) return;
+        setRewardTypes(items);
+        // ensure default exists; if not pick first active
+        if (!items.some((i) => i.rewardTypeId === 1)) {
+          const firstActive = items.find((i) => i.isActive);
+          if (firstActive) setSelectedRewardTypeId(firstActive.rewardTypeId);
+        }
+      } catch (err) {
+        console.error("Failed to load reward types", err);
+        if (mounted) setRewardTypesError(String(err ?? "Failed to load reward types"));
+      } finally {
+        if (mounted) setRewardTypesLoading(false);
+      }
+    }
+    void loadRewardTypes();
+    return () => { mounted = false; };
   }, []);
 
   function toggleMetric(metricId: number) {
@@ -232,6 +265,20 @@ export default function ManageStudy(): JSX.Element {
                 </View>
               )}
             </View>
+
+            <Text style={styles.label}>Reward Type</Text>
+            {rewardTypesLoading ? (
+              <ActivityIndicator />
+            ) : rewardTypesError ? (
+              <Text style={{ color: "red" }}>{rewardTypesError}</Text>
+            ) : (
+              <SingleSelectDropdown
+                items={rewardTypes.map((r) => ({ id: r.rewardTypeId, displayName: r.displayName }))}
+                selectedId={selectedRewardTypeId}
+                onSelect={(id) => setSelectedRewardTypeId(Number(id))}
+                placeholder="Select reward type..."
+              />
+            )}
 
             <View style={styles.formActions}>
               <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={handlePublish}>
