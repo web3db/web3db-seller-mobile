@@ -11,10 +11,9 @@ import {
   Platform,
   ActivityIndicator,
   FlatList,
-  Button, // Import Button
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import DateTimePicker from '@react-native-community/datetimepicker'; // Import DateTimePicker
+import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   updateTrnPosting,
   listMetrics,
@@ -122,8 +121,8 @@ const ManageStudy: React.FC = () => {
 
           setSelectedStatusId(detail.postingStatusId ?? null);
           setSelectedRewardTypeId(detail.rewardTypeId ?? null);
-          setSelectedMetricIds(Array.isArray(detail.metrics) ? detail.metrics.map((m: any) => m.metricId) : []);
-          setSelectedHealthConditionIds(Array.isArray(detail.health_condition_ids) ? detail.health_condition_ids : []);
+          setSelectedMetricIds(Array.isArray(detail.metricId) ? detail.metricId.map((id: any) => Number(id)) : []);
+          setSelectedHealthConditionIds(Array.isArray(detail.healthConditions) ? detail.healthConditions.map((h: any) => Number(h.healthConditionId)) : []);
         }
       } catch (err) {
         console.error(err);
@@ -232,27 +231,33 @@ const ManageStudy: React.FC = () => {
   }
 
   async function handleSave() {
-    if (!postingId) return alert("No study loaded");
-    const payload = {
-      title,
-      summary,
-      description,
-      dataCoverageDaysRequired: dataCoverageDaysRequired ? Number(dataCoverageDaysRequired) : null,
-      postingStatusId: selectedStatusId ? Number(selectedStatusId) : null,
-      rewardTypeId: selectedRewardTypeId,
-      posting_metrics_ids: selectedMetricIds,
-      health_condition_ids: selectedHealthConditionIds,
-      // Format dates to ISO 8601 string for the API
-      applyOpenAt: applyOpenAt ? applyOpenAt.toISOString() : null,
-      applyCloseAt: applyCloseAt ? applyCloseAt.toISOString() : null,
-    };
-    try {
-      await updateTrnPosting(postingId, payload as any);
-      router.replace(`/studies/${postingId}?saved=1`);
-    } catch (err) {
-      alert("Failed to save changes: " + (err instanceof Error ? err.message : String(err)));
-    }
+  if (!postingId) return alert("No study loaded");
+  const payload = {
+    title,
+    summary,
+    description,
+    dataCoverageDaysRequired: dataCoverageDaysRequired ? Number(dataCoverageDaysRequired) : null,
+    // posting status id (number or null)
+    postingStatusCode: selectedStatusId ? Number(selectedStatusId) : null,
+    // reward type id
+    rewardTypeId: selectedRewardTypeId,
+    // array of metric IDs (number[])
+    metricId: selectedMetricIds,
+    metricDisplayName: selectedMetricsNames(),
+    // array of health condition IDs (number[])
+    healthConditionIds: selectedHealthConditionIds,
+    // dates (ISO strings or null)
+    applyOpenAt: applyOpenAt ? applyOpenAt.toISOString() : null,
+    applyCloseAt: applyCloseAt ? applyCloseAt.toISOString() : null,
+  };
+  try {
+    const res = await updateTrnPosting(postingId, payload as any);
+    console.log(res)
+    router.replace(`/studies/${postingId}?saved=1`);
+  } catch (err) {
+    alert("Failed to save changes: " + (err instanceof Error ? err.message : String(err)));
   }
+}
 
   function handleCancel() {
     router.back();
@@ -363,7 +368,14 @@ const ManageStudy: React.FC = () => {
               <View style={styles.dropdownPane}>
                 {metricsLoading ? <ActivityIndicator /> : 
                   <FlatList
-                    data={metrics.filter(m => m.isActive)}
+                    data={((metrics as any).filter((m: any) => (m.isActive ?? true)) as any[])
+                      .slice()
+                      .sort((a, b) => {
+                        const aSel = selectedMetricIds.includes(a.metricId);
+                        const bSel = selectedMetricIds.includes(b.metricId);
+                        if (aSel === bSel) return 0;
+                        return aSel ? -1 : 1;
+                      })}
                     keyExtractor={(m) => String(m.metricId)}
                     renderItem={({ item }) => {
                       const picked = selectedMetricIds.includes(item.metricId);
@@ -390,7 +402,12 @@ const ManageStudy: React.FC = () => {
               <View style={styles.dropdownPane}>
                 {healthLoading ? <ActivityIndicator /> : 
                   <FlatList
-                    data={healthConditions.filter(h => h.isActive)}
+                    data={healthConditions.slice().sort((a, b) => {
+                      const aSel = selectedHealthConditionIds.includes(a.healthConditionId);
+                      const bSel = selectedHealthConditionIds.includes(b.healthConditionId);
+                      if (aSel === bSel) return 0;
+                      return aSel ? -1 : 1;
+                    })}
                     keyExtractor={(h) => String(h.healthConditionId)}
                     renderItem={({ item }) => {
                       const picked = selectedHealthConditionIds.includes(item.healthConditionId);

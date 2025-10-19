@@ -27,7 +27,7 @@ type StudyDetail = {
   minAge: number;
   rewardTypeId: number | null;
   rewardTypeDisplayName: string | null;
-  metrics: { id: number; displayName: string }[];
+  metrics: { metricId: number; metricDisplayName: string }[];
   viewPolicies: any[];
   healthConditions: { id: number; displayName: string }[];
   tags: string[];
@@ -185,8 +185,8 @@ export default function StudyDetail() {
                 <Text style={styles.muted}>No metrics</Text>
               ) : (
                 study.metrics.map((m, i) => (
-                  <View key={m.id + '-' + i} style={styles.participantRow}>
-                    <Text>{m.displayName}</Text>
+                  <View key={m.metricId + '-' + i} style={styles.participantRow}>
+                    <Text>{m.metricDisplayName}</Text>
                   </View>
                 ))
               )}
