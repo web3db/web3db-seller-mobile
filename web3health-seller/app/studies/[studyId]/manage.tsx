@@ -1,7 +1,4 @@
-
 import React, { useEffect, useState } from "react";
-import { Picker } from '@react-native-picker/picker';
-
 import {
   SafeAreaView,
   ScrollView,
@@ -12,37 +9,26 @@ import {
   TextInput,
   useWindowDimensions,
   Platform,
+  ActivityIndicator,
+  FlatList,
+  Button, // Import Button
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { updateTrnPosting } from "../../services/postings/api";
-
-type Metric = { id: number; displayName: string };
-type HealthCondition = { id: number; displayName: string };
-type Study = {
-  postingId: number;
-  buyerUserId: number;
-  buyerDisplayName: string;
-  postingStatusId: number;
-  postingStatusDisplayName: string;
-  title: string;
-  summary: string;
-  description: string | null;
-  applyOpenAt: string | null;
-  applyCloseAt: string | null;
-  dataCoverageDaysRequired: number | null;
-  minAge: number;
-  rewardTypeId: number | null;
-  rewardTypeDisplayName: string | null;
-  metrics: Metric[];
-  viewPolicies: any[];
-  healthConditions: HealthCondition[];
-  tags: string[];
-  images: any[];
-  isActive: boolean;
-  isModified: boolean | null;
-  createdOn: string | null;
-  modifiedOn: string | null;
-};
+import DateTimePicker from '@react-native-community/datetimepicker'; // Import DateTimePicker
+import {
+  updateTrnPosting,
+  listMetrics,
+  listHealthConditions,
+  listRewardTypes,
+  listPostingStatuses,
+} from "../../services/postings/api";
+import {
+  Metric,
+  HealthCondition,
+  RewardType,
+  PostingStatus,
+} from "../../services/postings/types";
+import SingleSelectDropdown from "../../../components/SingleSelectDropdown";
 
 const ManageStudy: React.FC = () => {
   const { studyId } = useLocalSearchParams() as { studyId?: string };
@@ -50,95 +36,97 @@ const ManageStudy: React.FC = () => {
   const { width } = useWindowDimensions();
   const isNarrow = width < 720;
 
-  // form state (pre-filled, will be set after fetch)
-  const [postingStatusId, setPostingStatusId] = useState<number>(1);
-  const [postingStatusDisplayName, setPostingStatusDisplayName] = useState("");
-  const [postingStatusCode, setPostingStatusCode] = useState<string>("Draft");
+  // Form state
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [description, setDescription] = useState("");
-  const [applyOpenAt, setApplyOpenAt] = useState<string | null>(null);
-  const [applyCloseAt, setApplyCloseAt] = useState<string | null>(null);
   const [dataCoverageDaysRequired, setDataCoverageDaysRequired] = useState("");
-  const [minAge, setMinAge] = useState("");
-  const [rewardTypeId, setRewardTypeId] = useState("");
-  const [rewardTypeDisplayName, setRewardTypeDisplayName] = useState("");
-  const [metrics, setMetrics] = useState<Metric[]>([]);
-  const [healthConditions, setHealthConditions] = useState<HealthCondition[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
-  const [isActive, setIsActive] = useState(true);
-  const [isModified, setIsModified] = useState<boolean | null>(null);
-  const [createdOn, setCreatedOn] = useState<string | null>(null);
-  const [modifiedOn, setModifiedOn] = useState<string | null>(null);
   const [postingId, setPostingId] = useState<number | null>(null);
-  const [buyerUserId, setBuyerUserId] = useState<number | null>(null);
-  const [buyerDisplayName, setBuyerDisplayName] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
+  // --- Date Picker State ---
+  const [applyOpenAt, setApplyOpenAt] = useState<Date | null>(null);
+  const [applyCloseAt, setApplyCloseAt] = useState<Date | null>(null);
+  const [openDateString, setOpenDateString] = useState(''); // <-- Add this
+  const [closeDateString, setCloseDateString] = useState(''); // <-- Add this
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerField, setDatePickerField] = useState<'open' | 'close' | null>(null);
+
+  // --- Dropdown options state ---
+  const [statuses, setStatuses] = useState<PostingStatus[]>([]);
+  const [rewardTypes, setRewardTypes] = useState<RewardType[]>([]);
+  const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [healthConditions, setHealthConditions] = useState<HealthCondition[]>([]);
+  
+  // --- Loading/Errors state ---
+  const [statusesLoading, setStatusesLoading] = useState(true);
+  const [rewardTypesLoading, setRewardTypesLoading] = useState(true);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+  const [healthLoading, setHealthLoading] = useState(true);
+
+  // --- Selected IDs state ---
+  const [selectedStatusId, setSelectedStatusId] = useState<number | null>(null);
+  const [selectedRewardTypeId, setSelectedRewardTypeId] = useState<number | null>(null);
+  const [selectedMetricIds, setSelectedMetricIds] = useState<number[]>([]);
+  const [selectedHealthConditionIds, setSelectedHealthConditionIds] = useState<number[]>([]);
+
+  // --- Dropdown UI state ---
+  const [metricsDropdownOpen, setMetricsDropdownOpen] = useState(false);
+  const [healthDropdownOpen, setHealthDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    listPostingStatuses().then(setStatuses).finally(() => setStatusesLoading(false));
+    listRewardTypes().then(setRewardTypes).finally(() => setRewardTypesLoading(false));
+    listMetrics().then(setMetrics).finally(() => setMetricsLoading(false));
+    listHealthConditions().then(setHealthConditions).finally(() => setHealthLoading(false));
+  }, []);
 
   useEffect(() => {
     async function fetchStudyDetail() {
       if (!studyId) return;
       setLoading(true);
       try {
-        // Hardcoded buyerId for now (should be dynamic in real app)
         const buyerId = 3;
-        const endpoint = `/buyers_postings_detail/${buyerId}/${studyId}`;
-        // Use the same FUNCTIONS_BASE as in api.ts
-        const { FUNCTIONS_BASE } = await import("../../services/postings/api");
-        const url = `${FUNCTIONS_BASE}${endpoint}`;
-        const res = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
-        if (!res.ok) throw new Error(`Failed to fetch study detail: ${res.status}`);
-        const data = await res.json();
-        // If the API returns an array, use the first item
-        const detail = Array.isArray(data) ? data[0] : data;
+        const { getTrnPostingDetail } = await import("../../services/postings/api");
+        const detail = await getTrnPostingDetail(buyerId, studyId);
+
         if (detail) {
           setPostingId(Number(detail.postingId));
           setTitle(detail.title ?? "");
           setSummary(detail.summary ?? "");
           setDescription(detail.description ?? "");
-          setPostingStatusId(detail.postingStatusId ?? 1);
-          setPostingStatusDisplayName(detail.postingStatusDisplayName ?? "");
-          // Set postingStatusCode based on displayName or id
-          if (detail.postingStatusDisplayName) {
-            const codeMap: Record<string, string> = {
-              "Draft": "Draft",
-              "Open": "Open",
-              "Paused": "Paused",
-              "Closed": "Closed",
-              "Archived": "Archived",
-            };
-            setPostingStatusCode(codeMap[detail.postingStatusDisplayName] || "Draft");
-          } else if (detail.postingStatusId) {
-            const idMap: Record<number, string> = {
-              1: "Draft",
-              2: "Open",
-              3: "Paused",
-              4: "Closed",
-              5: "Archived",
-            };
-            setPostingStatusCode(idMap[detail.postingStatusId] || "Draft");
-          } else {
-            setPostingStatusCode("Draft");
-          }
-          setApplyOpenAt(detail.applyOpenAt ?? null);
-          setApplyCloseAt(detail.applyCloseAt ?? null);
           setDataCoverageDaysRequired(detail.dataCoverageDaysRequired ? String(detail.dataCoverageDaysRequired) : "");
-          setMinAge(detail.minAge ? String(detail.minAge) : "");
-          setRewardTypeId(detail.rewardTypeId ? String(detail.rewardTypeId) : "");
-          setRewardTypeDisplayName(detail.rewardTypeDisplayName ?? "");
-          setMetrics(Array.isArray(detail.metrics) ? detail.metrics : []);
-          setHealthConditions(Array.isArray(detail.healthConditions) ? detail.healthConditions : []);
-          setTags(Array.isArray(detail.tags) ? detail.tags : []);
-          setIsActive(detail.isActive ?? true);
-          setIsModified(detail.isModified ?? null);
-          setCreatedOn(detail.createdOn ?? null);
-          setModifiedOn(detail.modifiedOn ?? null);
-          setBuyerUserId(detail.buyerUserId ?? null);
-          setBuyerDisplayName(detail.buyerDisplayName ?? "");
+          // If the API returned ISO strings, extract the YYYY-MM-DD portion so we don't show timezone-shifted times
+          const extractDatePart = (iso?: string | null) => {
+            if (!iso) return '';
+            return String(iso).split('T')[0];
+          };
+
+          const openDateStr = extractDatePart(detail.applyOpenAt);
+          setOpenDateString(openDateStr);
+          if (openDateStr) {
+            const [y, m, d] = openDateStr.split('-').map((s: string) => Number(s));
+            setApplyOpenAt(new Date(Date.UTC(y, (m || 1) - 1, d || 1)));
+          } else {
+            setApplyOpenAt(null);
+          }
+
+          const closeDateStr = extractDatePart(detail.applyCloseAt);
+          setCloseDateString(closeDateStr);
+          if (closeDateStr) {
+            const [y, m, d] = closeDateStr.split('-').map((s: string) => Number(s));
+            setApplyCloseAt(new Date(Date.UTC(y, (m || 1) - 1, d || 1)));
+          } else {
+            setApplyCloseAt(null);
+          }
+
+          setSelectedStatusId(detail.postingStatusId ?? null);
+          setSelectedRewardTypeId(detail.rewardTypeId ?? null);
+          setSelectedMetricIds(Array.isArray(detail.metrics) ? detail.metrics.map((m: any) => m.metricId) : []);
+          setSelectedHealthConditionIds(Array.isArray(detail.health_condition_ids) ? detail.health_condition_ids : []);
         }
       } catch (err) {
-        // Optionally show error
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -146,60 +134,120 @@ const ManageStudy: React.FC = () => {
     fetchStudyDetail();
   }, [studyId]);
 
-  // Tag management
-  function addTag(tag: string) {
-    if (tag && !tags.includes(tag)) setTags([...tags, tag]);
-  }
-  function removeTag(index: number) {
-    setTags(tags.filter((_, i) => i !== index));
+  // --- Date Picker Handler ---
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    // On Android, the picker closes automatically. On iOS, we need to hide it manually.
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      if (datePickerField === 'open') {
+        setApplyOpenAt(selectedDate);
+      } else if (datePickerField === 'close') {
+        setApplyCloseAt(selectedDate);
+      }
+    }
+    // Reset which field is being edited
+    setDatePickerField(null);
+  };
+
+  const handleWebDateChange = (text: string, field: 'open' | 'close') => {
+    // Always update the visible string so the user can type partial values
+    if (field === 'open') {
+      setOpenDateString(text);
+    } else {
+      setCloseDateString(text);
+    }
+
+    // Try to parse full YYYY-MM-DD into a Date and update date state only when valid
+    // Parse YYYY-MM-DD and create a UTC date (so toISOString() will keep the same calendar date)
+    const parts = text.split('-').map((s) => Number(s));
+    if (parts.length === 3 && parts.every((n) => !isNaN(n))) {
+      const [y, m, d] = parts;
+      const utcDate = new Date(Date.UTC(y, m - 1, d));
+      if (field === 'open') {
+        setApplyOpenAt(utcDate);
+      } else {
+        setApplyCloseAt(utcDate);
+      }
+    }
+  };
+
+  const normalizeWebDate = (field: 'open' | 'close') => {
+    const text = field === 'open' ? openDateString : closeDateString;
+    const parts = String(text).split('-').map((s) => Number(s));
+    if (parts.length === 3 && parts.every((n) => !isNaN(n))) {
+      const [y, m, d] = parts;
+      const utcDate = new Date(Date.UTC(y, m - 1, d));
+      const normalized = utcDate.toISOString().split('T')[0];
+      if (field === 'open') {
+        setOpenDateString(normalized);
+        setApplyOpenAt(utcDate);
+      } else {
+        setCloseDateString(normalized);
+        setApplyCloseAt(utcDate);
+      }
+    } else {
+      // keep user's text, don't update apply dates
+    }
+  };
+  
+  const showDatepickerFor = (field: 'open' | 'close') => {
+    setDatePickerField(field);
+    setShowDatePicker(true);
+  };
+
+  // Helper to format date to YYYY-MM-DD
+  const formatDateForDisplay = (date: Date | null) => {
+    if (!date) return '';
+    return date.toISOString().split('T')[0];
+  };
+
+  const formatDate = (date: Date | null) => {
+    return date ? date.toISOString().split('T')[0] : 'Select date...';
+  };
+
+  function toggleMetric(metricId: number) {
+    setSelectedMetricIds((prev) =>
+      prev.includes(metricId) ? prev.filter((id) => id !== metricId) : [...prev, metricId]
+    );
   }
 
-  // Metric management
-  function addMetric(metric: Metric) {
-    setMetrics([...metrics, metric]);
-  }
-  function removeMetric(index: number) {
-    setMetrics(metrics.filter((_, i) => i !== index));
+  function toggleHealthCondition(id: number) {
+    setSelectedHealthConditionIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   }
 
-  // Health condition management
-  function addHealthCondition(cond: HealthCondition) {
-    setHealthConditions([...healthConditions, cond]);
+  function selectedMetricsNames() {
+    return metrics
+      .filter((m) => selectedMetricIds.includes(m.metricId))
+      .map((m) => m.displayName)
+      .join(", ");
   }
-  function removeHealthCondition(index: number) {
-    setHealthConditions(healthConditions.filter((_, i) => i !== index));
+
+  function selectedHealthConditionNames() {
+    return healthConditions
+      .filter((h) => selectedHealthConditionIds.includes(h.healthConditionId))
+      .map((h) => h.displayName)
+      .join(", ");
   }
 
   async function handleSave() {
-    if (!postingId) {
-      alert("No study loaded");
-      return;
-    }
+    if (!postingId) return alert("No study loaded");
     const payload = {
-      postingStatusId: Number(postingStatusId),
-      postingStatusDisplayName,
-      postingStatusCode: postingStatusCode.toUpperCase(),
       title,
       summary,
       description,
-      applyOpenAt,
-      applyCloseAt,
       dataCoverageDaysRequired: dataCoverageDaysRequired ? Number(dataCoverageDaysRequired) : null,
-      minAge: minAge ? Number(minAge) : 0,
-      rewardTypeId: rewardTypeId ? Number(rewardTypeId) : null,
-      rewardTypeDisplayName,
-      metrics,
-      viewPolicies: [],
-      healthConditions,
-      tags,
-      images: [],
-      isActive,
-      isModified,
-      createdOn,
-      modifiedOn,
+      postingStatusId: selectedStatusId ? Number(selectedStatusId) : null,
+      rewardTypeId: selectedRewardTypeId,
+      posting_metrics_ids: selectedMetricIds,
+      health_condition_ids: selectedHealthConditionIds,
+      // Format dates to ISO 8601 string for the API
+      applyOpenAt: applyOpenAt ? applyOpenAt.toISOString() : null,
+      applyCloseAt: applyCloseAt ? applyCloseAt.toISOString() : null,
     };
     try {
-      await updateTrnPosting(postingId, payload);
+      await updateTrnPosting(postingId, payload as any);
       router.replace(`/studies/${postingId}?saved=1`);
     } catch (err) {
       alert("Failed to save changes: " + (err instanceof Error ? err.message : String(err)));
@@ -210,11 +258,15 @@ const ManageStudy: React.FC = () => {
     router.back();
   }
 
+  // Determine which date is currently being edited for the picker
+  const currentPickerDate = datePickerField === 'open' ? (applyOpenAt || new Date()) : (applyCloseAt || new Date());
+  
   if (loading) {
     return (
       <SafeAreaView style={styles.root}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text>Loading study...</Text>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" />
+          <Text style={{ marginTop: 8 }}>Loading study...</Text>
         </View>
       </SafeAreaView>
     );
@@ -222,9 +274,8 @@ const ManageStudy: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.root}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
         <View style={[styles.contentRow, isNarrow ? styles.columnLayout : styles.rowLayout]}>
-          {/* LEFT: Modern Form Card */}
           <View style={[styles.card, isNarrow ? styles.fullWidth : styles.leftColumn]}>
             <Text style={styles.heading}>Manage Study</Text>
 
@@ -236,103 +287,124 @@ const ManageStudy: React.FC = () => {
 
             <Text style={styles.label}>Description</Text>
             <TextInput value={description ?? ""} onChangeText={setDescription} style={[styles.input, styles.multiline]} multiline />
-
-            <Text style={styles.label}>Status</Text>
-            <View style={styles.rowBetween}>
-              <View style={[styles.input, { flex: 1, padding: 0, justifyContent: 'center' }]}> 
-                <Picker
-                  selectedValue={postingStatusCode}
-                  onValueChange={(itemValue) => {
-                    setPostingStatusCode(itemValue);
-                    // Map code to id/displayName
-                    const statusMap = {
-                      Draft: { id: 1, displayName: "Draft", code: "DRAFT" },
-                      Open: { id: 2, displayName: "Open", code: "OPEN" },
-                      Paused: { id: 3, displayName: "Paused", code: "PAUSED" },
-                      Closed: { id: 4, displayName: "Closed", code: "CLOSED" },
-                      Archived: { id: 5, displayName: "Archived", code: "ARCHIVED" },
-                    };
-                    const status = statusMap[itemValue as keyof typeof statusMap] || statusMap.Draft;
-                    setPostingStatusId(status.id);
-                    setPostingStatusDisplayName(status.displayName.charAt(0).toUpperCase() + status.displayName.slice(1).toLowerCase());
-                  }}
-                  style={{ height: 40, width: '100%' }}
-                >
-                  <Picker.Item label="Draft" value="Draft" />
-                  <Picker.Item label="Open" value="Open" />
-                  <Picker.Item label="Paused" value="Paused" />
-                  <Picker.Item label="Closed" value="Closed" />
-                  <Picker.Item label="Archived" value="Archived" />
-                </Picker>
-              </View>
-            </View>
-
-            <Text style={styles.label}>Min Age</Text>
-            <TextInput value={minAge} onChangeText={setMinAge} style={styles.input} keyboardType="numeric" />
-{/* 
-            <Text style={styles.label}>Reward Type</Text>
-            <View style={styles.rowBetween}>
-              <TextInput value={rewardTypeDisplayName ?? ""} onChangeText={setRewardTypeDisplayName} style={[styles.input, { flex: 1 }]} />
-              <TextInput value={rewardTypeId ?? ""} onChangeText={setRewardTypeId} style={[styles.input, { width: 60, marginLeft: 8 }]} keyboardType="numeric" />
-            </View> */}
-
-            <Text style={styles.label}>Data Coverage Days Required</Text>
+            
+            <Text style={styles.label}>Length (days)</Text>
             <TextInput value={dataCoverageDaysRequired} onChangeText={setDataCoverageDaysRequired} style={styles.input} keyboardType="numeric" />
 
-            <Text style={styles.label}>Apply Open At</Text>
-            <TextInput
-              value={applyOpenAt ?? ""}
-              onChangeText={setApplyOpenAt}
-              style={styles.input}
-              placeholder="YYYY-MM-DD or ISO format"
-            />
+            {/* Date Pickers */}
+            <Text style={styles.label}>Apply Open Date</Text>
+            {Platform.OS === 'web' ? (
+              <TextInput
+                style={styles.input}
+                placeholder="YYYY-MM-DD"
+                value={openDateString}
+                onChangeText={(text) => handleWebDateChange(text, 'open')}
+                onBlur={() => normalizeWebDate('open')}
+              />
+            ) : (
+              <TouchableOpacity onPress={() => showDatepickerFor('open')} style={styles.input}>
+                <Text>{applyOpenAt ? formatDateForDisplay(applyOpenAt) : 'Select date...'}</Text>
+              </TouchableOpacity>
+            )}
 
-            <Text style={styles.label}>Apply Close At</Text>
-            <TextInput
-              value={applyCloseAt ?? ""}
-              onChangeText={setApplyCloseAt}
-              style={styles.input}
-              placeholder="YYYY-MM-DD or ISO format"
-            />
+            <Text style={styles.label}>Apply Close Date</Text>
+            {Platform.OS === 'web' ? (
+              <TextInput
+                style={styles.input}
+                placeholder="YYYY-MM-DD"
+                value={closeDateString}
+                onChangeText={(text) => handleWebDateChange(text, 'close')}
+                onBlur={() => normalizeWebDate('close')}
+              />
+            ) : (
+              <TouchableOpacity onPress={() => showDatepickerFor('close')} style={styles.input}>
+                <Text>{applyCloseAt ? formatDateForDisplay(applyCloseAt) : 'Select date...'}</Text>
+              </TouchableOpacity>
+            )}
 
-            {/* <Text style={styles.label}>Tags</Text>
-            <View style={styles.rowBetween}>
-              <TextInput placeholder="Add tag" style={[styles.input, { flex: 1 }]} onSubmitEditing={e => addTag(e.nativeEvent.text)} />
-            </View>
-            <View style={styles.participantsList}>
-              {tags.length === 0 ? <Text style={styles.muted}>No tags</Text> : tags.map((tag, i) => (
-                <View key={tag + i} style={styles.participantRow}>
-                  <Text>{tag}</Text>
-                  <TouchableOpacity onPress={() => removeTag(i)}><Text style={styles.removeText}>Remove</Text></TouchableOpacity>
-                </View>
-              ))}
-            </View>
+            {/* DateTimePicker Modal (for native only) */}
+            {showDatePicker && Platform.OS !== 'web' && (
+              <DateTimePicker
+                value={datePickerField === 'open' ? (applyOpenAt || new Date()) : (applyCloseAt || new Date())}
+                mode="date"
+                display="default"
+                onChange={onDateChange}
+              />
+            )}
 
-            <Text style={styles.label}>Metrics</Text>
-            <View style={styles.rowBetween}>
-              <TextInput placeholder="Metric name" style={[styles.input, { flex: 1 }]} onSubmitEditing={e => addMetric({ id: Date.now(), displayName: e.nativeEvent.text })} />
-            </View>
-            <View style={styles.participantsList}>
-              {metrics.length === 0 ? <Text style={styles.muted}>No metrics</Text> : metrics.map((m, i) => (
-                <View key={m.id + "-" + i} style={styles.participantRow}>
-                  <Text>{m.displayName}</Text>
-                  <TouchableOpacity onPress={() => removeMetric(i)}><Text style={styles.removeText}>Remove</Text></TouchableOpacity>
-                </View>
-              ))}
-            </View> */}
-{/* 
-            <Text style={styles.label}>Health Conditions</Text>
-            <View style={styles.rowBetween}>
-              <TextInput placeholder="Condition name" style={[styles.input, { flex: 1 }]} onSubmitEditing={e => addHealthCondition({ id: Date.now(), displayName: e.nativeEvent.text })} />
-            </View>
-            <View style={styles.participantsList}>
-              {healthConditions.length === 0 ? <Text style={styles.muted}>No conditions</Text> : healthConditions.map((c, i) => (
-                <View key={c.id + "-" + i} style={styles.participantRow}>
-                  <Text>{c.displayName}</Text>
-                  <TouchableOpacity onPress={() => removeHealthCondition(i)}><Text style={styles.removeText}>Remove</Text></TouchableOpacity>
-                </View>
-              ))}
-            </View> */}
+            <Text style={styles.label}>Status</Text>
+            {statusesLoading ? <ActivityIndicator/> : 
+              <SingleSelectDropdown
+                items={statuses.map((s) => ({ id: s.postingStatusId, displayName: s.displayName }))}
+                selectedId={selectedStatusId}
+                onSelect={(id) => setSelectedStatusId(Number(id))}
+                placeholder="Select status..."
+              />
+            }
+
+            <Text style={styles.label}>Reward Type</Text>
+            {rewardTypesLoading ? <ActivityIndicator/> : 
+              <SingleSelectDropdown
+                items={rewardTypes.map((r) => ({ id: r.rewardTypeId, displayName: r.displayName }))}
+                selectedId={selectedRewardTypeId}
+                onSelect={(id) => setSelectedRewardTypeId(Number(id))}
+                placeholder="Select reward type..."
+              />
+            }
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
+            <TouchableOpacity style={[styles.dropdownToggle, metricsDropdownOpen && styles.dropdownOpen]} onPress={() => setMetricsDropdownOpen((v) => !v)}>
+              <Text style={styles.dropdownText} numberOfLines={1}>
+                {selectedMetricIds.length > 0 ? selectedMetricsNames() : "Select metrics..."}
+              </Text>
+              <Text style={styles.dropdownChevron}>{metricsDropdownOpen ? "▴" : "▾"}</Text>
+            </TouchableOpacity>
+            {metricsDropdownOpen && (
+              <View style={styles.dropdownPane}>
+                {metricsLoading ? <ActivityIndicator /> : 
+                  <FlatList
+                    data={metrics.filter(m => m.isActive)}
+                    keyExtractor={(m) => String(m.metricId)}
+                    renderItem={({ item }) => {
+                      const picked = selectedMetricIds.includes(item.metricId);
+                      return (
+                        <TouchableOpacity style={styles.metricRow} onPress={() => toggleMetric(item.metricId)}>
+                          <View style={[styles.checkbox, picked && styles.checkboxChecked]}><Text style={styles.checkboxTick}>✓</Text></View>
+                          <Text style={styles.metricLabel}>{item.displayName}</Text>
+                        </TouchableOpacity>
+                      );
+                    }}
+                  />
+                }
+              </View>
+            )}
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Health Conditions</Text>
+            <TouchableOpacity style={[styles.dropdownToggle, healthDropdownOpen && styles.dropdownOpen]} onPress={() => setHealthDropdownOpen((v) => !v)}>
+              <Text style={styles.dropdownText} numberOfLines={1}>
+                {selectedHealthConditionIds.length > 0 ? selectedHealthConditionNames() : "Select conditions..."}
+              </Text>
+              <Text style={styles.dropdownChevron}>{healthDropdownOpen ? "▴" : "▾"}</Text>
+            </TouchableOpacity>
+            {healthDropdownOpen && (
+              <View style={styles.dropdownPane}>
+                {healthLoading ? <ActivityIndicator /> : 
+                  <FlatList
+                    data={healthConditions.filter(h => h.isActive)}
+                    keyExtractor={(h) => String(h.healthConditionId)}
+                    renderItem={({ item }) => {
+                      const picked = selectedHealthConditionIds.includes(item.healthConditionId);
+                      return (
+                        <TouchableOpacity style={styles.metricRow} onPress={() => toggleHealthCondition(item.healthConditionId)}>
+                          <View style={[styles.checkbox, picked && styles.checkboxChecked]}><Text style={styles.checkboxTick}>✓</Text></View>
+                          <Text style={styles.metricLabel}>{item.displayName}</Text>
+                        </TouchableOpacity>
+                      );
+                    }}
+                  />
+                }
+              </View>
+            )}
 
             <View style={styles.formActions}>
               <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={handleSave}>
@@ -343,87 +415,33 @@ const ManageStudy: React.FC = () => {
               </TouchableOpacity>
             </View>
           </View>
-
-          {/* RIGHT: Stats Card */}
-          <View style={[styles.card, isNarrow ? styles.fullWidth : styles.rightColumn]}>
-            <Text style={styles.statHeading}>Study Statistics</Text>
-            <View style={styles.statRow}>
-              <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{metrics.length}</Text>
-                <Text style={styles.statLabel}>Metrics</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{healthConditions.length}</Text>
-                <Text style={styles.statLabel}>Health Conditions</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{tags.length}</Text>
-                <Text style={styles.statLabel}>Tags</Text>
-              </View>
-            </View>
-            <View style={styles.metaBlock}>
-              <Text style={styles.metaLabel}>Buyer</Text>
-              <Text style={styles.metaValue}>{buyerDisplayName}</Text>
-            </View>
-            <View style={styles.metaBlock}>
-              <Text style={styles.metaLabel}>Study ID</Text>
-              <Text style={styles.metaValue}>{postingId}</Text>
-            </View>
-            <View style={styles.metaBlock}>
-              <Text style={styles.metaLabel}>Status</Text>
-              <Text style={styles.metaValue}>{postingStatusDisplayName}</Text>
-            </View>
-            <View style={styles.helpBox}>
-              <Text style={styles.helpTitle}>Tips</Text>
-              <Text style={styles.helpText}>All fields are editable. Use the form to update study details, tags, metrics, and conditions. Date pickers are provided for Open/close dates.</Text>
-            </View>
-          </View>
+          <View style={[styles.card, isNarrow ? styles.fullWidth : styles.rightColumn]}></View>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
-}
+};
 
-/* Styles */
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#ffffff" },
   scrollContainer: { padding: 16, paddingBottom: 48 },
-  contentRow: {
-    width: "100%",
-    gap: 16,
-  },
-  rowLayout: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  columnLayout: {
-    flexDirection: "column",
-  },
-
+  contentRow: { width: "100%", gap: 16 },
+  rowLayout: { flexDirection: "row", alignItems: "flex-start" },
+  columnLayout: { flexDirection: "column" },
   card: {
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.06)",
-    // drop shadow
     ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-      },
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12 },
       android: { elevation: 3 },
-      default: {},
     }),
   },
-
   leftColumn: { flex: 2, marginRight: 8, minWidth: 0 },
   rightColumn: { flex: 1, marginLeft: 8, minWidth: 260, maxWidth: 420 },
-
   fullWidth: { width: "100%" },
-
   heading: { fontSize: 20, fontWeight: "700", marginBottom: 8 },
   label: { fontSize: 14, marginTop: 8, marginBottom: 6, color: "#333" },
   input: {
@@ -432,89 +450,58 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     backgroundColor: "#fafafa",
+    minHeight: 44,
+    justifyContent: 'center',
   },
-  multiline: { height: 110, textAlignVertical: "top" as const },
-
-  rowBetween: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  participantsList: { marginTop: 6 },
-
-  participantRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f3f3f3",
-  },
-  removeText: { color: "#d00", fontWeight: "600" },
-
-  formActions: {
-    marginTop: 16,
-    flexDirection: "row",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  btn: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+  multiline: { height: 110, textAlignVertical: "top", paddingVertical: 10 },
+  dropdownToggle: {
+    borderWidth: 1,
+    borderColor: "#e6e6e6",
+    padding: 10,
     borderRadius: 8,
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    minHeight: 44,
+  },
+  dropdownOpen: { borderColor: "#0b74ff", shadowColor: "#0b74ff", elevation: 2 },
+  dropdownText: { color: "#111827", flex: 1 },
+  dropdownChevron: { color: "#6b7280", marginLeft: 8 },
+  dropdownPane: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#e6e6e6",
+    borderRadius: 8,
+    maxHeight: 240,
+    backgroundColor: "#fff",
+    paddingVertical: 6,
+  },
+  metricRow: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    flexDirection: "row",
     alignItems: "center",
   },
+  checkbox: {
+    height: 20,
+    width: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    marginRight: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxChecked: { backgroundColor: "#0b74ff", borderColor: "#0b74ff" },
+  checkboxTick: { color: "#fff", fontSize: 12, fontWeight: 'bold' },
+  metricLabel: { fontSize: 14 },
+  formActions: { marginTop: 24, flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  btn: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, alignItems: "center" },
   btnPrimary: { backgroundColor: "#0b74ff" },
   btnPrimaryText: { color: "#fff", fontWeight: "700" },
   btnGhost: { backgroundColor: "transparent", borderWidth: 1, borderColor: "#cbd5e1" },
   btnGhostText: { color: "#374151", fontWeight: "600" },
-  btnSmall: { backgroundColor: "#eef2ff", paddingHorizontal: 10 },
-  btnSmallText: { color: "#4f46e5", fontWeight: "600" },
-
-  toggleBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-  },
-  toggleBtnActive: { backgroundColor: "#e6f2ff", borderColor: "#8fc9ff" },
-  toggleText: { color: "#374151" },
-  toggleTextActive: { color: "#0b74ff", fontWeight: "700" },
-
-  /* Stats */
-  statHeading: { fontSize: 16, fontWeight: "700", marginBottom: 12 },
-  statRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
-  statBox: {
-    flex: 1,
-    backgroundColor: "#f8fafc",
-    borderRadius: 10,
-    paddingVertical: 18,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.04)",
-  },
-  statNumber: { fontSize: 28, fontWeight: "800" },
-  statLabel: { color: "#6b7280", marginTop: 6 },
-
-  metaBlock: { marginTop: 12 },
-  metaLabel: { fontSize: 12, color: "#6b7280" },
-  metaValue: { fontSize: 14, fontWeight: "600", marginTop: 4 },
-
-  helpBox: {
-    marginTop: 16,
-    backgroundColor: "#f1f5f9",
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.03)",
-  },
-  helpTitle: { fontWeight: "700", marginBottom: 6 },
-  helpText: { color: "#374151" },
-
-  muted: { color: "#8b8b8b" },
-  metaText: { fontSize: 14, color: "#374151" },
 });
 
 export default ManageStudy;

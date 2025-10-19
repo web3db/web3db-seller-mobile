@@ -148,26 +148,25 @@ export async function listTrnPostings(
 
 /** UPDATE - sends an update payload for a posting to the Edge Function 'buyers_postings_update' */
 export async function updateTrnPosting(postingId: number | string, payload: Record<string, any>) {
-  const u = buildUrl(`buyers_postings_update/3/${postingId}`, undefined);
-  if (__DEV__) console.log('[updateTrnPosting] PATCH', u, postingId, payload)
-
-  const body = { postingId, ...payload }
+  const u = buildUrl(`buyers_postings_update/3/${postingId}`);
+  if (__DEV__) console.log('[updateTrnPosting] PATCH', u, postingId, payload);
 
   const res = await fetch(u, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    // **FIX**: Send the payload directly without adding postingId to it.
+    body: JSON.stringify(payload),
     mode: 'cors',
-  })
+  });
 
   if (!res.ok) {
-    const txt = await res.text().catch(() => '')
-    if (__DEV__) console.warn('[updateTrnPosting] ✗', res.status, res.statusText, txt)
-    throw new Error(`buyers_postings_update API failed: ${res.status} ${res.statusText} ${txt}`)
+    const txt = await res.text().catch(() => '');
+    if (__DEV__) console.warn('[updateTrnPosting] ✗', res.status, res.statusText, txt);
+    throw new Error(`buyers_postings_update API failed: ${res.status} ${res.statusText} ${txt}`);
   }
 
-  const json = await res.json().catch(() => null)
-  return json
+  const json = await res.json().catch(() => null);
+  return json;
 }
 
 export async function createTrnPosting(

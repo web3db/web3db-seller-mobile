@@ -176,33 +176,9 @@ export default function StudyDetail() {
             <Text style={styles.value}>{study.applyCloseAt ?? "-"}</Text>
 
             <Text style={styles.label}>Reward Type</Text>
-            <Text style={styles.value}>{study.rewardTypeDisplayName ?? "-"} (ID: {study.rewardTypeId ?? "-"})</Text>
+            <Text style={styles.value}>{study.rewardTypeDisplayName ?? "-"}</Text>
 
-            <Text style={styles.label}>Buyer</Text>
-            <Text style={styles.value}>{study.buyerDisplayName}</Text>
-
-            <Text style={styles.label}>Study ID</Text>
-            <Text style={styles.value}>{study.postingId}</Text>
-
-            <Text style={styles.label}>Created On</Text>
-            <Text style={styles.value}>{study.createdOn ?? "-"}</Text>
-
-            <Text style={styles.label}>Modified On</Text>
-            <Text style={styles.value}>{study.modifiedOn ?? "-"}</Text>
-
-            <Text style={[styles.label, { marginTop: 12 }]}>Tags</Text>
-            <View style={styles.participantsList}>
-              {(!study.tags || study.tags.length === 0) ? (
-                <Text style={styles.muted}>No tags</Text>
-              ) : (
-                study.tags.map((tag, i) => (
-                  <View key={tag + i} style={styles.participantRow}>
-                    <Text>{tag}</Text>
-                  </View>
-                ))
-              )}
-            </View>
-
+            
             <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
             <View style={styles.participantsList}>
               {(!study.metrics || study.metrics.length === 0) ? (
@@ -228,6 +204,32 @@ export default function StudyDetail() {
                 ))
               )}
             </View>
+
+            <Text style={styles.label}>Buyer</Text>
+            <Text style={styles.value}>{study.buyerDisplayName}</Text>
+
+            <Text style={styles.label}>Study ID</Text>
+            <Text style={styles.value}>{study.postingId}</Text>
+
+{/* 
+            <Text style={styles.label}>Created On</Text>
+            <Text style={styles.value}>{study.createdOn ?? "-"}</Text> */}
+
+            <Text style={styles.label}>Modified On</Text>
+            <Text style={styles.value}>{study.modifiedOn ?? "-"}</Text>
+
+            {/* <Text style={[styles.label, { marginTop: 12 }]}>Tags</Text>
+            <View style={styles.participantsList}>
+              {(!study.tags || study.tags.length === 0) ? (
+                <Text style={styles.muted}>No tags</Text>
+              ) : (
+                study.tags.map((tag, i) => (
+                  <View key={tag + i} style={styles.participantRow}>
+                    <Text>{tag}</Text>
+                  </View>
+                ))
+              )}
+            </View> */}
 
             <View style={styles.formActions}>
               <TouchableOpacity
