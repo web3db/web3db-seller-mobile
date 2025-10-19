@@ -161,3 +161,36 @@ export async function updateTrnPosting(postingId: number | string, payload: Reco
   const json = await res.json().catch(() => null)
   return json
 }
+
+export async function createTrnPosting(
+  params: ListParams = {} // Using params if the Edge Function expects them
+): Promise<Study> {
+  const u = buildUrl("buyers_postings_create/3");
+  if (__DEV__) console.log("[createTrnPosting] POST", u);
+
+  const res = await fetch(u, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      // You would typically include Authorization headers here if required
+    },
+    body: JSON.stringify(params),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    if (__DEV__) console.warn("[createTrnPosting] ✗", res.status, res.statusText, txt);
+    // Throwing an error for the component to catch
+    throw new Error(`create_posting API failed: ${res.status} ${res.statusText} ${txt}`);
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json) throw new Error("create_posting API returned no data");
+
+  const item = mapRawToStudy(json);
+  if (__DEV__) {
+    console.log(`[createTrnPosting] ✓ item=${item.id}`);
+  }
+
+  return item; // Returns the mapped Study object
+}
