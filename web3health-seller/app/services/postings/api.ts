@@ -23,7 +23,15 @@ export async function getTrnPostingDetail(buyerId: number | string, postingId: n
   return Array.isArray(json) ? json[0] : json;
 }
 // src/services/postings/api.ts
-import type { Study, PostingsResponseDTO, PostingDTO } from "./types";
+import type { 
+  Study, 
+  PostingsResponseDTO, 
+  PostingDTO, 
+  Metric, 
+  PostingStatus, 
+  RewardType,
+  HealthCondition
+} from "./types";
 
 // --- Configuration & Utilities (Copied from original example) ---
 
@@ -193,4 +201,142 @@ export async function createTrnPosting(
   }
 
   return item; // Returns the mapped Study object
+}
+
+// add to app/services/postings/api.ts
+
+/**
+ * Fetch metrics from the Edge Function: GET /functions/v1/metrics
+ */
+export async function listMetrics(): Promise<Metric[]> {
+  const u = buildUrl("metrics");
+  if (__DEV__) console.log("[listMetrics] GET", u);
+
+  const res = await fetch(u, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    mode: "cors",
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    if (__DEV__) console.warn("[listMetrics] ✗", res.status, res.statusText, txt);
+    throw new Error(`metrics API failed: ${res.status} ${res.statusText} ${txt}`);
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json) return [];
+
+  // API returns { items: [...] }
+  const rawItems: any[] = Array.isArray(json.items) ? json.items : [];
+  const items: Metric[] = rawItems.map((it) => ({
+    metricId: Number(it.metricId ?? it.metric_id ?? it.id),
+    code: String(it.code ?? it.Code ?? ""),
+    displayName: String(it.displayName ?? it.display_name ?? it.DisplayName ?? ""),
+    canonicalUnitCode: String(it.canonicalUnitCode ?? it.canonical_unit_code ?? it.CanonicalUnitCode ?? ""),
+    isActive: Boolean(it.isActive ?? it.is_active ?? true),
+  }));
+
+  if (__DEV__) console.log(`[listMetrics] ✓ items=${items.length}`);
+  return items;
+}
+
+/** Fetch posting statuses: GET /functions/v1/posting_statuses */
+export async function listPostingStatuses(): Promise<PostingStatus[]> {
+  const u = buildUrl("posting_statuses");
+  if (__DEV__) console.log("[listPostingStatuses] GET", u);
+
+  const res = await fetch(u, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    mode: "cors",
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    if (__DEV__) console.warn("[listPostingStatuses] ✗", res.status, res.statusText, txt);
+    throw new Error(`posting_statuses API failed: ${res.status} ${res.statusText} ${txt}`);
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json) return [];
+
+  const raw: any[] = Array.isArray(json.items) ? json.items : [];
+  const items: PostingStatus[] = raw.map((r) => ({
+    postingStatusId: Number(r.postingStatusId ?? r.posting_status_id ?? r.id),
+    code: String(r.code ?? ""),
+    displayName: String(r.displayName ?? r.display_name ?? ""),
+    isActive: Boolean(r.isActive ?? r.is_active ?? true),
+  }));
+
+  if (__DEV__) console.log(`[listPostingStatuses] ✓ items=${items.length}`);
+  return items;
+}
+
+/** Fetch reward types: GET /functions/v1/reward_types */
+export async function listRewardTypes(): Promise<RewardType[]> {
+  const u = buildUrl("reward_types");
+  if (__DEV__) console.log("[listRewardTypes] GET", u);
+
+  const res = await fetch(u, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    mode: "cors",
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    if (__DEV__) console.warn("[listRewardTypes] ✗", res.status, res.statusText, txt);
+    throw new Error(`reward_types API failed: ${res.status} ${res.statusText} ${txt}`);
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json) return [];
+
+  const raw: any[] = Array.isArray(json.items) ? json.items : [];
+  const items: RewardType[] = raw.map((r) => ({
+    rewardTypeId: Number(r.rewardTypeId ?? r.reward_type_id ?? r.id),
+    code: String(r.code ?? ""),
+    displayName: String(r.displayName ?? r.display_name ?? ""),
+    isActive: Boolean(r.isActive ?? r.is_active ?? true),
+  }));
+
+  if (__DEV__) console.log(`[listRewardTypes] ✓ items=${items.length}`);
+  return items;
+}
+
+/** Fetch health conditions: GET /functions/v1/health_conditions */
+export async function listHealthConditions(): Promise<HealthCondition[]> {
+  const u = buildUrl("health_conditions");
+  if (__DEV__) console.log("[listHealthConditions] GET", u);
+
+  const res = await fetch(u, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    mode: "cors",
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    if (__DEV__) console.warn("[listHealthConditions] ✗", res.status, res.statusText, txt);
+    throw new Error(`health_conditions API failed: ${res.status} ${res.statusText} ${txt}`);
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json) return [];
+
+  // the function returns an array (per your example) or { items: [...] } in other endpoints
+  // handle both shapes for safety:
+  const rawArr: any[] = Array.isArray(json) ? json : Array.isArray(json.items) ? json.items : [];
+
+  const items: HealthCondition[] = rawArr.map((r) => ({
+    healthConditionId: Number(r.healthConditionId ?? r.health_condition_id ?? r.id),
+    code: String(r.code ?? ""),
+    displayName: String(r.displayName ?? r.display_name ?? ""),
+  }));
+
+  if (__DEV__) console.log(`[listHealthConditions] ✓ items=${items.length}`);
+  return items;
 }

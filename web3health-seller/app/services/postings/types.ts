@@ -27,5 +27,33 @@ export type PostingDTO = {
     // ... other raw fields from TRN_Posting
 };
 
+export type Metric = {
+  metricId: number;
+  code: string;
+  displayName: string;
+  canonicalUnitCode: string;
+  isActive: boolean;
+};
+
+export type PostingStatus = {
+  postingStatusId: number;
+  code: string;
+  displayName: string;
+  isActive: boolean;
+};
+
+export type RewardType = {
+  rewardTypeId: number;
+  code: string;
+  displayName: string;
+  isActive: boolean;
+};
+
+export type HealthCondition = {
+  healthConditionId: number;
+  code: string;
+  displayName: string;
+};
+
 // Assuming the response is an array of raw objects (common for simple functions)
 export type PostingsResponseDTO = PostingDTO[];
