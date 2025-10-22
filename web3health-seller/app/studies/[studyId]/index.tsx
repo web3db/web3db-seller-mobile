@@ -29,7 +29,10 @@ type StudyDetail = {
   minAge: number;
   rewardTypeId: number | null;
   rewardTypeDisplayName: string | null;
-  metrics: { metricId: number; metricDisplayName: string }[];
+  rewardValue: number | null;
+  //metrics: { metricId: number; metricDisplayName: string }[];
+  metricId: number[] | null;
+  metricDisplayName: string[] | null;
   viewPolicies: any[];
   healthConditions: { id: number; displayName: string }[];
   tags: string[];
@@ -221,15 +224,18 @@ export default function StudyDetail() {
             <Text style={styles.label}>Reward Type</Text>
             <Text style={styles.value}>{study.rewardTypeDisplayName ?? "-"}</Text>
 
+            <Text style={styles.label}>Reward Value</Text>
+            <Text style={styles.value}>{study.rewardValue !== null ? study.rewardValue : "-"}</Text>
+
 
             <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
             <View style={styles.participantsList}>
-              {(!study.metrics || study.metrics.length === 0) ? (
+              {(!study.metricDisplayName || study.metricDisplayName.length === 0) ? (
                 <Text style={styles.muted}>No metrics</Text>
               ) : (
-                study.metrics.map((m, i) => (
-                  <View key={m.metricId + '-' + i} style={styles.participantRow}>
-                    <Text>{m.metricDisplayName}</Text>
+                study.metricDisplayName.map((m, i) => (
+                  <View key={study.metricId![i] + '-' + i} style={styles.participantRow}>
+                    <Text>{m}</Text>
                   </View>
                 ))
               )}
