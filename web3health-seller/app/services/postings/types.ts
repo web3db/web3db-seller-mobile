@@ -55,5 +55,44 @@ export type HealthCondition = {
   displayName: string;
 };
 
+export type ShareMetric = {
+  // metrics shape is flexible — include common known fields but keep indexable for unknown fields
+  metricId?: number;
+  metricName?: string;
+  unitCode?: string;
+  totalValue?: number;
+  avgValue?: number;
+  minValue?: number;
+  maxValue?: number;
+  samplesCount?: number;
+  computedJson?: any;
+  [key: string]: any;
+};
+
+export type ShareSegment = {
+  segmentId?: number;
+  dayIndex?: number;
+  fromUtc?: string;
+  toUtc?: string;
+  metrics?: ShareMetric[];
+  [key: string]: any;
+};
+
+export type Share = {
+  userId?: number;
+  userDisplayName?: string;
+  sessionId?: number;
+  statusId?: number;
+  statusName?: string;
+  segments?: ShareSegment[];
+  [key: string]: any;
+};
+
+export type PostingSharesResponse = {
+  postingId?: number;
+  postingTitle?: string;
+  shares?: Share[];
+};
+
 // Assuming the response is an array of raw objects (common for simple functions)
 export type PostingsResponseDTO = PostingDTO[];

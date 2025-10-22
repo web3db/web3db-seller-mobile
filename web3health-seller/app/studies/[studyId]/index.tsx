@@ -9,8 +9,10 @@ import {
   useWindowDimensions,
   Platform,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { getPostingShares } from "../../services/postings/api";
 
 type StudyDetail = {
   postingId: number;
@@ -27,7 +29,10 @@ type StudyDetail = {
   minAge: number;
   rewardTypeId: number | null;
   rewardTypeDisplayName: string | null;
-  metrics: { metricId: number; metricDisplayName: string }[];
+  rewardValue: number | null;
+  //metrics: { metricId: number; metricDisplayName: string }[];
+  metricId: number[] | null;
+  metricDisplayName: string[] | null;
   viewPolicies: any[];
   healthConditions: { id: number; displayName: string }[];
   tags: string[];
@@ -49,6 +54,25 @@ export default function StudyDetail() {
   const [study, setStudy] = useState<StudyDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Shares (participant/session) UI
+  const [sharesData, setSharesData] = useState<any | null>(null);
+  const [sharesLoading, setSharesLoading] = useState(false);
+  const [sharesError, setSharesError] = useState<string | null>(null);
+  const [expandedShares, setExpandedShares] = useState<Record<number, boolean>>({});
+
+  function formatUtcToLocal(utc?: string) {
+    if (!utc) return "-";
+    try {
+      return new Date(utc).toLocaleString();
+    } catch {
+      return utc;
+    }
+  }
+
+  function toggleShareExpand(idx: number) {
+    setExpandedShares((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  }
 
   useEffect(() => {
     async function fetchStudyDetail() {
@@ -95,6 +119,28 @@ export default function StudyDetail() {
     }
   }, [saved]);
 
+  // share fetching
+  useEffect(() => {
+    async function fetchShares() {
+      if (!studyId) return;
+      setSharesLoading(true);
+      setSharesError(null);
+      try {
+        // HARD CODED TO 9001 TO GET DATA
+        const res = await getPostingShares(Number(studyId));
+        //const res = await getPostingShares(9001);
+        // save full response (postingId, postingTitle, shares[])
+        setSharesData(res);
+      } catch (err: any) {
+        console.error("Failed to load posting shares", err);
+        setSharesError(err?.message ?? String(err));
+      } finally {
+        setSharesLoading(false);
+      }
+    }
+    void fetchShares();
+  }, [studyId]);
+
   if (!studyId) {
     return (
       <SafeAreaView style={styles.root}>
@@ -136,7 +182,7 @@ export default function StudyDetail() {
     <SafeAreaView style={styles.root}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {showSaved && (
-          <Animated.View style={[styles.banner, { opacity: bannerOpacity }]}> 
+          <Animated.View style={[styles.banner, { opacity: bannerOpacity }]}>
             <Text style={styles.bannerText}>Changes saved successfully</Text>
           </Animated.View>
         )}
@@ -178,15 +224,18 @@ export default function StudyDetail() {
             <Text style={styles.label}>Reward Type</Text>
             <Text style={styles.value}>{study.rewardTypeDisplayName ?? "-"}</Text>
 
-            
+            <Text style={styles.label}>Reward Value</Text>
+            <Text style={styles.value}>{study.rewardValue !== null ? study.rewardValue : "-"}</Text>
+
+
             <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
             <View style={styles.participantsList}>
-              {(!study.metrics || study.metrics.length === 0) ? (
+              {(!study.metricDisplayName || study.metricDisplayName.length === 0) ? (
                 <Text style={styles.muted}>No metrics</Text>
               ) : (
-                study.metrics.map((m, i) => (
-                  <View key={m.metricId + '-' + i} style={styles.participantRow}>
-                    <Text>{m.metricDisplayName}</Text>
+                study.metricDisplayName.map((m, i) => (
+                  <View key={study.metricId![i] + '-' + i} style={styles.participantRow}>
+                    <Text>{m}</Text>
                   </View>
                 ))
               )}
@@ -211,7 +260,7 @@ export default function StudyDetail() {
             <Text style={styles.label}>Study ID</Text>
             <Text style={styles.value}>{study.postingId}</Text>
 
-{/* 
+            {/* 
             <Text style={styles.label}>Created On</Text>
             <Text style={styles.value}>{study.createdOn ?? "-"}</Text> */}
 
@@ -230,6 +279,93 @@ export default function StudyDetail() {
                 ))
               )}
             </View> */}
+
+                        <Text style={[styles.label, { marginTop: 12 }]}>Participant Shares</Text>
+
+            {sharesLoading ? (
+              <ActivityIndicator />
+            ) : sharesError ? (
+              <Text style={{ color: "red" }}>{sharesError}</Text>
+            ) : !sharesData?.shares || sharesData.shares.length === 0 ? (
+              <Text style={styles.muted}>No shares available</Text>
+            ) : (
+              <View style={{ marginTop: 8 }}>
+                {sharesData.shares.map((sh: any, i: number) => (
+                  <View
+                    key={(sh.userId ?? sh.sessionId ?? i) + "-" + i}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: "#eee",
+                      borderRadius: 8,
+                      padding: 10,
+                      marginTop: 8,
+                      backgroundColor: "#fff",
+                    }}
+                  >
+                    <TouchableOpacity
+                      onPress={() => toggleShareExpand(i)}
+                      style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+                    >
+                      <View>
+                        <Text style={{ fontWeight: "700" }}>{sh.userDisplayName ?? `User ${sh.userId ?? "-"}`}</Text>
+                        <Text style={{ color: "#6b7280" }}>
+                          Session: {sh.sessionId ?? "-"} · {sh.statusName ?? ""}
+                        </Text>
+                      </View>
+                      <Text style={{ color: "#6b7280" }}>{expandedShares[i] ? "▴" : "▾"}</Text>
+                    </TouchableOpacity>
+
+                    {expandedShares[i] && (
+                      <View style={{ marginTop: 10 }}>
+                        {(!sh.segments || sh.segments.length === 0) ? (
+                          <Text style={styles.muted}>No segments</Text>
+                        ) : (
+                          sh.segments.map((seg: any, si: number) => (
+                            <View
+                              key={(seg.segmentId ?? si) + "-" + si}
+                              style={{ padding: 8, backgroundColor: "#fafafa", borderRadius: 8, marginTop: 8 }}
+                            >
+                              <Text style={{ fontWeight: "700" }}>
+                                Segment {seg.segmentId ?? si} — Day {seg.dayIndex ?? "-"}
+                              </Text>
+                              <Text style={{ color: "#6b7280", marginTop: 4 }}>
+                                From: {formatUtcToLocal(seg.fromUtc)} · To: {formatUtcToLocal(seg.toUtc)}
+                              </Text>
+
+                              <View style={{ marginTop: 8 }}>
+                                {(!seg.metrics || seg.metrics.length === 0) ? (
+                                  <Text style={styles.muted}>No metrics</Text>
+                                ) : (
+                                  seg.metrics.map((m: any, mi: number) => (
+                                    <View
+                                      key={(m.metricId ?? mi) + "-" + mi}
+                                      style={{ paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: "#eee" }}
+                                    >
+                                      <Text style={{ fontWeight: "600" }}>
+                                        {m.metricName ?? m.metricName ?? `Metric ${m.metricId ?? mi}`}{" "}
+                                        {m.unitCode ? `(${m.unitCode})` : ""}
+                                      </Text>
+
+                                      {Object.entries(m)
+                                        .filter(([k]) => k !== "metricName" && k !== "metricId" && k !== "unitCode")
+                                        .map(([k, v]) => (
+                                          <Text key={k} style={{ color: "#111827" }}>
+                                            {k}: {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                                          </Text>
+                                        ))}
+                                    </View>
+                                  ))
+                                )}
+                              </View>
+                            </View>
+                          ))
+                        )}
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
 
             <View style={styles.formActions}>
               <TouchableOpacity
