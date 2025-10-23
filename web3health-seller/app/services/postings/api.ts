@@ -379,3 +379,30 @@ export async function listHealthConditions(): Promise<HealthCondition[]> {
   if (__DEV__) console.log(`[listHealthConditions] ✓ items=${items.length}`);
   return items;
 }
+
+/** Fetch posting shares: GET /functions/v1/buyer_get_posting_shares?postingId=... */
+export async function getPostingShares(postingId: number | string) {
+  const u = buildUrl("buyer_get_posting_shares", { postingId });
+  if (__DEV__) console.log("[getPostingShares] GET", u);
+
+  const res = await fetch(u, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    mode: "cors",
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    if (__DEV__) console.warn("[getPostingShares] ✗", res.status, res.statusText, txt);
+    throw new Error(`buyer_get_posting_shares API failed: ${res.status} ${res.statusText} ${txt}`);
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json) {
+    // Return a consistent empty shape
+    return { postingId: postingId, postingTitle: "", shares: [] };
+  }
+
+  // The endpoint returns { postingId, postingTitle, shares: [...] } per your example.
+  return json;
+}

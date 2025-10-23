@@ -204,10 +204,10 @@ export default function ManageStudy(): JSX.Element {
         description,
         dataCoverageDaysRequired: Number(length) || 1,
         postingStatusId: active ? 1 : 0,
-        postingMetricsIds: selectedMetricIds,
+        postingMetricIds: selectedMetricIds,
         rewardTypeId: selectedRewardTypeId,
         rewardValue: Number(rewardValue) || 0,
-        healthConditionsIds: selectedHealthConditionIds,
+        healthConditionIds: selectedHealthConditionIds,
       };
 
       console.log("Publishing payload:", payload);
