@@ -13,6 +13,7 @@ import {
   FlatList,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from "../hooks/AuthContext"; // Adjust path as needed
 import {
   createTrnPosting,
@@ -47,6 +48,14 @@ export default function ManageStudy(): JSX.Element {
   const [summary, setSummary] = useState("");
   const [description, setDescription] = useState("");
   const [length, setLength] = useState("");
+
+  // --- Date Picker State ---
+  const [applyOpenAt, setApplyOpenAt] = useState<Date | null>(null);
+  const [applyCloseAt, setApplyCloseAt] = useState<Date | null>(null);
+  const [openDateString, setOpenDateString] = useState('');
+  const [closeDateString, setCloseDateString] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerField, setDatePickerField] = useState<'open' | 'close' | null>(null);
   const [active, setActive] = useState(true);
 
   // metrics state
@@ -177,6 +186,67 @@ export default function ManageStudy(): JSX.Element {
     return () => { mounted = false; };
   }, []);
 
+  // --- Date Picker Handlers (from manage.tsx) ---
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      if (datePickerField === 'open') {
+        setApplyOpenAt(selectedDate);
+      } else if (datePickerField === 'close') {
+        setApplyCloseAt(selectedDate);
+      }
+    }
+    setDatePickerField(null);
+  };
+
+  const handleWebDateChange = (text: string, field: 'open' | 'close') => {
+    if (field === 'open') {
+      setOpenDateString(text);
+    } else {
+      setCloseDateString(text);
+    }
+
+    const parts = text.split('-').map((s) => Number(s));
+    if (parts.length === 3 && parts.every((n) => !isNaN(n))) {
+      const [y, m, d] = parts;
+      const utcDate = new Date(Date.UTC(y, m - 1, d));
+      if (field === 'open') {
+        setApplyOpenAt(utcDate);
+      } else {
+        setApplyCloseAt(utcDate);
+      }
+    }
+  };
+
+  const normalizeWebDate = (field: 'open' | 'close') => {
+    const text = field === 'open' ? openDateString : closeDateString;
+    const parts = String(text).split('-').map((s) => Number(s));
+    if (parts.length === 3 && parts.every((n) => !isNaN(n))) {
+      const [y, m, d] = parts;
+      const utcDate = new Date(Date.UTC(y, m - 1, d));
+      const normalized = utcDate.toISOString().split('T')[0];
+      if (field === 'open') {
+        setOpenDateString(normalized);
+        setApplyOpenAt(utcDate);
+      } else {
+        setCloseDateString(normalized);
+        setApplyCloseAt(utcDate);
+      }
+    }
+  };
+
+  const showDatepickerFor = (field: 'open' | 'close') => {
+    setDatePickerField(field);
+    setShowDatePicker(true);
+  };
+
+  // Helper to format date to YYYY-MM-DD
+  const formatDateForDisplay = (date: Date | null) => {
+    if (!date) return '';
+    return date.toISOString().split('T')[0];
+  };
+  // --- End Date Picker Handlers ---
+
   function toggleMetric(metricId: number) {
     setSelectedMetricIds((prev) =>
       prev.includes(metricId) ? prev.filter((id) => id !== metricId) : [...prev, metricId],
@@ -208,6 +278,8 @@ export default function ManageStudy(): JSX.Element {
         rewardTypeId: selectedRewardTypeId,
         rewardValue: Number(rewardValue) || 0,
         healthConditionIds: selectedHealthConditionIds,
+        applyOpenAt: applyOpenAt ? applyOpenAt.toISOString() : null,
+        applyCloseAt: applyCloseAt ? applyCloseAt.toISOString() : null,
       };
 
       console.log("Publishing payload:", payload);
@@ -255,6 +327,42 @@ export default function ManageStudy(): JSX.Element {
               style={styles.input}
               keyboardType="numeric"
             />
+
+            {/* Date Pickers */}
+            <Text style={styles.label}>Apply Open Date</Text>
+            {Platform.OS === 'web' ? (
+              <TextInput
+                style={styles.input}
+                placeholder="YYYY-MM-DD"
+                value={openDateString}
+                onChangeText={(text) => handleWebDateChange(text, 'open')}
+                onBlur={() => normalizeWebDate('open')}
+              />
+            ) : (
+              <TouchableOpacity onPress={() => showDatepickerFor('open')} style={styles.input}>
+                <Text>{applyOpenAt ? formatDateForDisplay(applyOpenAt) : 'Select date...'}</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={styles.label}>Apply Close Date</Text>
+            {Platform.OS === 'web' ? (
+              <TextInput
+                style={styles.input}
+                placeholder="YYYY-MM-DD"
+                value={closeDateString}
+                onChangeText={(text) => handleWebDateChange(text, 'close')}
+                onBlur={() => normalizeWebDate('close')}
+              />
+            ) : (
+              <TouchableOpacity onPress={() => showDatepickerFor('close')} style={styles.input}>
+                <Text>{applyCloseAt ? formatDateForDisplay(applyCloseAt) : 'Select date...'}</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* DateTimePicker Modal (for native only) */}
+            {showDatePicker && Platform.OS !== 'web' && (
+              <DateTimePicker value={datePickerField === 'open' ? (applyOpenAt || new Date()) : (applyCloseAt || new Date())} mode="date" display="default" onChange={onDateChange} />
+            )}
 
             <Text style={styles.label}>Status</Text>
             {statusesLoading ? (
@@ -401,36 +509,6 @@ export default function ManageStudy(): JSX.Element {
                   </TouchableOpacity>
                 </View>
               </View>
-
-              {/* RIGHT: Stats Card */}
-              <View style={[styles.card, isNarrow ? styles.fullWidth : styles.rightColumn]}>
-                <Text style={styles.statHeading}>Study Statistics</Text>
-
-                <View style={styles.statRow}>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statNumber}>0</Text>
-                    <Text style={styles.statLabel}>Participants</Text>
-                  </View>
-
-                  <View style={styles.statBox}>
-                    <Text style={styles.statNumber}>{Number(length) || 0}</Text>
-                    <Text style={styles.statLabel}>Days</Text>
-                  </View>
-                </View>
-
-                <View style={styles.metaBlock}>
-                  <Text style={styles.metaLabel}>Organizer</Text>
-                  <Text style={styles.metaValue}>{auth.user?.name ? auth.user.name : "Unknown"}</Text>
-                </View>
-
-                <View style={styles.helpBox}>
-                  <Text style={styles.helpTitle}>Tips</Text>
-                  <Text style={styles.helpText}>
-                    Select metrics that participants should provide. When published the payload will
-                    include postingMetricsIds in the request body.
-                  </Text>
-                </View>
-              </View>
             </View>
           </View>
         </View>
@@ -487,6 +565,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     backgroundColor: "#fafafa",
+    minHeight: 44,
   },
   multiline: { height: 110, textAlignVertical: "top" as const },
 
@@ -505,6 +584,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    minHeight: 44,
   },
   dropdownOpen: { borderColor: "#0b74ff", shadowColor: "#0b74ff", elevation: 2 },
   dropdownText: { color: "#111827" },

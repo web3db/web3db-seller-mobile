@@ -410,17 +410,6 @@ export default function StudyDetail() {
               <Text style={styles.metaValue}>{study.postingId}</Text>
             </View>
 
-            <View style={styles.metaBlock}>
-              <Text style={styles.metaLabel}>Status</Text>
-              <Text style={styles.metaValue}>{study.postingStatusDisplayName}</Text>
-            </View>
-
-            <View style={styles.helpBox}>
-              <Text style={styles.helpTitle}>Notes</Text>
-              <Text style={styles.helpText}>
-                This is a read-only view. Click Manage Study to edit settings and recruitment.
-              </Text>
-            </View>
           </View>
         </View>
       </ScrollView>
@@ -519,9 +508,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: "rgba(15,23,42,0.04)",
+    textAlign: "center",
   },
   statNumber: { fontSize: 28, fontWeight: "800" },
-  statLabel: { color: "#6b7280", marginTop: 6 },
+  statLabel: { color: "#6b7280", marginTop: 6 ,     textAlign: "center",
+},
 
   metaBlock: { marginTop: 12 },
   metaLabel: { fontSize: 12, color: "#6b7280" },

@@ -40,6 +40,7 @@ const ManageStudy: React.FC = () => {
   const [summary, setSummary] = useState("");
   const [description, setDescription] = useState("");
   const [dataCoverageDaysRequired, setDataCoverageDaysRequired] = useState("");
+  const [rewardValue, setRewardValue] = useState(""); // Added rewardValue state
   const [postingId, setPostingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -95,6 +96,7 @@ const ManageStudy: React.FC = () => {
           setSummary(detail.summary ?? "");
           setDescription(detail.description ?? "");
           setDataCoverageDaysRequired(detail.dataCoverageDaysRequired ? String(detail.dataCoverageDaysRequired) : "");
+          setRewardValue(detail.rewardValue ? String(detail.rewardValue) : ""); // Set rewardValue from fetched detail
           // If the API returned ISO strings, extract the YYYY-MM-DD portion so we don't show timezone-shifted times
           const extractDatePart = (iso?: string | null) => {
             if (!iso) return '';
@@ -244,6 +246,7 @@ const ManageStudy: React.FC = () => {
     // reward type id
     rewardTypeId: selectedRewardTypeId,
     // The create/update functions expect `postingMetricsIds` (not `metrics`)
+    rewardValue: Number(rewardValue) || 0, // Include rewardValue in payload
     metrics: selectedMetricIds,
     // The create/update functions expect `healthConditionIds`
     healthConditionIds: selectedHealthConditionIds,
@@ -357,6 +360,14 @@ const ManageStudy: React.FC = () => {
                 placeholder="Select reward type..."
               />
             }
+
+            <Text style={styles.label}>Reward Value</Text>
+            <TextInput
+              value={rewardValue}
+              onChangeText={(t) => setRewardValue(t.replace(/[^0-9]/g, ""))} // Allow only numeric input
+              style={styles.input}
+              keyboardType="numeric"
+            />
 
             <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
             <TouchableOpacity style={[styles.dropdownToggle, metricsDropdownOpen && styles.dropdownOpen]} onPress={() => setMetricsDropdownOpen((v) => !v)}>

@@ -151,15 +151,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(15,23,42,0.04)',
-    flexDirection: 'row', // Arrange children side-by-side
-    gap: 16, // Add space between the two columns
-    alignItems: 'center', // Align items vertically in the center
+    flexDirection: 'column', // Arrange children vertically
+    gap: 32, // Add space between the sections
+    alignItems: 'stretch', // Allow children to fill the width
   },
   heroLandingCopy: {
-    flex: 1, // Allow this column to take available space
+    // No flex needed in a column layout
   },
   heroLandingVisual: {
-    flex: 1, // Allow this column to take available space
+    // No flex needed in a column layout
   },
   heroActions: {
     marginTop: 16,
