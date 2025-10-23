@@ -2,6 +2,16 @@
  * GET DETAIL - Fetches a single posting's details via the Edge Function
  * /buyers_postings_detail/{buyerId}/{postingId}
  */
+import type {
+  Study,
+  PostingsResponseDTO,
+  PostingDTO,
+  Metric,
+  PostingStatus,
+  RewardType,
+  HealthCondition
+} from "./types";
+
 export async function getTrnPostingDetail(buyerId: number | string, postingId: number | string) {
   const u = buildUrl(`buyers_postings_detail/3/${postingId}`);
   if (__DEV__) console.log('[getTrnPostingDetail] GET', u);
@@ -19,19 +29,49 @@ export async function getTrnPostingDetail(buyerId: number | string, postingId: n
   }
 
   const json = await res.json().catch(() => null);
-  // If the API returns an array, use the first item
-  return Array.isArray(json) ? json[0] : json;
+  const detail: any = Array.isArray(json) ? json[0] : json;
+
+  // Fetch all reference data needed for normalization
+  // (listMetrics and listHealthConditions are defined later in this same file)
+  const [allMetrics, allHealthConditions] = await Promise.all([
+    listMetrics(),
+    listHealthConditions(),
+  ]);
+
+  // Normalize metrics:
+  // The backend might return `metricId` as a flat array of IDs, or `metrics` as an array of objects.
+  // We need `metrics` to be an array of `{ metricId: number, metricDisplayName: string }` for `index.tsx`.
+  if (detail) {
+    let rawMetricIds: number[] = [];
+    if (Array.isArray(detail.metricId)) {
+      rawMetricIds = detail.metricId.map(Number);
+    } else if (Array.isArray(detail.metrics)) {
+      // If `metrics` is already an array of objects, extract their IDs
+      rawMetricIds = detail.metrics.map((m: any) => Number(m.metricId));
+    }
+
+    detail.metrics = rawMetricIds
+      .map((id: number) => {
+        const metric = allMetrics.find(m => m.metricId === id);
+        // Ensure metricDisplayName is present for index.tsx
+        return metric ? { metricId: id, metricDisplayName: metric.displayName } : null;
+      })
+      .filter(Boolean); // Remove any nulls if a metric ID wasn't found
+  }
+
+  // Normalize health conditions:
+  // The `index.tsx` component's `StudyDetail` type expects `healthConditions: { id: number; displayName: string }[]`.
+  // The raw API response might have `healthConditionId` and `displayName`.
+  if (detail && Array.isArray(detail.healthConditions)) {
+    detail.healthConditions = detail.healthConditions.map((hc: any) => {
+      const id = hc.id ?? hc.healthConditionId; // Prefer 'id' if present, otherwise use 'healthConditionId'
+      const displayName = hc.displayName;
+      return { id: Number(id), displayName: String(displayName) };
+    });
+  }
+
+  return detail as Study; // Cast to Study or a more specific StudyDetail type if defined globally
 }
-// src/services/postings/api.ts
-import type { 
-  Study, 
-  PostingsResponseDTO, 
-  PostingDTO, 
-  Metric, 
-  PostingStatus, 
-  RewardType,
-  HealthCondition
-} from "./types";
 
 // --- Configuration & Utilities (Copied from original example) ---
 

@@ -56,15 +56,10 @@ export default function StudyDetail() {
       setLoading(true);
       setError(null);
       try {
-        // Hardcoded buyerId for now (should be dynamic in real app)
+        // Use the centralized API function which includes data normalization
+        const { getTrnPostingDetail } = await import("../../services/postings/api");
         const buyerId = 3;
-        const endpoint = `/buyers_postings_detail/${buyerId}/${studyId}`;
-        const { FUNCTIONS_BASE } = await import("../../services/postings/api");
-        const url = `${FUNCTIONS_BASE}${endpoint}`;
-        const res = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
-        if (!res.ok) throw new Error(`Failed to fetch study detail: ${res.status}`);
-        const data = await res.json();
-        const detail = Array.isArray(data) ? data[0] : data;
+        const detail = await getTrnPostingDetail(buyerId, studyId);
         setStudy(detail);
       } catch (err: any) {
         setError(err.message || 'Failed to load study');

@@ -121,8 +121,10 @@ const ManageStudy: React.FC = () => {
 
           setSelectedStatusId(detail.postingStatusId ?? null);
           setSelectedRewardTypeId(detail.rewardTypeId ?? null);
-          setSelectedMetricIds(Array.isArray(detail.metricId) ? detail.metricId.map((id: any) => Number(id)) : []);
-          setSelectedHealthConditionIds(Array.isArray(detail.healthConditions) ? detail.healthConditions.map((h: any) => Number(h.healthConditionId)) : []);
+          // The detail API returns an array of objects: { metricId: number, ... }
+          // We need to map this to an array of just the IDs.
+          setSelectedMetricIds(Array.isArray(detail.metrics) ? detail.metrics.map((m: any) => Number(m.metricId)) : []); // metricId is consistent
+          setSelectedHealthConditionIds(Array.isArray(detail.healthConditions) ? detail.healthConditions.map((h: any) => Number(h.id)) : []); // Use 'id' from normalized data
         }
       } catch (err) {
         console.error(err);
@@ -238,13 +240,12 @@ const ManageStudy: React.FC = () => {
     description,
     dataCoverageDaysRequired: dataCoverageDaysRequired ? Number(dataCoverageDaysRequired) : null,
     // posting status id (number or null)
-    postingStatusCode: selectedStatusId ? Number(selectedStatusId) : null,
+    postingStatusId: selectedStatusId ? Number(selectedStatusId) : null,
     // reward type id
     rewardTypeId: selectedRewardTypeId,
-    // array of metric IDs (number[])
-    metricId: selectedMetricIds,
-    metricDisplayName: selectedMetricsNames(),
-    // array of health condition IDs (number[])
+    // The create/update functions expect `postingMetricsIds` (not `metrics`)
+    metrics: selectedMetricIds,
+    // The create/update functions expect `healthConditionIds`
     healthConditionIds: selectedHealthConditionIds,
     // dates (ISO strings or null)
     applyOpenAt: applyOpenAt ? applyOpenAt.toISOString() : null,
