@@ -57,7 +57,7 @@ export default function StudyDetail() {
 
   // Shares (participant/session) UI
   const [sharesData, setSharesData] = useState<any | null>(null);
-  const [sharesLoading, setSharesLoading] = useState(false);
+  const [sharesLoading, setSharesLoading, ] = useState(false);
   const [sharesError, setSharesError] = useState<string | null>(null);
   const [expandedShares, setExpandedShares] = useState<Record<number, boolean>>({});
 
@@ -70,6 +70,32 @@ export default function StudyDetail() {
     }
   }
 
+  /**
+   * Formats a metric value to limit long decimals to 2 places.
+   * Leaves integers and numbers with 1-2 decimals as they are.
+   */
+  function formatMetricValue(value: number | null): string {
+    if (value === null) {
+      return "-";
+    }
+    if (typeof value !== 'number') {
+      return String(value);
+    }
+
+    const valueString = String(value);
+    const decimalPart = valueString.split('.')[1];
+
+    // If there is a decimal part and it has more than 2 digits, round it
+    if (decimalPart && decimalPart.length > 2) {
+      // Use toFixed(2) for rounding and ensuring 2 decimal places,
+      // then parseFloat().toString() to remove trailing zeros (e.g., "59.00" -> "59.0").
+      return parseFloat(value.toFixed(2)).toString();
+    }
+
+    // For integers or numbers with 1-2 decimal places, return as is
+    return valueString;
+  }
+  
   function toggleShareExpand(idx: number) {
     setExpandedShares((prev) => ({ ...prev, [idx]: !prev[idx] }));
   }
@@ -255,8 +281,7 @@ export default function StudyDetail() {
             <Text style={styles.label}>Study ID</Text>
             <Text style={styles.value}>{study.postingId}</Text>
 
-            {/* 
-            <Text style={styles.label}>Created On</Text>
+            {/* <Text style={styles.label}>Created On</Text>
             <Text style={styles.value}>{study.createdOn ?? "-"}</Text> */}
 
             <Text style={styles.label}>Modified On</Text>
@@ -275,7 +300,7 @@ export default function StudyDetail() {
               )}
             </View> */}
 
-                        <Text style={[styles.label, { marginTop: 12 }]}>Participant Shares</Text>
+            <Text style={[styles.label, { marginTop: 12 }]}>Participant Shares</Text>
 
             {sharesLoading ? (
               <ActivityIndicator />
@@ -288,70 +313,66 @@ export default function StudyDetail() {
                 {sharesData.shares.map((sh: any, i: number) => (
                   <View
                     key={(sh.userId ?? sh.sessionId ?? i) + "-" + i}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: "#eee",
-                      borderRadius: 8,
-                      padding: 10,
-                      marginTop: 8,
-                      backgroundColor: "#fff",
-                    }}
+                    style={styles.shareBox}
                   >
                     <TouchableOpacity
                       onPress={() => toggleShareExpand(i)}
-                      style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+                      style={styles.shareHeader}
                     >
                       <View>
-                        <Text style={{ fontWeight: "700" }}>{sh.userDisplayName ?? `User ${sh.userId ?? "-"}`}</Text>
-                        <Text style={{ color: "#6b7280" }}>
+                        <Text style={styles.shareTitle}>{sh.userDisplayName ?? `User ${sh.userId ?? "-"}`}</Text>
+                        <Text style={styles.shareSubtitle}>
                           Session: {sh.sessionId ?? "-"} · {sh.statusName ?? ""}
                         </Text>
                       </View>
-                      <Text style={{ color: "#6b7280" }}>{expandedShares[i] ? "▴" : "▾"}</Text>
+                      <Text style={styles.shareChevron}>{expandedShares[i] ? "▴" : "▾"}</Text>
                     </TouchableOpacity>
 
                     {expandedShares[i] && (
-                      <View style={{ marginTop: 10 }}>
+                      <View style={styles.shareDetails}>
                         {(!sh.segments || sh.segments.length === 0) ? (
                           <Text style={styles.muted}>No segments</Text>
                         ) : (
                           sh.segments.map((seg: any, si: number) => (
                             <View
                               key={(seg.segmentId ?? si) + "-" + si}
-                              style={{ padding: 8, backgroundColor: "#fafafa", borderRadius: 8, marginTop: 8 }}
+                              style={styles.segmentBox}
                             >
-                              <Text style={{ fontWeight: "700" }}>
+                              <Text style={styles.segmentHeader}>
                                 Segment {seg.segmentId ?? si} — Day {seg.dayIndex ?? "-"}
                               </Text>
-                              <Text style={{ color: "#6b7280", marginTop: 4 }}>
+                              <Text style={styles.segmentSubheader}>
                                 From: {formatUtcToLocal(seg.fromUtc)} · To: {formatUtcToLocal(seg.toUtc)}
                               </Text>
 
-                              <View style={{ marginTop: 8 }}>
-                                {(!seg.metrics || seg.metrics.length === 0) ? (
-                                  <Text style={styles.muted}>No metrics</Text>
-                                ) : (
-                                  seg.metrics.map((m: any, mi: number) => (
-                                    <View
-                                      key={(m.metricId ?? mi) + "-" + mi}
-                                      style={{ paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: "#eee" }}
-                                    >
-                                      <Text style={{ fontWeight: "600" }}>
-                                        {m.metricName ?? m.metricName ?? `Metric ${m.metricId ?? mi}`}{" "}
-                                        {m.unitCode ? `(${m.unitCode})` : ""}
-                                      </Text>
-
-                                      {Object.entries(m)
-                                        .filter(([k]) => k !== "metricName" && k !== "metricId" && k !== "unitCode")
-                                        .map(([k, v]) => (
-                                          <Text key={k} style={{ color: "#111827" }}>
-                                            {k}: {typeof v === "object" ? JSON.stringify(v) : String(v)}
-                                          </Text>
-                                        ))}
+                              {(!seg.metrics || seg.metrics.length === 0) ? (
+                                <Text style={[styles.muted, { paddingVertical: 8 }]}>No metrics</Text>
+                              ) : (
+                                <View style={styles.tableContainer}>
+                                  {/* Table Header */}
+                                  <View style={styles.tableHeaderRow}>
+                                    <Text style={[styles.tableHeaderCell, { flex: 1.5 }]}>Metric</Text>
+                                    <Text style={[styles.tableHeaderCell, { flex: 0.7, textAlign: 'right' }]}>Unit</Text>
+                                    <Text style={[styles.tableHeaderCell, { flex: 0.8, textAlign: 'right' }]}>Avg</Text>
+                                    <Text style={[styles.tableHeaderCell, { flex: 0.8, textAlign: 'right' }]}>Min</Text>
+                                    <Text style={[styles.tableHeaderCell, { flex: 0.8, textAlign: 'right' }]}>Max</Text>
+                                    <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>Total</Text>
+                                    <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>Samples</Text>
+                                  </View>
+                                  {/* Table Body */}
+                                  {seg.metrics.map((m: any, mi: number) => (
+                                    <View key={(m.metricId ?? mi) + "-" + mi} style={[styles.tableRow, mi === seg.metrics.length - 1 && styles.tableRowLast]}>
+                                      <Text style={[styles.tableCell, { flex: 1.5 }]}>{m.metricName ?? `Metric ${m.metricId}`}</Text>
+                                      <Text style={[styles.tableCell, { flex: 0.7, textAlign: 'right' }]}>{m.unitCode ?? "-"}</Text>
+                                      <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'right' }]}>{formatMetricValue(m.avgValue)}</Text>
+                                      <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'right' }]}>{formatMetricValue(m.minValue)}</Text>
+                                      <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'right' }]}>{formatMetricValue(m.maxValue)}</Text>
+                                      <Text style={[styles.tableCell, { flex: 1, textAlign: 'right' }]}>{formatMetricValue(m.totalValue)}</Text>
+                                      <Text style={[styles.tableCell, { flex: 1, textAlign: 'right' }]}>{m.samplesCount ?? "-"}</Text>
                                     </View>
-                                  ))
-                                )}
-                              </View>
+                                  ))}
+                                </View>
+                              )}
                             </View>
                           ))
                         )}
@@ -385,7 +406,7 @@ export default function StudyDetail() {
 
             <View style={styles.statRow}>
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{study.metrics?.length ?? 0}</Text>
+                <Text style={styles.statNumber}>{study.metricId?.length ?? 0}</Text>
                 <Text style={styles.statLabel}>Metrics</Text>
               </View>
 
@@ -533,4 +554,94 @@ const styles = StyleSheet.create({
 
   error: { color: "red", textAlign: "center", marginTop: 24 },
   center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 16 },
+
+  shareBox: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    marginTop: 8,
+    backgroundColor: "#fff",
+    overflow: 'hidden', // to contain the rounded corners
+  },
+  shareHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: '#fff',
+  },
+  shareTitle: {
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  shareSubtitle: {
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  shareChevron: {
+    color: "#6b7280",
+    fontSize: 18,
+    transform: [{ translateY: -2 }], // visual alignment
+  },
+  shareDetails: {
+    padding: 12,
+    paddingTop: 0, // No top padding, already spaced
+    backgroundColor: "#fcfcfc",
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+  },
+
+  segmentBox: {
+    padding: 10,
+    backgroundColor: "#fafafa",
+    borderRadius: 8,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#f3f3f3",
+  },
+  segmentHeader: {
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  segmentSubheader: {
+    color: "#6b7280",
+    marginTop: 4,
+    marginBottom: 10,
+    fontSize: 13,
+  },
+  tableContainer: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 6,
+    overflow: "hidden", // clips the corners
+  },
+  tableHeaderRow: {
+    flexDirection: "row",
+    backgroundColor: "#f9fafb",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  tableHeaderCell: {
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6b7280",
+    textTransform: "uppercase",
+  },
+  tableRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+    backgroundColor: "#fff",
+  },
+  tableRowLast: {
+    borderBottomWidth: 0, // No border for the last row in the table
+  },
+  tableCell: {
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: "#111827",
+  },
 });
