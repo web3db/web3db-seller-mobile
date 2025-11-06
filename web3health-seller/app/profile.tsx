@@ -1,0 +1,133 @@
+import React, { useState, useCallback } from 'react';
+import {
+  SafeAreaView,
+  ScrollView,
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
+import { useUser } from '@clerk/clerk-expo';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { getUserProfileByClerkId } from './services/users/api'; // Corrected import path
+import type { User } from './services/users/types'; // Corrected import path
+
+const ProfileScreen: React.FC = () => {
+  const { user: clerkUser, isLoaded } = useUser();
+  const router = useRouter();
+  const [userProfile, setUserProfile] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadUserProfile = async () => {
+        if (!isLoaded || !clerkUser) {
+          return; // Wait for Clerk user to be loaded
+        }
+
+        setIsLoading(true);
+        setError(null);
+        console.log("Loading user profile for Clerk ID:", clerkUser.id);
+        try {
+          const profile = await getUserProfileByClerkId(clerkUser.id);
+          setUserProfile(profile);
+        } catch (e: any) {
+          console.error("Failed to load user profile:", e);
+          setError(`Failed to load profile: ${e.message || 'Unknown error'}`);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      loadUserProfile();
+    }, [isLoaded, clerkUser])
+  );
+
+  const renderProfileDetail = (label: string, value: string | number | null | undefined) => (
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value || 'Not set'}</Text>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.root}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>My Profile</Text>
+
+        {isLoading ? (
+          <ActivityIndicator size="large" color="#4f46e5" style={{ marginTop: 20 }} />
+        ) : error ? (
+          <Text style={styles.errorText}>{error}</Text>
+        ) : userProfile ? (
+          <View style={styles.profileCard}>
+            {renderProfileDetail('Name', userProfile.name)}
+            {renderProfileDetail('Email', userProfile.email)}
+            {renderProfileDetail('Birth Year', userProfile.birthYear)}
+            {renderProfileDetail('Height', userProfile.heightNum)}
+            {renderProfileDetail('Weight', userProfile.weightNum)}
+            {renderProfileDetail('Race ID', userProfile.raceId)}
+            {renderProfileDetail('Sex ID', userProfile.sexId)}
+            {renderProfileDetail('Role ID', userProfile.roleId)}
+          </View>
+        ) : (
+          <Text style={styles.errorText}>No profile data found in the database for your account.</Text>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#f0f2f5',
+  },
+  container: {
+    padding: 24,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: 24,
+  },
+  profileCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  detailLabel: {
+    fontSize: 16,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  detailValue: {
+    fontSize: 16,
+    color: '#1e293b',
+    fontWeight: '600',
+  },
+  errorText: {
+    textAlign: 'center',
+    padding: 20,
+    fontSize: 16,
+    color: '#ef4444',
+    fontWeight: 'bold',
+  },
+});
+
+export default ProfileScreen;

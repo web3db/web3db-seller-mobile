@@ -23,7 +23,7 @@ const LoginScreen: React.FC = () => {
   
   // 🔑 Clerk Hooks Initialization
   const { isLoaded: authLoaded, isSignedIn, setActive } = useAuth(); // For checking current auth state
-  const { signIn, setSession, isLoaded: signInLoaded } = useSignIn(); // For email/password flow
+  const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn(); // For email/password flow
   
   // 🔑 OAuth Hook Initialization (Google Example)
   const googleOAuth = useOAuth({ strategy: 'oauth_google' });
@@ -81,7 +81,7 @@ const LoginScreen: React.FC = () => {
         // 🔑 Step 2: Set the session active.
         // This will automatically trigger the useEffect hook to redirect
         // when the `isSignedIn` state becomes true.
-        await setActive({ session: completeSignIn.createdSessionId });
+        await setSignInActive({ session: completeSignIn.createdSessionId });
       } else {
         // Handle other statuses (e.g., 'needs_second_factor', 'needs_new_password')
         // For simplicity, we'll log it, but in production, you'd navigate to an MFA screen.
@@ -92,11 +92,13 @@ const LoginScreen: React.FC = () => {
       // Log the full error for debugging
       console.error("Login Error:", JSON.stringify(err, null, 2));
 
-      // Provide a user-friendly error message.
-      // Instead of showing a generic "unknown error", we can provide a more
-      // direct and common message for login failures. This also prevents
-      // leaking information about whether an email exists in the system.
-      const clerkError = err.errors?.[0]?.longMessage || "Your email address and password don't match. Please try again.";
+      // Check for Clerk's specific error structure first.
+      // If that's not available, fall back to a generic but common login error message.
+      // This prevents showing a generic "unknown error" or an empty object '{}'.
+      const clerkError =
+        err.errors?.[0]?.longMessage ||
+        err.message || // Fallback for other error types
+        "Your email address and password don't match. Please try again.";
       setError(clerkError);
     } finally {
       setLoading(false);

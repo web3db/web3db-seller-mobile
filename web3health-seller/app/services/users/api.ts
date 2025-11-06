@@ -1,13 +1,14 @@
 import type { User, UserDTO } from './types';
+import { CreateUserPayloadDTO } from './types';
 
 /**
  * The shape of the data expected when creating a new user.
- * This should match the fields in your MST_User table.
+ * This should match the fields your Edge Function expects (camelCase).
  */
 export type CreateUserPayload = {
-  ClerkId: string;
-  Email: string;
-  Name: string;
+  clerkId: string;
+  email: string;
+  name: string;
   BirthYear?: number | null;
   RaceId?: number | null;
   SexId?: number | null;
@@ -15,7 +16,6 @@ export type CreateUserPayload = {
   WeightNum?: number | null;
   RoleId?: number | null;
   IsActive?: boolean;
-  // Add any other fields that are part of the user creation payload
 };
 
 // --- Configuration & Utilities (Copied from postings/api.ts) ---
@@ -84,7 +84,7 @@ export type UpdateUserPayload = Partial<CreateUserPayload>;
  * Creates a new user record in the MST_User table.
  * @param payload - The user data to insert.
  */
-export async function createUser(payload: CreateUserPayload): Promise<User> {
+export async function createUser(payload: CreateUserPayloadDTO): Promise<User> {
   // Assumes an Edge Function named 'users_create' exists
   const u = buildUrl("users_create");
   if (__DEV__) console.log("[createUser] POST", u);
@@ -189,4 +189,33 @@ export async function updateUser(userId: number, payload: UpdateUserPayload): Pr
   if (!json) throw new Error("users_update API returned no data");
 
   return mapDtoToUser(json);
+}
+
+/**
+ * GET PROFILE BY CLERK ID - Fetches a single user's profile by their Clerk ID via an Edge Function.
+ * @param clerkId - The Clerk ID of the user.
+ */
+export async function getUserProfileByClerkId(clerkId: string): Promise<User | null> {
+  // Assumes an Edge Function named 'users_profile' that accepts a 'clerkId' query parameter
+  const u = buildUrl('users_profile', { clerkId });
+  if (__DEV__) console.log("[getUserProfileByClerkId] GET", u);
+
+  const res = await fetch(u, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    // If the user is not found, the function might return a 404
+    if (res.status === 404) {
+      console.log(`User profile with Clerk ID ${clerkId} not found.`);
+      return null;
+    }
+    const txt = await res.text().catch(() => "");
+    if (__DEV__) console.warn("[getUserProfileByClerkId] ✗", res.status, res.statusText, txt);
+    throw new Error(`users_profile API failed: ${res.status} ${res.statusText} ${txt}`);
+  }
+
+  const json = await res.json().catch(() => null);
+  return json ? mapDtoToUser(json) : null;
 }

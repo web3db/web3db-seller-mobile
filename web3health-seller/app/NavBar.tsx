@@ -23,6 +23,9 @@ export const Navbar: React.FC = () => {
                         <TouchableOpacity onPress={() => router.push('/studies')}>
                             <Text style={styles.navLink}>Studies</Text>
                         </TouchableOpacity>
+                        <TouchableOpacity onPress={() => router.push('/profile')}>
+                            <Text style={styles.navLink}>Profile</Text>
+                        </TouchableOpacity>
                         <TouchableOpacity onPress={() => signOut()}>
                             <Text style={styles.logoutBtn}>Log Out</Text>
                         </TouchableOpacity>
