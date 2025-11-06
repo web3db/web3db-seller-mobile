@@ -8,14 +8,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
+  Alert, // Note: Alert may not work as expected in Expo Go on web.
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSignUp } from '@clerk/clerk-expo';
+import { useSignUp, useClerk } from '@clerk/clerk-expo'; // Import useClerk for later
 import { createUser, CreateUserPayload } from './services/users/api'; // Correctly import from the user API
 
 const RegisterScreen: React.FC = () => {
   const { isLoaded, signUp } = useSignUp();
+  // We'll need useClerk on the verify screen, but good to be aware of
+  // const { clerk } = useClerk(); 
   const router = useRouter();
 
   const [email, setEmail] = useState('');
@@ -39,52 +41,118 @@ const RegisterScreen: React.FC = () => {
     setLoading(true);
     setError('');
 
-    if (!orgName || !email || !password || !birthYear) { // Added birthYear to required fields
-      setError("Please fill out all fields.");
+    console.log('[DEBUG] Starting registration process...');
+
+    if (!orgName || !email || !password || !birthYear) {
+      setError('Please fill out all fields.');
       setLoading(false);
+      console.warn('[DEBUG] Validation failed: Missing required fields.');
       return;
     }
 
     try {
-      // Step 1: Create the user in Clerk
-      const signUpAttempt = await signUp.create({
+      // Step 1: Pass ALL form data into unsafeMetadata
+      // This is so we can retrieve it AFTER email verification
+      const userMetadata = {
+        orgName: orgName,
+        birthYear: parseInt(birthYear, 10) || null,
+        raceId: parseInt(raceId, 10) || null,
+        sexId: parseInt(sexId, 10) || null,
+        heightNum: parseFloat(heightNum) || null,
+        heightUnitId: parseInt(heightUnitId, 10) || null,
+        weightNum: parseFloat(weightNum) || null,
+        weightUnitId: parseInt(weightUnitId, 10) || null,
+        measurementSystemId: parseInt(measurementSystemId, 10) || null,
+        roleId: 2, // Default role
+        isActive: true,
+      };
+
+      console.log(
+        '[DEBUG] Step 1: Attempting Clerk sign up with payload and metadata:',
+      );
+      console.log('Email:', email);
+      console.log('Metadata:', userMetadata);
+
+      // Create the user in Clerk
+      await signUp.create({
         emailAddress: email,
         password,
-        unsafeMetadata: { orgName },
+        unsafeMetadata: userMetadata, // Pass ALL data here
       });
 
-      // Step 2: If Clerk user is created, insert into Supabase
-      if (signUpAttempt.createdUserId) {
-        // Construct the payload for our new API function
-        const userPayload: CreateUserPayload = {
-          ClerkId: signUpAttempt.createdUserId,
-          Email: email,
-          Name: orgName,
-          IsActive: true,
-          BirthYear: parseInt(birthYear, 10) || null,
-          RaceId: parseInt(raceId, 10) || null,
-          SexId: parseInt(sexId, 10) || null,
-          HeightNum: parseFloat(heightNum) || null,
-          // HeightUnitId, WeightUnitId, and MeasurementSystemId are not in CreateUserPayload
-          // Add them to the type if they should be passed to the API.
-          RoleId: 2, // Default role for a new seller
-        };
+      // NOTE: signUp.createdUserId will NOT exist yet.
+      // We no longer call createUser() from this screen.
 
-        // Call the centralized API function, similar to createTrnPosting
-        const response = await createUser(userPayload);
-
-        // You can optionally log the response from your database
-        console.log("Successfully created user in DB:", response);
-      }
-
-      // Step 3: Prepare for email verification
+      // Step 2: Prepare for email verification
+      console.log('[DEBUG] Step 2: Preparing email verification...');
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
 
-      // Step 4: Navigate to the verification screen
+      // Step 3: Navigate to the verification screen
+      console.log('[DEBUG] Step 3: Navigating to /verify');
       router.push('/verify');
+
+      /* =====================================================================
+      IMPORTANT DEVELOPER NOTE: (THIS IS THE FIX)
+      =====================================================================
+      
+      The Supabase user MUST be created on your '/verify' screen, *after*
+      the user successfully verifies their email.
+      
+      On your '/verify.tsx' screen, your code will look something like this:
+
+      1. User enters code.
+      2. You call: 
+         const completeSignUp = await signUp.attemptEmailAddressVerification({ code });
+      
+      3. CRITICALLY, check for the createdUserId:
+         if (completeSignUp.status === 'complete' && completeSignUp.createdUserId) {
+            
+            // 4. Get the metadata we saved:
+            const metadata = completeSignUp.unsafeMetadata;
+
+            // 5. Build the Supabase payload:
+            const userPayload: CreateUserPayload = {
+              clerkId: completeSignUp.createdUserId,
+              email: completeSignUp.emailAddress,
+              name: metadata.orgName,
+              isActive: metadata.isActive,
+              birthYear: metadata.birthYear,
+              raceId: metadata.raceId,
+              sexId: metadata.sexId,
+              heightNum: metadata.heightNum,
+              heightUnitId: metadata.heightUnitId,
+              weightNum: metadata.weightNum,
+              weightUnitId: metadata.weightUnitId,
+              measurementSystemId: metadata.measurementSystemId,
+              roleId: metadata.roleId,
+            };
+
+            // 6. Call the createUser API function:
+            try {
+              await createUser(userPayload);
+              console.log("Successfully created Supabase user.");
+              
+              // 7. Set the session active and navigate to the dashboard
+              // You will need to import { useClerk } from '@clerk/clerk-expo'
+              // const { clerk } = useClerk();
+              await clerk.setActive({ session: completeSignUp.createdSessionId });
+              router.push('/dashboard'); // Or wherever your app starts
+
+            } catch (dbError) {
+              console.error("Failed to create Supabase user:", dbError);
+              // Handle error: show message to user
+              setError("Failed to create your profile. Please contact support.");
+            }
+         } else {
+            console.warn("Verification complete but no createdUserId found.");
+         }
+      */
     } catch (err: any) {
-      console.error("Clerk Sign Up Error:", JSON.stringify(err, null, 2));
-      const clerkError = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || 'An unknown error occurred during sign-up';
+      console.error('Clerk Sign Up Error:', JSON.stringify(err, null, 2));
+      const clerkError =
+        err.errors?.[0]?.longMessage ||
+        err.errors?.[0]?.message ||
+        'An unknown error occurred during sign-up';
       setError(clerkError);
     } finally {
       setLoading(false);
@@ -93,7 +161,12 @@ const RegisterScreen: React.FC = () => {
 
   if (!isLoaded) {
     return (
-      <View style={[styles.authRoot, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View
+        style={[
+          styles.authRoot,
+          { justifyContent: 'center', alignItems: 'center' },
+        ]}
+      >
         <ActivityIndicator size="large" color="#4f46e5" />
       </View>
     );
@@ -243,6 +316,7 @@ const styles = StyleSheet.create({
     maxWidth: 500,
     width: '100%',
     alignSelf: 'center',
+    marginVertical: 24, // Added margin for scroll view on web/tablet
   },
   authCard: {
     // This style is no longer the main container, but can be used for inner cards if needed.
@@ -276,6 +350,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     marginBottom: 16,
+    color: '#1e293b', // Added text color for input
   },
   authActions: {
     flexDirection: 'row',
@@ -316,7 +391,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
     fontWeight: '600',
-  }
+  },
 });
 
 export default RegisterScreen;

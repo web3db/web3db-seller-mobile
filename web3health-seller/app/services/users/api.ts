@@ -1,22 +1,93 @@
-import type { User, UserDTO } from './types';
-import { CreateUserPayloadDTO } from './types';
+// --- 1. Type Definitions (Assumed to be in './types' and moved here for completeness) ---
+
+/**
+ * The DTO (Data Transfer Object) shape received from the Supabase Edge Function response.
+ * This MUST use the exact casing of the columns in your Postgres database (PascalCase).
+ *
+ * NOTE: I have corrected your 'bigint' fields (UserId, CreatedBy, ModifiedBy) to be 'string'
+ * in TypeScript. This is critical to prevent data corruption, as JavaScript 'number'
+ * cannot safely handle the full range of a Postgres 'bigint'.
+ */
+export type UserDTO = {
+  UserId: string; // BIGINT
+  ClerkId: string;
+  Email: string;
+  Name: string;
+  BirthYear: number | null;
+  RaceId: number | null;
+  SexId: number | null;
+  HeightNum: number | null; // numeric
+  HeightUnitId: number | null;
+  WeightNum: number | null; // numeric
+  WeightUnitId: number | null;
+  MeasurementSystemId: number | null;
+  IsActive: boolean;
+  CreatedBy: string; // BIGINT
+  CreatedOn: string; // timestamp with time zone
+  ModifiedBy: string | null; // BIGINT
+  ModifiedOn: string | null; // timestamp with time zone
+  RoleId: number | null;
+};
+
+/**
+ * The internal application model for a User.
+ * This uses standard JavaScript/TypeScript camelCase convention.
+ */
+export type User = {
+  userId: string; // BIGINT
+  clerkId: string;
+  email: string;
+  name: string;
+  birthYear: number | null;
+  raceId: number | null;
+  sexId: number | null;
+  heightNum: number | null;
+  heightUnitId: number | null;
+  weightNum: number | null;
+  weightUnitId: number | null;
+  measurementSystemId: number | null;
+  isActive: boolean;
+  createdBy: string; // BIGINT
+  createdOn: Date; // <-- Changed to Date for easier use
+  modifiedBy: string | null; // BIGINT
+  modifiedOn: Date | null; // <-- Changed to Date for easier use
+  roleId: number | null;
+};
+
+/**
+ * The shape of the data expected when creating a new user (the payload sent to the API).
+ * This uses camelCase and should contain only client-editable fields.
+ * It is mapped to the 'CreateUserPayload' below.
+ */
+export type CreateUserPayloadDTO = {
+  clerkId: string;
+  email: string;
+  name: string;
+  birthYear?: number | null;
+  raceId?: number | null;
+  sexId?: number | null;
+  heightNum?: number | null;
+  heightUnitId?: number | null;
+  weightNum?: number | null;
+  weightUnitId?: number | null;
+  measurementSystemId?: number | null;
+  roleId?: number | null; // <-- FIXED: Added this field
+  isActive?: boolean; // <-- FIXED: Added this field
+};
+
+// --- 2. Imports and Client-Side Payload Type ---
+
+// Renamed and fixed the import to reflect the combined file structure,
+// but kept original structure for reference if 'types' is a separate file.
+// import type { User, UserDTO } from './types';
+// import { CreateUserPayloadDTO } from './types';
 
 /**
  * The shape of the data expected when creating a new user.
  * This should match the fields your Edge Function expects (camelCase).
+ * NOTE: Used 'CreateUserPayloadDTO' for payload consistency.
  */
-export type CreateUserPayload = {
-  clerkId: string;
-  email: string;
-  name: string;
-  BirthYear?: number | null;
-  RaceId?: number | null;
-  SexId?: number | null;
-  HeightNum?: number | null;
-  WeightNum?: number | null;
-  RoleId?: number | null;
-  IsActive?: boolean;
-};
+export type CreateUserPayload = CreateUserPayloadDTO;
 
 // --- Configuration & Utilities (Copied from postings/api.ts) ---
 
@@ -26,36 +97,40 @@ export const FUNCTIONS_BASE = (() => {
   try {
     // window is available in web; process.env in build time
     // @ts-ignore
-    if (typeof window !== 'undefined' && (window as any).__DEV_PROXY__) return (window as any).__DEV_PROXY__
+    if (typeof window !== 'undefined' && (window as any).__DEV_PROXY__)
+      return (window as any).__DEV_PROXY__;
   } catch {}
   // fallback to process env (used by bundlers)
-  if (typeof process !== 'undefined' && process.env && process.env.DEV_PROXY) return process.env.DEV_PROXY
+  if (typeof process !== 'undefined' && process.env && process.env.DEV_PROXY)
+    return process.env.DEV_PROXY;
 
-  return "https://jkyctppxygjhsqwmbyvb.supabase.co/functions/v1"
-})()
+  return 'https://jkyctppxygjhsqwmbyvb.supabase.co/functions/v1';
+})();
 
 // Global flag assumed to be set in your build system
-declare const __DEV__: boolean; 
+declare const __DEV__: boolean;
 
 function buildQuery(qs?: Record<string, unknown>) {
-  if (!qs) return "";
+  if (!qs) return '';
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(qs)) {
-    if (v !== undefined && v !== null && v !== "") sp.append(k, String(v));
+    if (v !== undefined && v !== null && v !== '') sp.append(k, String(v));
   }
   const s = sp.toString();
-  return s ? `?${s}` : "";
+  return s ? `?${s}` : '';
 }
 
 function buildUrl(name: string, qs?: Record<string, unknown>) {
-  const clean = name.replace(/^\/+/, "");
+  const clean = name.replace(/^\/+/, '');
   return `${FUNCTIONS_BASE}/${clean}${buildQuery(qs)}`;
 }
 
 // --- End Utilities ---
 
+// --- 3. Fixed Mapping Function ---
+
 /**
- * Maps the raw Supabase `MST_User` DTO to the application's internal 'User' type.
+ * Maps the raw Supabase `MST_User` DTO (PascalCase) to the application's internal 'User' type (camelCase).
  * This keeps the data mapping logic centralized.
  */
 function mapDtoToUser(dto: UserDTO): User {
@@ -68,9 +143,16 @@ function mapDtoToUser(dto: UserDTO): User {
     raceId: dto.RaceId,
     sexId: dto.SexId,
     heightNum: dto.HeightNum,
+    heightUnitId: dto.HeightUnitId,
     weightNum: dto.WeightNum,
-    roleId: dto.RoleId,
+    weightUnitId: dto.WeightUnitId,
+    measurementSystemId: dto.MeasurementSystemId,
     isActive: dto.IsActive,
+    createdBy: dto.CreatedBy,
+    createdOn: new Date(dto.CreatedOn), // <-- Parse to Date object
+    modifiedBy: dto.ModifiedBy,
+    modifiedOn: dto.ModifiedOn ? new Date(dto.ModifiedOn) : null, // <-- Parse to Date object
+    roleId: dto.RoleId,
   };
 }
 
@@ -80,29 +162,34 @@ function mapDtoToUser(dto: UserDTO): User {
  */
 export type UpdateUserPayload = Partial<CreateUserPayload>;
 
+// --- 4. API Client Functions (No functional changes needed here) ---
+
 /**
  * Creates a new user record in the MST_User table.
  * @param payload - The user data to insert.
  */
 export async function createUser(payload: CreateUserPayloadDTO): Promise<User> {
   // Assumes an Edge Function named 'users_create' exists
-  const u = buildUrl("users_create");
-  if (__DEV__) console.log("[createUser] POST", u);
+  const u = buildUrl('users_create');
+  if (__DEV__) console.log('[createUser] POST', u);
 
   const res = await fetch(u, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    if (__DEV__) console.warn("[createUser] ✗", res.status, res.statusText, txt);
-    throw new Error(`users_create API failed: ${res.status} ${res.statusText} ${txt}`);
+    const txt = await res.text().catch(() => '');
+    if (__DEV__)
+      console.warn('[createUser] ✗', res.status, res.statusText, txt);
+    throw new Error(
+      `users_create API failed: ${res.status} ${res.statusText} ${txt}`,
+    );
   }
 
   const json = await res.json().catch(() => null);
-  if (!json) throw new Error("users_create API returned no data");
+  if (!json) throw new Error('users_create API returned no data');
 
   return mapDtoToUser(json);
 }
@@ -112,22 +199,29 @@ export async function createUser(payload: CreateUserPayloadDTO): Promise<User> {
  */
 export async function listUsers(): Promise<User[]> {
   // Assumes an Edge Function named 'users_list' exists
-  const u = buildUrl("users_list");
-  if (__DEV__) console.log("[listUsers] GET", u);
+  const u = buildUrl('users_list');
+  if (__DEV__) console.log('[listUsers] GET', u);
 
   const res = await fetch(u, {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
   });
 
   if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    if (__DEV__) console.warn("[listUsers] ✗", res.status, res.statusText, txt);
-    throw new Error(`users_list API failed: ${res.status} ${res.statusText} ${txt}`);
+    const txt = await res.text().catch(() => '');
+    if (__DEV__)
+      console.warn('[listUsers] ✗', res.status, res.statusText, txt);
+    throw new Error(
+      `users_list API failed: ${res.status} ${res.statusText} ${txt}`,
+    );
   }
 
   const json = await res.json().catch(() => null);
-  const rawItems: any[] = Array.isArray(json) ? json : (json?.items && Array.isArray(json.items)) ? json.items : [];
+  const rawItems: any[] = Array.isArray(json)
+    ? json
+    : json?.items && Array.isArray(json.items)
+      ? json.items
+      : [];
 
   const items: User[] = rawItems.map((p: UserDTO) => mapDtoToUser(p));
   if (__DEV__) console.log(`[listUsers] ✓ items=${items.length}`);
@@ -136,16 +230,16 @@ export async function listUsers(): Promise<User[]> {
 
 /**
  * GET DETAIL - Fetches a single user's details by their UserId.
- * @param userId - The primary key of the user in your database.
+ * @param userId - The primary key of the user in your database (as a string, since it's a bigint).
  */
-export async function getUserDetail(userId: number): Promise<User | null> {
+export async function getUserDetail(userId: string): Promise<User | null> {
   // Assumes an Edge Function named 'users_detail/{userId}' exists
   const u = buildUrl(`users_detail/${userId}`);
-  if (__DEV__) console.log("[getUserDetail] GET", u);
+  if (__DEV__) console.log('[getUserDetail] GET', u);
 
   const res = await fetch(u, {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
   });
 
   if (!res.ok) {
@@ -154,9 +248,12 @@ export async function getUserDetail(userId: number): Promise<User | null> {
       console.log(`User with ID ${userId} not found.`);
       return null;
     }
-    const txt = await res.text().catch(() => "");
-    if (__DEV__) console.warn("[getUserDetail] ✗", res.status, res.statusText, txt);
-    throw new Error(`users_detail API failed: ${res.status} ${res.statusText} ${txt}`);
+    const txt = await res.text().catch(() => '');
+    if (__DEV__)
+      console.warn('[getUserDetail] ✗', res.status, res.statusText, txt);
+    throw new Error(
+      `users_detail API failed: ${res.status} ${res.statusText} ${txt}`,
+    );
   }
 
   const json = await res.json().catch(() => null);
@@ -165,28 +262,34 @@ export async function getUserDetail(userId: number): Promise<User | null> {
 
 /**
  * UPDATE - Sends an update payload for a user to the MST_User table.
- * @param userId - The primary key of the user to update.
+ * @param userId - The primary key of the user to update (as a string, since it's a bigint).
  * @param payload - The fields to update.
  */
-export async function updateUser(userId: number, payload: UpdateUserPayload): Promise<User> {
+export async function updateUser(
+  userId: string,
+  payload: UpdateUserPayload,
+): Promise<User> {
   // Assumes an Edge Function named 'users_update/{userId}' exists
   const u = buildUrl(`users_update/${userId}`);
-  if (__DEV__) console.log("[updateUser] PATCH", u, payload);
+  if (__DEV__) console.log('[updateUser] PATCH', u, payload);
 
   const res = await fetch(u, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    if (__DEV__) console.warn("[updateUser] ✗", res.status, res.statusText, txt);
-    throw new Error(`users_update API failed: ${res.status} ${res.statusText} ${txt}`);
+    const txt = await res.text().catch(() => '');
+    if (__DEV__)
+      console.warn('[updateUser] ✗', res.status, res.statusText, txt);
+    throw new Error(
+      `users_update API failed: ${res.status} ${res.statusText} ${txt}`,
+    );
   }
 
   const json = await res.json().catch(() => null);
-  if (!json) throw new Error("users_update API returned no data");
+  if (!json) throw new Error('users_update API returned no data');
 
   return mapDtoToUser(json);
 }
@@ -195,14 +298,16 @@ export async function updateUser(userId: number, payload: UpdateUserPayload): Pr
  * GET PROFILE BY CLERK ID - Fetches a single user's profile by their Clerk ID via an Edge Function.
  * @param clerkId - The Clerk ID of the user.
  */
-export async function getUserProfileByClerkId(clerkId: string): Promise<User | null> {
+export async function getUserProfileByClerkId(
+  clerkId: string,
+): Promise<User | null> {
   // Assumes an Edge Function named 'users_profile' that accepts a 'clerkId' query parameter
   const u = buildUrl('users_profile', { clerkId });
-  if (__DEV__) console.log("[getUserProfileByClerkId] GET", u);
+  if (__DEV__) console.log('[getUserProfileByClerkId] GET', u);
 
   const res = await fetch(u, {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
   });
 
   if (!res.ok) {
@@ -211,9 +316,17 @@ export async function getUserProfileByClerkId(clerkId: string): Promise<User | n
       console.log(`User profile with Clerk ID ${clerkId} not found.`);
       return null;
     }
-    const txt = await res.text().catch(() => "");
-    if (__DEV__) console.warn("[getUserProfileByClerkId] ✗", res.status, res.statusText, txt);
-    throw new Error(`users_profile API failed: ${res.status} ${res.statusText} ${txt}`);
+    const txt = await res.text().catch(() => '');
+    if (__DEV__)
+      console.warn(
+        '[getUserProfileByClerkId] ✗',
+        res.status,
+        res.statusText,
+        txt,
+      );
+    throw new Error(
+      `users_profile API failed: ${res.status} ${res.statusText} ${txt}`,
+    );
   }
 
   const json = await res.json().catch(() => null);

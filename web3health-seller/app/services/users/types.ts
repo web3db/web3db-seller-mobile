@@ -28,7 +28,6 @@ export type User = {
  * Note the PascalCase convention from the database schema.
  */
 export type UserDTO = {
-  UserId: number;
   ClerkId: string;
   Email: string;
   Name: string;
