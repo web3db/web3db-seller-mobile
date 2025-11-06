@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useAuth } from "../hooks/AuthContext"; // Adjust path as needed
+import { useAuth } from "@clerk/clerk-expo"; // Use Clerk's useAuth
 import {
   createTrnPosting,
   listMetrics,
@@ -41,7 +41,7 @@ export default function ManageStudy(): JSX.Element {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isNarrow = width < 720;
-  const auth = useAuth();
+  const { isSignedIn } = useAuth(); // Use Clerk's isSignedIn
 
   // form state (pre-filled)
   const [title, setTitle] = useState("");

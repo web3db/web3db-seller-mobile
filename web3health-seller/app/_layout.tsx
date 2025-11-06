@@ -1,34 +1,65 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { LogBox } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, View, StyleSheet, SafeAreaView, Platform } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import React from 'react';
-import Navbar from './NavBar';
-import { AuthProvider } from '@/hooks/AuthContext';
+import React, { useEffect } from 'react';
 
-// Suppress all warnings and logs in the app
-LogBox.ignoreAllLogs();
+import Navbar from './NavBar'; // Import the Navbar
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+// 🔑 CLERK IMPORTS
+import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
+import { tokenCache } from '@clerk/clerk-expo/token-cache';
+
+// ⚠️ IMPORTANT: Get your Clerk Publishable Key from your .env file
+const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <SafeAreaView style={{ flex: 1 }}>
-          <Navbar />
-          <Stack screenOptions={{ headerShown: false }} />
-        </SafeAreaView>
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </AuthProvider>
+    // 🔑 CLERKProvider WRAPPER
+    // This is now the top-level component and will not re-render.
+    <ClerkProvider 
+      publishableKey={CLERK_PUBLISHABLE_KEY!} 
+      tokenCache={Platform.OS !== 'web' ? tokenCache : undefined}
+    >
+      <AppContent />
+    </ClerkProvider>
   );
 }
+
+function AppContent() {
+  const colorScheme = useColorScheme();
+  const { isLoaded, isSignedIn } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  if (!isLoaded) {
+    return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" /></View>;
+  }
+
+  // Ensure the publishable key is available before rendering
+  if (!CLERK_PUBLISHABLE_KEY) {
+    throw new Error('Missing Clerk Publishable Key in .env file.');
+  }
+
+  return (
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="auto" />
+        <View style={{ flex: 1 }}>
+          <Navbar />
+          <Stack screenOptions={{ headerShown: false }} />
+        </View>
+      </SafeAreaView>
+    </ThemeProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc', // Match Navbar background
+  },
+});

@@ -1,212 +1,322 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   SafeAreaView,
   View,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
   Alert,
-  ScrollView,
 } from 'react-native';
-import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // This import is correct
-import { useAuth } from '../hooks/AuthContext'; // Adjust path as needed
+import { useRouter } from 'expo-router';
+import { useSignUp } from '@clerk/clerk-expo';
+import { createUser, CreateUserPayload } from './services/users/api'; // Correctly import from the user API
 
 const RegisterScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProp<ParamListBase>>();
-  const auth = useAuth();
-  
-  const [orgName, setOrgName] = useState('');
+  const { isLoaded, signUp } = useSignUp();
+  const router = useRouter();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [orgName, setOrgName] = useState('');
+  const [birthYear, setBirthYear] = useState('');
+  const [raceId, setRaceId] = useState('');
+  const [sexId, setSexId] = useState('');
+  const [heightNum, setHeightNum] = useState('');
+  const [weightNum, setWeightNum] = useState('');
+  // For simplicity, we'll assume IDs for units. In a real app, you'd fetch these.
+  const [heightUnitId, setHeightUnitId] = useState('1'); // e.g., 1 for 'cm'
+  const [weightUnitId, setWeightUnitId] = useState('1'); // e.g., 1 for 'kg'
+  const [measurementSystemId, setMeasurementSystemId] = useState('1'); // e.g., 1 for 'Metric'
 
-  // This effect handles redirection if the user is already authenticated.
-  useEffect(() => {
-    if (auth.isAuthenticated) {
-      navigation.replace('studies');
-    }
-  }, [auth.isAuthenticated, navigation]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleRegister = async () => {
-    // Basic validation
-    if (!orgName || !email || !password) {
-      Alert.alert("Error", "Please fill out all fields.");
+    if (!isLoaded) return;
+    setLoading(true);
+    setError('');
+
+    if (!orgName || !email || !password || !birthYear) { // Added birthYear to required fields
+      setError("Please fill out all fields.");
+      setLoading(false);
       return;
     }
-    
+
     try {
-      // 1. Replicate localStorage with AsyncStorage (it's async!)
-      const org = { name: orgName };
-      await AsyncStorage.setItem('org', JSON.stringify(org));
-      
-      // 2. UI-only: call the auth context. The useEffect will handle navigation.
-      console.log("Registering and logging in with:", email);
-      auth.login({ email, org: org.name });
-    } catch (error) {
-      console.error("Failed to save organization data", error);
-      Alert.alert("Error", "Could not save registration data.");
+      // Step 1: Create the user in Clerk
+      const signUpAttempt = await signUp.create({
+        emailAddress: email,
+        password,
+        unsafeMetadata: { orgName },
+      });
+
+      // Step 2: If Clerk user is created, insert into Supabase
+      if (signUpAttempt.createdUserId) {
+        // Construct the payload for our new API function
+        const userPayload: CreateUserPayload = {
+          ClerkId: signUpAttempt.createdUserId,
+          Email: email,
+          Name: orgName,
+          IsActive: true,
+          BirthYear: parseInt(birthYear, 10) || null,
+          RaceId: parseInt(raceId, 10) || null,
+          SexId: parseInt(sexId, 10) || null,
+          HeightNum: parseFloat(heightNum) || null,
+          // HeightUnitId, WeightUnitId, and MeasurementSystemId are not in CreateUserPayload
+          // Add them to the type if they should be passed to the API.
+          RoleId: 2, // Default role for a new seller
+        };
+
+        // Call the centralized API function, similar to createTrnPosting
+        const response = await createUser(userPayload);
+
+        // You can optionally log the response from your database
+        console.log("Successfully created user in DB:", response);
+      }
+
+      // Step 3: Prepare for email verification
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+
+      // Step 4: Navigate to the verification screen
+      router.push('/verify');
+    } catch (err: any) {
+      console.error("Clerk Sign Up Error:", JSON.stringify(err, null, 2));
+      const clerkError = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || 'An unknown error occurred during sign-up';
+      setError(clerkError);
+    } finally {
+      setLoading(false);
     }
   };
 
+  if (!isLoaded) {
+    return (
+      <View style={[styles.authRoot, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#4f46e5" />
+      </View>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.authRoot}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.authCard}>
-          <Text style={styles.h2}>Admin Registration</Text>
-          <Text style={styles.p}>
-            Create an admin account for your organization. This demo saves data locally only.
-          </Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <Text style={styles.h2}>Admin Registration</Text>
+        <Text style={styles.authHelp}>
+          Create an admin account for your organization.
+        </Text>
 
-          <View style={styles.label}>
-            <Text style={styles.labelText}>Organization name</Text>
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        <Text style={styles.label}>Organization Name</Text>
+        <TextInput
+          style={styles.input}
+          value={orgName}
+          onChangeText={setOrgName}
+          placeholder="Your Organization, Inc."
+          editable={!loading}
+        />
+
+        <Text style={styles.label}>Email</Text>
+        <TextInput
+          style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+          placeholder="you@organization.org"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!loading}
+        />
+
+        <Text style={styles.label}>Birth Year</Text>
+        <TextInput
+          style={styles.input}
+          value={birthYear}
+          onChangeText={setBirthYear}
+          placeholder="YYYY"
+          keyboardType="number-pad"
+          maxLength={4}
+          editable={!loading}
+        />
+
+        {/* For simplicity, these are text inputs. In a real app, use dropdowns. */}
+        <Text style={styles.label}>Race ID</Text>
+        <TextInput
+          style={styles.input}
+          value={raceId}
+          onChangeText={setRaceId}
+          placeholder="Enter Race ID (e.g., 1, 2, 3)"
+          keyboardType="number-pad"
+          editable={!loading}
+        />
+
+        <Text style={styles.label}>Sex ID</Text>
+        <TextInput
+          style={styles.input}
+          value={sexId}
+          onChangeText={setSexId}
+          placeholder="Enter Sex ID (e.g., 1 for Male, 2 for Female)"
+          keyboardType="number-pad"
+          editable={!loading}
+        />
+
+        <View style={styles.row}>
+          <View style={styles.flex}>
+            <Text style={styles.label}>Height</Text>
             <TextInput
               style={styles.input}
-              value={orgName}
-              onChangeText={setOrgName}
-              placeholder="Organization, e.g. Sleep Labs"
-              autoCapitalize="words"
+              value={heightNum}
+              onChangeText={setHeightNum}
+              placeholder="e.g., 180"
+              keyboardType="numeric"
+              editable={!loading}
             />
           </View>
-          
-          <View style={styles.label}>
-            <Text style={styles.labelText}>Admin email</Text>
+          <View style={styles.flex}>
+            <Text style={styles.label}>Weight</Text>
             <TextInput
               style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="admin@org.org"
-              keyboardType="email-address"
-              autoCapitalize="none"
+              value={weightNum}
+              onChangeText={setWeightNum}
+              placeholder="e.g., 75"
+              keyboardType="numeric"
+              editable={!loading}
             />
           </View>
+        </View>
 
-          <View style={styles.label}>
-            <Text style={styles.labelText}>Password</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Choose a strong password"
-              secureTextEntry={true}
-            />
-          </View>
+        <Text style={styles.label}>Password</Text>
+        <TextInput
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          placeholder="••••••••"
+          secureTextEntry={true}
+          editable={!loading}
+        />
 
-          <View style={styles.authActions}>
-            <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={handleRegister}>
-              <Text style={styles.btnPrimaryText}>Create account</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.socialRow}>
-            <TouchableOpacity style={styles.socialBtn}>
-              <Text style={styles.socialBtnText}>Continue with Google</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialBtn}>
-              <Text style={styles.socialBtnText}>Continue with SSO</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.authActions}>
+          <TouchableOpacity
+            style={[styles.btn, styles.btnPrimary]}
+            onPress={handleRegister}
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            {loading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.btnPrimaryText}>Create Account</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/login')}>
+            <Text style={styles.link}>Sign In</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-// Re-using the same styles from the Login screen for consistency
+// Reusing styles from login.tsx for consistency
 const styles = StyleSheet.create({
   authRoot: {
     flex: 1,
-    justifyContent: 'center',
-    padding: 16,
+    backgroundColor: '#f0f2f5',
   },
-authCard: {
-    marginTop: 24,
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f0f2f5',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 24,
     backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 5,
-    width: 500,
-    maxWidth: '80%',
+    maxWidth: 500,
+    width: '100%',
     alignSelf: 'center',
   },
-  h2: {
-    marginBottom: 4,
-    color: '#0f172a',
-    fontSize: 24,
-    textAlign: 'center',
-    fontWeight: 'bold',
+  authCard: {
+    // This style is no longer the main container, but can be used for inner cards if needed.
+    // For now, we've moved its properties to scrollContainer
   },
-  p: {
-    marginBottom: 24,
-    color: '#6b7280',
+  h2: {
+    fontSize: 24,
+    fontWeight: 'bold',
     textAlign: 'center',
+    marginBottom: 8,
+    color: '#1e293b',
+  },
+  authHelp: {
     fontSize: 14,
-    lineHeight: 20,
+    textAlign: 'center',
+    color: '#64748b',
+    marginBottom: 24,
   },
   label: {
-    marginBottom: 16,
-  },
-  labelText: {
-    fontSize: 15,
-    color: '#374151',
+    fontSize: 14,
     fontWeight: '500',
+    color: '#334155',
+    marginBottom: 6,
   },
   input: {
-    width: '100%',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    backgroundColor: '#ffffff',
-    color: '#0f172a',
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     fontSize: 16,
-    marginTop: 4,
+    marginBottom: 16,
   },
   authActions: {
-    marginTop: 24,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 16,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  flex: {
+    flex: 1,
   },
   btn: {
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
     borderRadius: 8,
     alignItems: 'center',
+    flexGrow: 1,
   },
   btnPrimary: {
     backgroundColor: '#4f46e5',
-    width: '100%',
   },
   btnPrimaryText: {
     color: '#ffffff',
     fontWeight: 'bold',
     fontSize: 16,
   },
-  socialRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    paddingTop: 24,
-  },
-  socialBtn: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  socialBtnText: {
+  link: {
+    color: '#4f46e5',
     fontWeight: '600',
-    color: '#374151',
-    fontSize: 15,
+    padding: 8,
   },
+  errorText: {
+    color: '#ef4444',
+    textAlign: 'center',
+    marginBottom: 16,
+    fontWeight: '600',
+  }
 });
 
 export default RegisterScreen;

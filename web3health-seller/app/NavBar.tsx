@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView } from 'react-native';
-import { useAuth } from '../hooks/AuthContext'; // Assumes AuthContext.tsx is in the same folder
+import { useAuth, useUser } from '@clerk/clerk-expo'; // 1. Import Clerk's useAuth
 import { useRouter } from 'expo-router';
 
 export const Navbar: React.FC = () => {
-  const auth = useAuth();
+  const { isSignedIn, signOut } = useAuth(); // 2. Use Clerk's auth state and signOut
   const router = useRouter();
 
   return (
@@ -18,12 +18,12 @@ export const Navbar: React.FC = () => {
                 <Text style={styles.brandText}>Web3Health</Text>
             </TouchableOpacity>
             <View style={styles.nav}>
-                {auth.isAuthenticated ? (
+                {isSignedIn ? (
                     <>
                         <TouchableOpacity onPress={() => router.push('/studies')}>
                             <Text style={styles.navLink}>Studies</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => auth.logout()}>
+                        <TouchableOpacity onPress={() => signOut()}>
                             <Text style={styles.logoutBtn}>Log Out</Text>
                         </TouchableOpacity>
                     </>

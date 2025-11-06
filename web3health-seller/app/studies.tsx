@@ -8,8 +8,8 @@ import {
     TouchableOpacity,
 } from "react-native";
 // Assuming these context and navigation hooks exist:
-import { useAuth } from "../hooks/AuthContext"; 
-import { useFocusEffect, useRouter } from "expo-router"; 
+import { useAuth } from "@clerk/clerk-expo";
+import { useFocusEffect, useRouter } from "expo-router";
 import StudyCard from "../components/StudyCard"; 
 
 // --- API Imports ---
@@ -19,7 +19,7 @@ import type { Study } from "./services/postings/types";
 
 const StudiesScreen: React.FC = () => {
     // --- Hooks ---
-    const auth = useAuth();
+    const { isSignedIn } = useAuth();
     const router = useRouter();
     const [studies, setStudies] = useState<Study[]>([]);
     const [isLoading, setIsLoading] = useState(true);
