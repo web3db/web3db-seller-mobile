@@ -219,3 +219,56 @@ export async function getUserProfileByClerkId(clerkId: string): Promise<User | n
   const json = await res.json().catch(() => null);
   return json ? mapDtoToUser(json) : null;
 }
+
+/**
+ * Calls the `auth_lookup` edge function to check if a user exists and is active,
+ * returning their MST_User primary key and name.
+ *
+ * Success (200):
+ *   { ok: true, userId: number, name: string | null }
+ *
+ * Known failures:
+ *   400: invalid email
+ *   403: user inactive
+ *   404: user not found
+ *   5xx: server error
+ */
+export type AuthLookupResult = {
+  userId: number;
+  name: string | null;
+};
+
+export async function lookupUser(email: string): Promise<AuthLookupResult> {
+  // Prefer GET with query string (the function supports GET or POST)
+  const u = buildUrl('auth_lookup', { email });
+  if (__DEV__) console.log('[lookupUser] GET', u);
+
+  const res = await fetch(u, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  let body: any = null;
+  try {
+    body = await res.json();
+  } catch {
+    // ignore JSON parse errors; we'll handle below
+  }
+
+  if (!res.ok) {
+    const msg = (body && (body.error || body.message)) || `${res.status} ${res.statusText}`;
+    if (__DEV__) console.warn('[lookupUser] ✗', res.status, msg);
+    // Surface meaningful messages to the caller
+    throw new Error(msg);
+  }
+
+  const userId = body?.userId;
+  const name = (body?.name ?? null) as string | null;
+
+  if (typeof userId !== 'number') {
+    throw new Error('Invalid response from auth_lookup: missing userId');
+  }
+
+  if (__DEV__) console.log('[lookupUser] ✓', { userId, name });
+  return { userId, name };
+}

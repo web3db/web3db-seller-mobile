@@ -11,6 +11,7 @@ import {
 import { useAuth } from "@clerk/clerk-expo";
 import { useFocusEffect, useRouter } from "expo-router";
 import StudyCard from "../components/StudyCard"; 
+import { useAuth as localAuth } from "@/hooks/AuthContext";
 
 // --- API Imports ---
 // This file now uses the raw fetch implementation
@@ -24,6 +25,7 @@ const StudiesScreen: React.FC = () => {
     const [studies, setStudies] = useState<Study[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { user } = localAuth();
 
     useFocusEffect(
         useCallback(() => {
@@ -32,7 +34,7 @@ const StudiesScreen: React.FC = () => {
                 setError(null);
                 try {
                     // --- FETCH API CALL ---
-                    const fetchedStudies = await listTrnPostings();
+                    const fetchedStudies = await listTrnPostings(user?.id ? Number(user.id) : -1);
                     setStudies(fetchedStudies); 
                 } catch (e: any) {
                     console.error("Failed to load studies from API:", e);

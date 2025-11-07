@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSignUp } from '@clerk/clerk-expo';
+import { useAuth as localAuth } from '@/hooks/AuthContext';
 
 const VerifyScreen: React.FC = () => {
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -18,6 +19,8 @@ const VerifyScreen: React.FC = () => {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const { login } = localAuth();
 
   const handleVerify = async () => {
     if (!isLoaded) return;
@@ -31,6 +34,7 @@ const VerifyScreen: React.FC = () => {
 
       if (completeSignUp.status === 'complete') {
         await setActive({ session: completeSignUp.createdSessionId });
+        // Call the local login function
         router.replace('/studies');
       } else {
         // This can happen if the sign-up is not complete for other reasons

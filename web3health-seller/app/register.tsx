@@ -13,6 +13,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSignUp } from '@clerk/clerk-expo';
 import { createUser, CreateUserPayload } from './services/users/api'; // Correctly import from the user API
+import { useAuth as localAuth } from '@/hooks/AuthContext';
 
 const RegisterScreen: React.FC = () => {
   const { isLoaded, signUp } = useSignUp();
@@ -33,6 +34,8 @@ const RegisterScreen: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const { login } = localAuth();
 
   const handleRegister = async () => {
     if (!isLoaded) return;
@@ -76,6 +79,8 @@ const RegisterScreen: React.FC = () => {
         // You can optionally log the response from your database
         console.log("Successfully created user in DB:", response);
       }
+
+      await login(email);
 
       // Step 3: Prepare for email verification
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });

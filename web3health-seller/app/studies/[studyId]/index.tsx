@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getPostingShares } from "../../services/postings/api";
+import { useAuth } from "@/hooks/AuthContext";
 
 type StudyDetail = {
   postingId: number;
@@ -61,6 +62,8 @@ export default function StudyDetail() {
   const [sharesError, setSharesError] = useState<string | null>(null);
   const [expandedShares, setExpandedShares] = useState<Record<number, boolean>>({});
 
+  const { user } = useAuth();
+
   function formatUtcToLocal(utc?: string) {
     if (!utc) return "-";
     try {
@@ -108,7 +111,7 @@ export default function StudyDetail() {
       try {
         // Use the centralized API function which includes data normalization
         const { getTrnPostingDetail } = await import("../../services/postings/api");
-        const buyerId = 3;
+        const buyerId = user?.id ?? -1;
         const detail = await getTrnPostingDetail(buyerId, studyId);
         setStudy(detail);
       } catch (err: any) {
