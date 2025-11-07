@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { useSignUp } from '@clerk/clerk-expo';
 import { createUser, CreateUserPayload } from './services/users/api'; // Correctly import from the user API
 import { useAuth as localAuth } from '@/hooks/AuthContext';
+import { CreateUserPayloadDTO } from './services/users/types';
 
 const RegisterScreen: React.FC = () => {
   const { isLoaded, signUp } = useSignUp();
@@ -73,8 +74,20 @@ const RegisterScreen: React.FC = () => {
           RoleId: 2, // Default role for a new seller
         };
 
+        const dbPayload: CreateUserPayloadDTO = {
+          clerkId: signUpAttempt.createdUserId,
+          email: email,
+          name: orgName,
+          birthYear: parseInt(birthYear, 10) || 0,
+          heightNum: parseFloat(heightNum) || null,
+          weightNum: parseFloat(weightNum) || null,
+          raceId: parseInt(raceId, 10) || null,
+          sexId: parseInt(sexId, 10) || null,
+          roleId: 2, // Default role for a new seller
+        };
+
         // Call the centralized API function, similar to createTrnPosting
-        const response = await createUser(userPayload);
+        const response = await createUser(dbPayload);
 
         // You can optionally log the response from your database
         console.log("Successfully created user in DB:", response);
