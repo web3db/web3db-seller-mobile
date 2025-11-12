@@ -71,6 +71,14 @@ function mapDtoToUser(dto: UserDTO): User {
     weightNum: dto.WeightNum,
     roleId: dto.RoleId,
     isActive: dto.IsActive,
+
+    // New display name fields (null-safe)
+    raceName: dto.Race?.DisplayName ?? null,
+    sexName: dto.Sex?.DisplayName ?? null,
+    roleName: dto.Role?.DisplayName ?? null,
+    heightUnitName: dto.HeightUnit?.DisplayName ?? null,
+    weightUnitName: dto.WeightUnit?.DisplayName ?? null,
+    measurementSystemName: dto.MeasurementSystem?.DisplayName ?? null,
   };
 }
 
@@ -139,8 +147,8 @@ export async function listUsers(): Promise<User[]> {
  * @param userId - The primary key of the user in your database.
  */
 export async function getUserDetail(userId: number): Promise<User | null> {
-  // Assumes an Edge Function named 'users_detail/{userId}' exists
-  const u = buildUrl(`users_detail/${userId}`);
+  // Assumes an Edge Function named 'users_profile' that accepts a 'userId' query parameter
+  const u = buildUrl('users_profile', { userId });
   if (__DEV__) console.log("[getUserDetail] GET", u);
 
   const res = await fetch(u, {
@@ -160,7 +168,8 @@ export async function getUserDetail(userId: number): Promise<User | null> {
   }
 
   const json = await res.json().catch(() => null);
-  return json ? mapDtoToUser(json) : null;
+  const dto = json?.user ?? json?.data ?? json;
+  return dto ? mapDtoToUser(dto) : null;
 }
 
 /**

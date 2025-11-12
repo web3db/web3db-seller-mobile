@@ -20,6 +20,13 @@ export type User = {
   weightUnitId?: number | null;
   measurementSystemId?: number | null;
   healthConditionIds?: number[];
+
+  raceName?: string | null;
+  sexName?: string | null;
+  roleName?: string | null;
+  heightUnitName?: string | null;
+  weightUnitName?: string | null;
+  measurementSystemName?: string | null;
 };
 
 /**
@@ -41,6 +48,14 @@ export type UserDTO = {
   IsActive: boolean;
   CreatedOn: string;
   ModifiedOn: string;
+
+  // Optional nested relations
+  Race?: { RaceId: number; RaceCode: string; DisplayName: string };
+  Sex?: { SexId: number; SexCode: string; DisplayName: string };
+  Role?: { RoleId: number; RoleCode: string; DisplayName: string };
+  HeightUnit?: { DisplayName: string } | null;
+  WeightUnit?: { DisplayName: string } | null;
+  MeasurementSystem?: { DisplayName: string } | null;
 };
 
 /**
