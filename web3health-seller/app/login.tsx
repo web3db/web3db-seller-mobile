@@ -94,6 +94,8 @@ const LoginScreen: React.FC = () => {
 
       // Call the local login function
       await login(email);
+
+      router.push('/studies');
       
     } catch (err: any) {
       // Log the full error for debugging

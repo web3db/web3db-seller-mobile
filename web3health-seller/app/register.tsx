@@ -15,9 +15,11 @@ import { useSignUp } from '@clerk/clerk-expo';
 import { createUser, CreateUserPayload } from './services/users/api'; // Correctly import from the user API
 import { useAuth as localAuth } from '@/hooks/AuthContext';
 import { CreateUserPayloadDTO } from './services/users/types';
+import { useAuth } from '@clerk/clerk-expo';
 
 const RegisterScreen: React.FC = () => {
   const { isLoaded, signUp } = useSignUp();
+  const { signOut } = useAuth();
   const router = useRouter();
 
   const [email, setEmail] = useState('');
@@ -90,22 +92,30 @@ const RegisterScreen: React.FC = () => {
         const response = await createUser(dbPayload);
 
         // You can optionally log the response from your database
-        console.log("Successfully created user in DB:", response);
+        console.log("Successfully created user in DB:", response); 
       }
 
-      await login(email);
+      //await signOut();
+
+      
+
+      //await login(email);
 
       // Step 3: Prepare for email verification
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      //await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
 
       // Step 4: Navigate to the verification screen
-      router.push('/verify');
+      //router.push('/verify');
     } catch (err: any) {
       console.error("Clerk Sign Up Error:", JSON.stringify(err, null, 2));
       const clerkError = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || 'An unknown error occurred during sign-up';
       setError(clerkError);
     } finally {
       setLoading(false);
+
+      await signOut({ redirectUrl: '/login' }); // Sign out to clear any session
+
+      //router.push('/login');
     }
   };
 
