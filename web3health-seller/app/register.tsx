@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
   View,
@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSignUp, useClerk } from '@clerk/clerk-expo'; // Import useClerk for later
-import { createUser, CreateUserPayload } from './services/users/api'; // Correctly import from the user API
+import { listSexes, listRaces, createUser, CreateUserPayload } from './services/users/api';
+import { Modal, FlatList } from 'react-native';
 import { useAuth as localAuth } from '@/hooks/AuthContext';
 import { CreateUserPayloadDTO } from './services/users/types';
 import { useAuth } from '@clerk/clerk-expo';
@@ -28,6 +29,27 @@ const RegisterScreen: React.FC = () => {
   const [birthYear, setBirthYear] = useState('');
   const [raceId, setRaceId] = useState('');
   const [sexId, setSexId] = useState('');
+  const [sexes, setSexes] = useState<Array<{sexId:number; sexCode:string; displayName:string; isActive:boolean}>>([]);
+  const [sexDropdownOpen, setSexDropdownOpen] = useState(false);
+  const [races, setRaces] = useState<Array<{raceId:number; raceCode:string; displayName:string; isActive:boolean}>>([]);
+  const [raceDropdownOpen, setRaceDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [sexItems, raceItems] = await Promise.all([listSexes(), listRaces()]);
+        if (!mounted) return;
+        setSexes(sexItems);
+        setRaces(raceItems);
+        // Intentionally do NOT auto-select a default value; user must choose
+        // this keeps the placeholder 'Select ...' visible and makes these fields required.
+      } catch (err) {
+        console.warn('Failed to load sexes or races', err);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
   const [heightNum, setHeightNum] = useState('');
   const [weightNum, setWeightNum] = useState('');
   // For simplicity, we'll assume IDs for units. In a real app, you'd fetch these.
@@ -47,10 +69,20 @@ const RegisterScreen: React.FC = () => {
 
     console.log('[DEBUG] Starting registration process...');
 
-    if (!orgName || !email || !password || !birthYear) {
-      setError('Please fill out all fields.');
+    const missing: string[] = [];
+    if (!orgName) missing.push('Organization Name');
+    if (!email) missing.push('Email');
+    if (!password) missing.push('Password');
+    if (!birthYear) missing.push('Birth Year');
+    if (!raceId) missing.push('Race');
+    if (!sexId) missing.push('Gender');
+    if (!heightNum) missing.push('Height');
+    if (!weightNum) missing.push('Weight');
+
+    if (missing.length > 0) {
+      setError(`Please fill out required fields: ${missing.join(', ')}`);
       setLoading(false);
-      console.warn('[DEBUG] Validation failed: Missing required fields.');
+      console.warn('[DEBUG] Validation failed: Missing', missing);
       return;
     }
 
@@ -182,25 +214,77 @@ const RegisterScreen: React.FC = () => {
         />
 
         {/* For simplicity, these are text inputs. In a real app, use dropdowns. */}
-        <Text style={styles.label}>Race ID</Text>
-        <TextInput
-          style={styles.input}
-          value={raceId}
-          onChangeText={setRaceId}
-          placeholder="Enter Race ID (e.g., 1, 2, 3)"
-          keyboardType="number-pad"
-          editable={!loading}
-        />
+        <Text style={styles.label}>Race</Text>
+        <TouchableOpacity
+          style={[styles.dropdownToggle, raceDropdownOpen && styles.dropdownOpen]}
+          onPress={() => setRaceDropdownOpen((v) => !v)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.dropdownText}>
+            {raceId
+              ? (races.find((r) => String(r.raceId) === raceId)?.displayName ?? `Race ${raceId}`)
+              : 'Select race...'}
+          </Text>
+          <Text style={styles.dropdownChevron}>{raceDropdownOpen ? '▴' : '▾'}</Text>
+        </TouchableOpacity>
 
-        <Text style={styles.label}>Sex ID</Text>
-        <TextInput
-          style={styles.input}
-          value={sexId}
-          onChangeText={setSexId}
-          placeholder="Enter Sex ID (e.g., 1 for Male, 2 for Female)"
-          keyboardType="number-pad"
-          editable={!loading}
-        />
+        {raceDropdownOpen && (
+          <View style={styles.dropdownPane}>
+            <FlatList
+              data={races.filter((r) => r.isActive)}
+              keyExtractor={(it) => String(it.raceId)}
+              style={{ maxHeight: 160 }}
+              nestedScrollEnabled
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.metricRow}
+                  onPress={() => {
+                    setRaceId(String(item.raceId));
+                    setRaceDropdownOpen(false);
+                  }}
+                >
+                  <Text style={styles.metricLabel}>{item.displayName}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        )}
+
+        <Text style={styles.label}>Gender</Text>
+        <TouchableOpacity
+          style={[styles.dropdownToggle, sexDropdownOpen && styles.dropdownOpen]}
+          onPress={() => setSexDropdownOpen((v) => !v)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.dropdownText}>
+            {sexId
+              ? (sexes.find((s) => String(s.sexId) === sexId)?.displayName ?? `Sex ${sexId}`)
+              : 'Select gender...'}
+          </Text>
+          <Text style={styles.dropdownChevron}>{sexDropdownOpen ? '▴' : '▾'}</Text>
+        </TouchableOpacity>
+
+        {sexDropdownOpen && (
+          <View style={styles.dropdownPane}>
+            <FlatList
+              data={sexes.filter((s) => s.isActive)}
+              keyExtractor={(it) => String(it.sexId)}
+              style={{ maxHeight: 160 }}
+              nestedScrollEnabled
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.metricRow}
+                  onPress={() => {
+                    setSexId(String(item.sexId));
+                    setSexDropdownOpen(false);
+                  }}
+                >
+                  <Text style={styles.metricLabel}>{item.displayName}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        )}
 
         <View style={styles.row}>
           <View style={styles.flex}>
@@ -359,6 +443,69 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontWeight: '600',
   },
+  dropdownPaneInline: {
+    borderWidth: 1,
+    borderColor: '#e6e6e6',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginTop: 8,
+    // Ensure the dropdown matches the field width and sits inline
+    overflow: 'hidden',
+    zIndex: 50,
+  },
+  dropdownItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  dropdownItemText: {
+    fontSize: 15,
+    color: '#111827',
+  },
+  dropdownToggle: {
+    borderWidth: 1,
+    borderColor: '#e6e6e6',
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 44,
+  },
+  dropdownOpen: { borderColor: '#0b74ff', shadowColor: '#0b74ff', elevation: 2 },
+  dropdownText: { color: '#111827' },
+  dropdownChevron: { color: '#6b7280', marginLeft: 8 },
+  dropdownPane: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e6e6e6',
+    borderRadius: 8,
+    maxHeight: 240,
+    backgroundColor: '#fff',
+    paddingVertical: 6,
+  },
+  metricRow: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    height: 20,
+    width: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: { backgroundColor: '#0b74ff', borderColor: '#0b74ff' },
+  checkboxTick: { color: '#fff', fontSize: 12 },
+  metricLabel: { fontSize: 14 },
+  muted: { color: '#8b8b8b' },
 });
 
 export default RegisterScreen;

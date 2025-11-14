@@ -389,3 +389,77 @@ export async function lookupUser(email: string): Promise<AuthLookupResult> {
   if (__DEV__) console.log('[lookupUser] ✓', { userId, name });
   return { userId, name };
 }
+
+/** Fetch sex/gender reference values from the backend: GET /functions/v1/sexes */
+export async function listSexes(): Promise<{
+  sexId: number;
+  sexCode: string;
+  displayName: string;
+  isActive: boolean;
+}[]> {
+  const u = buildUrl('sexes');
+  if (__DEV__) console.log('[listSexes] GET', u);
+
+  const res = await fetch(u, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    mode: 'cors',
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    if (__DEV__) console.warn('[listSexes] ✗', res.status, res.statusText, txt);
+    throw new Error(`sexes API failed: ${res.status} ${res.statusText} ${txt}`);
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json) return [];
+
+  const raw: any[] = Array.isArray(json) ? json : Array.isArray(json.items) ? json.items : [];
+  const items = raw.map((r) => ({
+    sexId: Number(r.sexId ?? r.SexId ?? r.id),
+    sexCode: String(r.sexCode ?? r.SexCode ?? r.code ?? ''),
+    displayName: String(r.sexDisplayName ?? r.DisplayName ?? r.name ?? ''),
+    isActive: Boolean(r.isActive ?? r.IsActive ?? true),
+  }));
+
+  if (__DEV__) console.log(`[listSexes] ✓ items=${items.length}`);
+  return items;
+}
+
+/** Fetch race reference values from the backend: GET /functions/v1/races */
+export async function listRaces(): Promise<{
+  raceId: number;
+  raceCode: string;
+  displayName: string;
+  isActive: boolean;
+}[]> {
+  const u = buildUrl('races');
+  if (__DEV__) console.log('[listRaces] GET', u);
+
+  const res = await fetch(u, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    mode: 'cors',
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    if (__DEV__) console.warn('[listRaces] ✗', res.status, res.statusText, txt);
+    throw new Error(`races API failed: ${res.status} ${res.statusText} ${txt}`);
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json) return [];
+
+  const raw: any[] = Array.isArray(json) ? json : Array.isArray(json.items) ? json.items : [];
+  const items = raw.map((r) => ({
+    raceId: Number(r.raceId ?? r.RaceId ?? r.id),
+    raceCode: String(r.raceCode ?? r.RaceCode ?? r.code ?? ''),
+    displayName: String(r.raceDisplayName ?? r.DisplayName ?? r.name ?? ''),
+    isActive: Boolean(r.isActive ?? r.IsActive ?? true),
+  }));
+
+  if (__DEV__) console.log(`[listRaces] ✓ items=${items.length}`);
+  return items;
+}
