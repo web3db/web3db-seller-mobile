@@ -9,12 +9,15 @@ import React, { useEffect } from 'react';
 
 import Navbar from './NavBar'; // Import the Navbar
 
+import { AuthProvider } from '@/hooks/AuthContext';
+
 // 🔑 CLERK IMPORTS
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { tokenCache } from '@clerk/clerk-expo/token-cache';
 
 // ⚠️ IMPORTANT: Get your Clerk Publishable Key from your .env file
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+console.log("Clerk Publishable Key:", CLERK_PUBLISHABLE_KEY); // Debugging line
 
 export default function RootLayout() {
   return (
@@ -24,7 +27,9 @@ export default function RootLayout() {
       publishableKey={CLERK_PUBLISHABLE_KEY!} 
       tokenCache={Platform.OS !== 'web' ? tokenCache : undefined}
     >
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ClerkProvider>
   );
 }

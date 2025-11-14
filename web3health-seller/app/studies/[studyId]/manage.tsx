@@ -28,6 +28,7 @@ import {
   PostingStatus,
 } from "../../services/postings/types";
 import SingleSelectDropdown from "../../../components/SingleSelectDropdown";
+import { useAuth } from "@/hooks/AuthContext";
 
 const ManageStudy: React.FC = () => {
   const { studyId } = useLocalSearchParams() as { studyId?: string };
@@ -74,6 +75,8 @@ const ManageStudy: React.FC = () => {
   const [metricsDropdownOpen, setMetricsDropdownOpen] = useState(false);
   const [healthDropdownOpen, setHealthDropdownOpen] = useState(false);
 
+  const { user } = useAuth();
+
   useEffect(() => {
     listPostingStatuses().then(setStatuses).finally(() => setStatusesLoading(false));
     listRewardTypes().then(setRewardTypes).finally(() => setRewardTypesLoading(false));
@@ -86,7 +89,7 @@ const ManageStudy: React.FC = () => {
       if (!studyId) return;
       setLoading(true);
       try {
-        const buyerId = 3;
+        const buyerId = user?.id ?? -1;
         const { getTrnPostingDetail } = await import("../../services/postings/api");
         const detail = await getTrnPostingDetail(buyerId, studyId);
 
@@ -255,7 +258,7 @@ const ManageStudy: React.FC = () => {
     applyCloseAt: applyCloseAt ? applyCloseAt.toISOString() : null,
   };
   try {
-    const res = await updateTrnPosting(postingId, payload as any);
+    const res = await updateTrnPosting(user?.id ?? -1, postingId, payload as any);
     console.log(res)
     router.replace(`/studies/${postingId}?saved=1`);
   } catch (err) {

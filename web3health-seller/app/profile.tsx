@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { getUserProfileByClerkId } from './services/users/api'; // Corrected import path
+import { getUserProfileByClerkId, getUserDetail } from './services/users/api'; // Corrected import path
 import type { User } from './services/users/types'; // Corrected import path
+import { useAuth as localAuth } from '@/hooks/AuthContext';
 
 const ProfileScreen: React.FC = () => {
   const { user: clerkUser, isLoaded } = useUser();
@@ -19,6 +20,7 @@ const ProfileScreen: React.FC = () => {
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = localAuth();
 
   useFocusEffect(
     useCallback(() => {
@@ -31,7 +33,7 @@ const ProfileScreen: React.FC = () => {
         setError(null);
         console.log("Loading user profile for Clerk ID:", clerkUser.id);
         try {
-          const profile = await getUserProfileByClerkId(clerkUser.id);
+          const profile = await getUserDetail(user?.id ? Number(user.id) : -1);
           setUserProfile(profile);
         } catch (e: any) {
           console.error("Failed to load user profile:", e);
@@ -66,11 +68,25 @@ const ProfileScreen: React.FC = () => {
             {renderProfileDetail('Name', userProfile.name)}
             {renderProfileDetail('Email', userProfile.email)}
             {renderProfileDetail('Birth Year', userProfile.birthYear)}
-            {renderProfileDetail('Height', userProfile.heightNum)}
-            {renderProfileDetail('Weight', userProfile.weightNum)}
-            {renderProfileDetail('Race ID', userProfile.raceId)}
-            {renderProfileDetail('Sex ID', userProfile.sexId)}
-            {renderProfileDetail('Role ID', userProfile.roleId)}
+
+            {/* Use DisplayName fields */}
+            {renderProfileDetail('Race', userProfile.raceName)}
+            {renderProfileDetail('Sex', userProfile.sexName)}
+            {renderProfileDetail('Role', userProfile.roleName)}
+
+            {/* Append units when present */}
+            {renderProfileDetail(
+              'Height',
+              userProfile.heightNum != null
+                ? `${userProfile.heightNum}${userProfile.heightUnitName ? ' ' + userProfile.heightUnitName : ''}`
+                : null
+            )}
+            {renderProfileDetail(
+              'Weight',
+              userProfile.weightNum != null
+                ? `${userProfile.weightNum}${userProfile.weightUnitName ? ' ' + userProfile.weightUnitName : ''}`
+                : null
+            )}
           </View>
         ) : (
           <Text style={styles.errorText}>No profile data found in the database for your account.</Text>

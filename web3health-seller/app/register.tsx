@@ -13,11 +13,13 @@ import {
 import { useRouter } from 'expo-router';
 import { useSignUp, useClerk } from '@clerk/clerk-expo'; // Import useClerk for later
 import { createUser, CreateUserPayload } from './services/users/api'; // Correctly import from the user API
+import { useAuth as localAuth } from '@/hooks/AuthContext';
+import { CreateUserPayloadDTO } from './services/users/types';
+import { useAuth } from '@clerk/clerk-expo';
 
 const RegisterScreen: React.FC = () => {
   const { isLoaded, signUp } = useSignUp();
-  // We'll need useClerk on the verify screen, but good to be aware of
-  // const { clerk } = useClerk(); 
+  const { signOut } = useAuth();
   const router = useRouter();
 
   const [email, setEmail] = useState('');
@@ -35,6 +37,8 @@ const RegisterScreen: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const { login } = localAuth();
 
   const handleRegister = async () => {
     if (!isLoaded) return;
@@ -83,70 +87,36 @@ const RegisterScreen: React.FC = () => {
       // NOTE: signUp.createdUserId will NOT exist yet.
       // We no longer call createUser() from this screen.
 
-      // Step 2: Prepare for email verification
-      console.log('[DEBUG] Step 2: Preparing email verification...');
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+        const dbPayload: CreateUserPayloadDTO = {
+          clerkId: signUpAttempt.createdUserId,
+          email: email,
+          name: orgName,
+          birthYear: parseInt(birthYear, 10) || 0,
+          heightNum: parseFloat(heightNum) || null,
+          weightNum: parseFloat(weightNum) || null,
+          raceId: parseInt(raceId, 10) || null,
+          sexId: parseInt(sexId, 10) || null,
+          roleId: 2, // Default role for a new seller
+        };
 
-      // Step 3: Navigate to the verification screen
-      console.log('[DEBUG] Step 3: Navigating to /verify');
-      router.push('/verify');
+        // Call the centralized API function, similar to createTrnPosting
+        const response = await createUser(dbPayload);
 
-      /* =====================================================================
-      IMPORTANT DEVELOPER NOTE: (THIS IS THE FIX)
-      =====================================================================
+        // You can optionally log the response from your database
+        console.log("Successfully created user in DB:", response); 
+      }
+
+      //await signOut();
+
       
-      The Supabase user MUST be created on your '/verify' screen, *after*
-      the user successfully verifies their email.
-      
-      On your '/verify.tsx' screen, your code will look something like this:
 
-      1. User enters code.
-      2. You call: 
-         const completeSignUp = await signUp.attemptEmailAddressVerification({ code });
-      
-      3. CRITICALLY, check for the createdUserId:
-         if (completeSignUp.status === 'complete' && completeSignUp.createdUserId) {
-            
-            // 4. Get the metadata we saved:
-            const metadata = completeSignUp.unsafeMetadata;
+      //await login(email);
 
-            // 5. Build the Supabase payload:
-            const userPayload: CreateUserPayload = {
-              clerkId: completeSignUp.createdUserId,
-              email: completeSignUp.emailAddress,
-              name: metadata.orgName,
-              isActive: metadata.isActive,
-              birthYear: metadata.birthYear,
-              raceId: metadata.raceId,
-              sexId: metadata.sexId,
-              heightNum: metadata.heightNum,
-              heightUnitId: metadata.heightUnitId,
-              weightNum: metadata.weightNum,
-              weightUnitId: metadata.weightUnitId,
-              measurementSystemId: metadata.measurementSystemId,
-              roleId: metadata.roleId,
-            };
+      // Step 3: Prepare for email verification
+      //await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
 
-            // 6. Call the createUser API function:
-            try {
-              await createUser(userPayload);
-              console.log("Successfully created Supabase user.");
-              
-              // 7. Set the session active and navigate to the dashboard
-              // You will need to import { useClerk } from '@clerk/clerk-expo'
-              // const { clerk } = useClerk();
-              await clerk.setActive({ session: completeSignUp.createdSessionId });
-              router.push('/dashboard'); // Or wherever your app starts
-
-            } catch (dbError) {
-              console.error("Failed to create Supabase user:", dbError);
-              // Handle error: show message to user
-              setError("Failed to create your profile. Please contact support.");
-            }
-         } else {
-            console.warn("Verification complete but no createdUserId found.");
-         }
-      */
+      // Step 4: Navigate to the verification screen
+      //router.push('/verify');
     } catch (err: any) {
       console.error('Clerk Sign Up Error:', JSON.stringify(err, null, 2));
       const clerkError =
@@ -156,6 +126,10 @@ const RegisterScreen: React.FC = () => {
       setError(clerkError);
     } finally {
       setLoading(false);
+
+      await signOut({ redirectUrl: '/login' }); // Sign out to clear any session
+
+      //router.push('/login');
     }
   };
 

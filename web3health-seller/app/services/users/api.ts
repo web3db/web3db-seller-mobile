@@ -148,11 +148,14 @@ function mapDtoToUser(dto: UserDTO): User {
     weightUnitId: dto.WeightUnitId,
     measurementSystemId: dto.MeasurementSystemId,
     isActive: dto.IsActive,
-    createdBy: dto.CreatedBy,
-    createdOn: new Date(dto.CreatedOn), // <-- Parse to Date object
-    modifiedBy: dto.ModifiedBy,
-    modifiedOn: dto.ModifiedOn ? new Date(dto.ModifiedOn) : null, // <-- Parse to Date object
-    roleId: dto.RoleId,
+
+    // New display name fields (null-safe)
+    raceName: dto.Race?.DisplayName ?? null,
+    sexName: dto.Sex?.DisplayName ?? null,
+    roleName: dto.Role?.DisplayName ?? null,
+    heightUnitName: dto.HeightUnit?.DisplayName ?? null,
+    weightUnitName: dto.WeightUnit?.DisplayName ?? null,
+    measurementSystemName: dto.MeasurementSystem?.DisplayName ?? null,
   };
 }
 
@@ -232,10 +235,10 @@ export async function listUsers(): Promise<User[]> {
  * GET DETAIL - Fetches a single user's details by their UserId.
  * @param userId - The primary key of the user in your database (as a string, since it's a bigint).
  */
-export async function getUserDetail(userId: string): Promise<User | null> {
-  // Assumes an Edge Function named 'users_detail/{userId}' exists
-  const u = buildUrl(`users_detail/${userId}`);
-  if (__DEV__) console.log('[getUserDetail] GET', u);
+export async function getUserDetail(userId: number): Promise<User | null> {
+  // Assumes an Edge Function named 'users_profile' that accepts a 'userId' query parameter
+  const u = buildUrl('users_profile', { userId });
+  if (__DEV__) console.log("[getUserDetail] GET", u);
 
   const res = await fetch(u, {
     method: 'GET',
@@ -257,7 +260,8 @@ export async function getUserDetail(userId: string): Promise<User | null> {
   }
 
   const json = await res.json().catch(() => null);
-  return json ? mapDtoToUser(json) : null;
+  const dto = json?.user ?? json?.data ?? json;
+  return dto ? mapDtoToUser(dto) : null;
 }
 
 /**
@@ -331,4 +335,57 @@ export async function getUserProfileByClerkId(
 
   const json = await res.json().catch(() => null);
   return json ? mapDtoToUser(json) : null;
+}
+
+/**
+ * Calls the `auth_lookup` edge function to check if a user exists and is active,
+ * returning their MST_User primary key and name.
+ *
+ * Success (200):
+ *   { ok: true, userId: number, name: string | null }
+ *
+ * Known failures:
+ *   400: invalid email
+ *   403: user inactive
+ *   404: user not found
+ *   5xx: server error
+ */
+export type AuthLookupResult = {
+  userId: number;
+  name: string | null;
+};
+
+export async function lookupUser(email: string): Promise<AuthLookupResult> {
+  // Prefer GET with query string (the function supports GET or POST)
+  const u = buildUrl('auth_lookup', { email });
+  if (__DEV__) console.log('[lookupUser] GET', u);
+
+  const res = await fetch(u, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  let body: any = null;
+  try {
+    body = await res.json();
+  } catch {
+    // ignore JSON parse errors; we'll handle below
+  }
+
+  if (!res.ok) {
+    const msg = (body && (body.error || body.message)) || `${res.status} ${res.statusText}`;
+    if (__DEV__) console.warn('[lookupUser] ✗', res.status, msg);
+    // Surface meaningful messages to the caller
+    throw new Error(msg);
+  }
+
+  const userId = body?.userId;
+  const name = (body?.name ?? null) as string | null;
+
+  if (typeof userId !== 'number') {
+    throw new Error('Invalid response from auth_lookup: missing userId');
+  }
+
+  if (__DEV__) console.log('[lookupUser] ✓', { userId, name });
+  return { userId, name };
 }

@@ -10,8 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSignUp } from '@clerk/clerk-expo';
-// Import the createUser function and payload type from your API file
-import { createUser, CreateUserPayload } from './services/users/api';
+import { useAuth as localAuth } from '@/hooks/AuthContext';
 
 const VerifyScreen: React.FC = () => {
   // Use the REAL hooks, not mocks
@@ -21,6 +20,8 @@ const VerifyScreen: React.FC = () => {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const { login } = localAuth();
 
   const handleVerify = async () => {
     if (!isLoaded) return;
@@ -35,87 +36,9 @@ const VerifyScreen: React.FC = () => {
       });
 
       if (completeSignUp.status === 'complete') {
-        console.log('[DEBUG] Clerk verification successful.');
-
-        // This is the critical check
-        if (!completeSignUp.createdUserId) {
-          console.error(
-            '[DEBUG] Verification complete but no createdUserId found.',
-          );
-          setError(
-            'Verification succeeded but user ID was not found. Please try again.',
-          );
-          setLoading(false);
-          return;
-        }
-
-        console.log(
-          '[DEBUG] Clerk UserID found:',
-          completeSignUp.createdUserId,
-        );
-
-        // 4. Get the metadata we saved:
-        const metadata = completeSignUp.unsafeMetadata as {
-          orgName: string;
-          birthYear: number | null;
-          raceId: number | null;
-          sexId: number | null;
-          heightNum: number | null;
-          heightUnitId: number | null;
-          weightNum: number | null;
-          weightUnitId: number | null;
-          measurementSystemId: number | null;
-          roleId: number | null;
-          isActive: boolean;
-        };
-        
-        if (!metadata) {
-           console.error('[DEBUG] Metadata not found on sign up object.');
-           setError('Verification succeeded but user profile data was lost. Please contact support.');
-           setLoading(false);
-           return;
-        }
-
-        // 5. Build the Supabase payload:
-        const userPayload: CreateUserPayload = {
-          clerkId: completeSignUp.createdUserId,
-          email: completeSignUp.emailAddress, // Get email from the verified sign up
-          name: metadata.orgName,
-          isActive: metadata.isActive,
-          birthYear: metadata.birthYear,
-          raceId: metadata.raceId,
-          sexId: metadata.sexId,
-          heightNum: metadata.heightNum,
-          heightUnitId: metadata.heightUnitId,
-          weightNum: metadata.weightNum,
-          weightUnitId: metadata.weightUnitId,
-          measurementSystemId: metadata.measurementSystemId,
-          roleId: metadata.roleId,
-        };
-
-        console.log(
-          '[DEBUG] Step 6: Calling createUser (Supabase) with payload:',
-          userPayload,
-        );
-
-        // 6. Call the createUser API function:
-        try {
-          await createUser(userPayload);
-          console.log('[DEBUG] Successfully created Supabase user.');
-
-          // 7. Set the session active and navigate to the dashboard
-          await setActive({ session: completeSignUp.createdSessionId });
-          console.log('[DEBUG] Session set active. Navigating to /studies.');
-          router.replace('/studies');
-        } catch (dbError: any) {
-          console.error(
-            '[DEBUG] Failed to create Supabase user:',
-            dbError.message,
-          );
-          setError(
-            'Your email was verified, but we failed to create your profile. Please contact support.',
-          );
-        }
+        await setActive({ session: completeSignUp.createdSessionId });
+        // Call the local login function
+        router.replace('/studies');
       } else {
         // This can happen if the sign-up is not complete for other reasons
         console.warn('[DEBUG] Sign up status not complete:', completeSignUp.status);

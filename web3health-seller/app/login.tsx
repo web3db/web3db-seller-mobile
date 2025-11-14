@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { useAuth, useSignIn, useOAuth } from '@clerk/clerk-expo'; 
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
+import { useAuth as localAuth } from '@/hooks/AuthContext';
 
 // Required for Clerk OAuth flow in Expo
 WebBrowser.maybeCompleteAuthSession();
@@ -27,6 +28,8 @@ const LoginScreen: React.FC = () => {
   
   // 🔑 OAuth Hook Initialization (Google Example)
   const googleOAuth = useOAuth({ strategy: 'oauth_google' });
+
+  const { login } = localAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -88,6 +91,12 @@ const LoginScreen: React.FC = () => {
         console.log('Sign-in status:', completeSignIn.status);
         setError("Sign-in requires additional steps. Check console.");
       }
+
+      // Call the local login function
+      await login(email);
+
+      router.push('/studies');
+      
     } catch (err: any) {
       // Log the full error for debugging
       console.error("Login Error:", JSON.stringify(err, null, 2));

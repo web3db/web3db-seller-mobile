@@ -13,7 +13,7 @@ import type {
 } from "./types";
 
 export async function getTrnPostingDetail(buyerId: number | string, postingId: number | string) {
-  const u = buildUrl(`buyers_postings_detail/3/${postingId}`);
+  const u = buildUrl(`buyers_postings_detail/${buyerId}/${postingId}`);
   if (__DEV__) console.log('[getTrnPostingDetail] GET', u);
 
   const res = await fetch(u, {
@@ -143,13 +143,13 @@ function mapRawToStudy(raw: PostingDTO): Study {
 // --- API Functions ---
 
 /** LIST (array response) - Fetches a list of TRN_Postings via an Edge Function */
-export async function listTrnPostings(
+export async function listTrnPostings(buyerId: number,
   params: ListParams = {} // Using params if the Edge Function expects them
 ): Promise<Study[]> {
   
   // NOTE: Assuming you have deployed a Supabase Edge Function named 'list_postings'
   // that queries the TRN_Posting table and returns the results.
-  const u = buildUrl("buyers_postings_list/3", params as Record<string, unknown>);
+  const u = buildUrl(`buyers_postings_list/${buyerId}`, params as Record<string, unknown>);
   if (__DEV__) console.log("[listTrnPostings] GET", u);
 
   const res = await fetch(u, {
@@ -187,8 +187,8 @@ export async function listTrnPostings(
 }
 
 /** UPDATE - sends an update payload for a posting to the Edge Function 'buyers_postings_update' */
-export async function updateTrnPosting(postingId: number | string, payload: Record<string, any>) {
-  const u = buildUrl(`buyers_postings_update/3/${postingId}`);
+export async function updateTrnPosting(buyerId: number, postingId: number | string, payload: Record<string, any>) {
+  const u = buildUrl(`buyers_postings_update/${buyerId}/${postingId}`);
   if (__DEV__) console.log('[updateTrnPosting] PATCH', u, postingId, payload);
 
   const res = await fetch(u, {
@@ -209,10 +209,10 @@ export async function updateTrnPosting(postingId: number | string, payload: Reco
   return json;
 }
 
-export async function createTrnPosting(
+export async function createTrnPosting(buyerId: number,
   params: ListParams = {} // Using params if the Edge Function expects them
 ): Promise<Study> {
-  const u = buildUrl("buyers_postings_create/3");
+  const u = buildUrl(`buyers_postings_create/${buyerId}`);
   if (__DEV__) console.log("[createTrnPosting] POST", u);
 
   const res = await fetch(u, {

@@ -24,6 +24,7 @@ import {
 } from "./services/postings/api";
 import { Metric, PostingStatus, RewardType, HealthCondition } from "./services/postings/types";
 import SingleSelectDropdown from "../components/SingleSelectDropdown";
+import { useAuth as localAuth } from "@/hooks/AuthContext";
 
 type Study = {
   id: string;
@@ -89,6 +90,10 @@ export default function ManageStudy(): JSX.Element {
 
   // reward value
   const [rewardValue, setRewardValue] = useState("");
+
+  const { user } = localAuth();
+
+  const buyerId = user ? Number(user.id) : -1;
 
   // mount metrics
   useEffect(() => {
@@ -283,7 +288,7 @@ export default function ManageStudy(): JSX.Element {
       };
 
       console.log("Publishing payload:", payload);
-      const response = await createTrnPosting(payload as any);
+      const response = await createTrnPosting(buyerId,payload as any);
 
       // Navigate to created study detail
       router.replace(`/studies/${response.id}`);

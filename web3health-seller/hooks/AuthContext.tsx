@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useContext, createContext, ReactNode } from 'react';
 import { useRouter } from 'expo-router';
+import { lookupUser } from '@/app/services/users/api';
 
 interface User {
-  id: string;
+  id: number;
   name: string;
 }
 
@@ -10,7 +11,7 @@ interface User {
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  login: (username: string, password: string) => void;
+  login: (email: string) => void;
   logout: () => void;
 }
 
@@ -26,12 +27,19 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
   // Example: Toggle auth state for demonstration
   // In a real app, these would handle tokens, API calls, etc.
-  const login = async (username: string, password: string) => {
+  /* const login = async (username: string, password: string) => {
     console.log("User logged in");
     setIsAuthenticated(true);
     setUser({ id: "1", name: username });
     return isAuthenticated;
-  };
+  }; */
+  const login = async (email:string) => {
+    const { userId, name } =  await lookupUser(email);
+    console.log("User logged in");
+    setIsAuthenticated(true);
+    setUser({ id: userId, name: name || '' });
+    return isAuthenticated;
+  }
   const logout = () => {
     console.log("User logged out");
     setIsAuthenticated(false);
