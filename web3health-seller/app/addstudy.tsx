@@ -279,6 +279,8 @@ export default function ManageStudy(): JSX.Element {
         description,
         dataCoverageDaysRequired: Number(length) || 1,
         postingStatusId: active ? 1 : 0,
+        // New DB column requires the buyer user id; include both common casings
+        buyerId: buyerId,
         postingMetricIds: selectedMetricIds,
         rewardTypeId: selectedRewardTypeId,
         rewardValue: Number(rewardValue) || 0,

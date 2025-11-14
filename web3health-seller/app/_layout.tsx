@@ -44,6 +44,19 @@ function AppContent() {
     return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" /></View>;
   }
 
+  // Protect routes: if Clerk says not signed in, redirect to /login for any
+  // path except the public landing page and the login/register pages.
+  // `segments` is empty for the root landing page.
+  const first = segments[0];
+  const isPublicLanding = !first; // root
+  const isAuthPage = first === 'login' || first === 'register' || first === 'verify';
+
+  if (!isSignedIn && !isPublicLanding && !isAuthPage) {
+    // Use replace to avoid back navigation to protected page
+    router.replace('/login');
+    return null;
+  }
+
   // Ensure the publishable key is available before rendering
   if (!CLERK_PUBLISHABLE_KEY) {
     throw new Error('Missing Clerk Publishable Key in .env file.');

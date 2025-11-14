@@ -87,28 +87,7 @@ const RegisterScreen: React.FC = () => {
       // NOTE: signUp.createdUserId will NOT exist yet.
       // We no longer call createUser() from this screen.
 
-        const dbPayload: CreateUserPayloadDTO = {
-          clerkId: signUpAttempt.createdUserId,
-          email: email,
-          name: orgName,
-          birthYear: parseInt(birthYear, 10) || 0,
-          heightNum: parseFloat(heightNum) || null,
-          weightNum: parseFloat(weightNum) || null,
-          raceId: parseInt(raceId, 10) || null,
-          sexId: parseInt(sexId, 10) || null,
-          roleId: 2, // Default role for a new seller
-        };
-
-        // Call the centralized API function, similar to createTrnPosting
-        const response = await createUser(dbPayload);
-
-        // You can optionally log the response from your database
-        console.log("Successfully created user in DB:", response); 
-      }
-
       //await signOut();
-
-      
 
       //await login(email);
 
@@ -119,11 +98,25 @@ const RegisterScreen: React.FC = () => {
       //router.push('/verify');
     } catch (err: any) {
       console.error('Clerk Sign Up Error:', JSON.stringify(err, null, 2));
-      const clerkError =
-        err.errors?.[0]?.longMessage ||
-        err.errors?.[0]?.message ||
-        'An unknown error occurred during sign-up';
-      setError(clerkError);
+      // Provide clearer messaging for captcha-related failures which are
+      // commonly returned by Clerk when a captcha/reCAPTCHA token is required
+      const rawMsg =
+        err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || '';
+
+      const lc = String(rawMsg).toLowerCase();
+      if (lc.includes('captcha') || lc.includes('recaptcha') || lc.includes('hcaptcha')) {
+        // Friendly guidance for developers/users: in dev you can disable captcha
+        // in the Clerk dashboard, or configure the site key for reCAPTCHA on the
+        // frontend. On production ensure your Clerk settings include the correct
+        // captcha provider/site key for your domain.
+        setError(
+          'Signup blocked by CAPTCHA requirement. In development you can disable CAPTCHA in your Clerk dashboard, or configure reCAPTCHA site keys for your frontend environment. See console for full error details.'
+        );
+        console.warn('Clerk CAPTCHA error details:', err);
+      } else {
+        const clerkError = rawMsg || 'An unknown error occurred during sign-up';
+        setError(clerkError);
+      }
     } finally {
       setLoading(false);
 
