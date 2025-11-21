@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { Colors, palette } from '@/constants/theme';
 import {
   SafeAreaView,
   View,
@@ -118,7 +119,7 @@ const LoginScreen: React.FC = () => {
   if (!authLoaded) {
     return (
       <View style={[styles.authRoot, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color={Colors.light.tint} />
       </View>
     );
   }
@@ -164,9 +165,9 @@ const LoginScreen: React.FC = () => {
             activeOpacity={0.8}
           >
             {loading ? (
-                <ActivityIndicator color="#ffffff" />
+              <ActivityIndicator color={palette.light.text.inverse} />
             ) : (
-                <Text style={styles.btnPrimaryText}>Sign in</Text>
+              <Text style={styles.btnPrimaryText}>Sign in</Text>
             )}
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/register')}>
@@ -192,14 +193,14 @@ const styles = StyleSheet.create({
   authRoot: {
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: '#f0f2f5',
+    backgroundColor: palette.light.surface,
     padding: 16,
   },
   authCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.light.background,
     borderRadius: 12,
     padding: 24,
-    shadowColor: '#000',
+    shadowColor: Colors.light.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -213,24 +214,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 8,
-    color: '#1e293b',
+    color: Colors.light.text,
   },
   authHelp: {
     fontSize: 14,
     textAlign: 'center',
-    color: '#64748b',
+    color: palette.light.text.secondary,
     marginBottom: 24,
   },
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#334155',
+    color: Colors.light.text,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: palette.light.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: palette.light.border,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -253,40 +254,40 @@ const styles = StyleSheet.create({
     flexGrow: 1, // Allow button to take available space
   },
   btnPrimary: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: Colors.light.tint,
   },
   btnPrimaryText: {
-    color: '#ffffff',
+    color: Colors.light.background,
     fontWeight: 'bold',
     fontSize: 16,
   },
   link: {
-    color: '#4f46e5',
+    color: Colors.light.tint,
     fontWeight: '600',
     padding: 8,
   },
   socialRow: {
     marginTop: 24,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: palette.light.border,
     paddingTop: 24,
     gap: 12,
   },
   socialBtn: {
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.light.background,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: palette.light.border,
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
   },
   socialBtnText: {
-    color: '#334155',
+    color: Colors.light.text,
     fontWeight: '600',
     fontSize: 16,
   },
   errorText: {
-    color: '#ef4444', // Red 500
+    color: palette.light.danger, // Red 500
     textAlign: 'center',
     marginBottom: 16,
     fontWeight: '600',

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Colors, palette } from '@/constants/theme';
 import {
   SafeAreaView,
   ScrollView,
@@ -443,11 +444,11 @@ export default function StudyDetail() {
 
 // Styles: intentionally matches manage.tsx for consistent layout
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#ffffff" },
+  root: { flex: 1, backgroundColor: Colors.light.background },
   scrollContainer: { padding: 16, paddingBottom: 48 },
   banner: {
-    backgroundColor: "#ECFDF5",
-    borderColor: "#10B981",
+    backgroundColor: palette.light.success,
+    borderColor: palette.light.success,
     borderWidth: 1,
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -469,14 +470,14 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: Colors.light.background,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.06)",
     ...Platform.select({
       ios: {
-        shadowColor: "#000",
+        shadowColor: Colors.light.text,
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.06,
         shadowRadius: 12,
@@ -492,8 +493,8 @@ const styles = StyleSheet.create({
   fullWidth: { width: "100%" },
 
   heading: { fontSize: 20, fontWeight: "700", marginBottom: 8 },
-  label: { fontSize: 14, marginTop: 8, marginBottom: 6, color: "#6b7280" },
-  value: { fontSize: 16, color: "#111827" },
+  label: { fontSize: 14, marginTop: 8, marginBottom: 6, color: palette.light.text.muted },
+  value: { fontSize: 16, color: Colors.light.text },
   multilineValue: { lineHeight: 20, marginBottom: 4 },
 
   participantsList: { marginTop: 6 },
@@ -501,7 +502,7 @@ const styles = StyleSheet.create({
   participantRow: {
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#f3f3f3",
+    borderBottomColor: palette.light.muted,
   },
 
   formActions: {
@@ -516,17 +517,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
-  btnPrimary: { backgroundColor: "#0b74ff" },
-  btnPrimaryText: { color: "#fff", fontWeight: "700" },
-  btnGhost: { backgroundColor: "transparent", borderWidth: 1, borderColor: "#cbd5e1" },
-  btnGhostText: { color: "#374151", fontWeight: "600" },
+  btnPrimary: { backgroundColor: Colors.light.tint },
+  btnPrimaryText: { color: Colors.light.background, fontWeight: "700" },
+  btnGhost: { backgroundColor: "transparent", borderWidth: 1, borderColor: palette.light.border },
+  btnGhostText: { color: Colors.light.text, fontWeight: "600" },
 
   /* Stats */
   statHeading: { fontSize: 16, fontWeight: "700", marginBottom: 12 },
   statRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   statBox: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: palette.light.surface,
     borderRadius: 10,
     paddingVertical: 18,
     alignItems: "center",
@@ -535,25 +536,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   statNumber: { fontSize: 28, fontWeight: "800" },
-  statLabel: { color: "#6b7280", marginTop: 6 ,     textAlign: "center",
+  statLabel: { color: palette.light.text.muted, marginTop: 6 ,     textAlign: "center",
 },
 
   metaBlock: { marginTop: 12 },
-  metaLabel: { fontSize: 12, color: "#6b7280" },
+  metaLabel: { fontSize: 12, color: palette.light.text.muted },
   metaValue: { fontSize: 14, fontWeight: "600", marginTop: 4 },
 
   helpBox: {
     marginTop: 16,
-    backgroundColor: "#f1f5f9",
+    backgroundColor: palette.light.muted,
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "rgba(15,23,42,0.03)",
   },
   helpTitle: { fontWeight: "700", marginBottom: 6 },
-  helpText: { color: "#374151" },
+  helpText: { color: Colors.light.text },
 
-  muted: { color: "#8b8b8b" },
+  muted: { color: palette.light.text.muted },
 
   error: { color: "red", textAlign: "center", marginTop: 24 },
   center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 16 },
@@ -563,7 +564,7 @@ const styles = StyleSheet.create({
     borderColor: "#e5e7eb",
     borderRadius: 8,
     marginTop: 8,
-    backgroundColor: "#fff",
+    backgroundColor: Colors.light.background,
     overflow: 'hidden', // to contain the rounded corners
   },
   shareHeader: {
@@ -571,43 +572,43 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     padding: 12,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.light.background,
   },
   shareTitle: {
     fontWeight: "700",
     fontSize: 16,
   },
   shareSubtitle: {
-    color: "#6b7280",
+    color: palette.light.text.muted,
     marginTop: 2,
   },
   shareChevron: {
-    color: "#6b7280",
+    color: palette.light.text.muted,
     fontSize: 18,
     transform: [{ translateY: -2 }], // visual alignment
   },
   shareDetails: {
     padding: 12,
     paddingTop: 0, // No top padding, already spaced
-    backgroundColor: "#fcfcfc",
+    backgroundColor: palette.light.surface,
     borderTopWidth: 1,
     borderTopColor: "#e5e7eb",
   },
 
   segmentBox: {
     padding: 10,
-    backgroundColor: "#fafafa",
+    backgroundColor: palette.light.surface,
     borderRadius: 8,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: "#f3f3f3",
+    borderColor: palette.light.muted,
   },
   segmentHeader: {
     fontWeight: "700",
     fontSize: 15,
   },
   segmentSubheader: {
-    color: "#6b7280",
+    color: palette.light.text.muted,
     marginTop: 4,
     marginBottom: 10,
     fontSize: 13,
@@ -620,7 +621,7 @@ const styles = StyleSheet.create({
   },
   tableHeaderRow: {
     flexDirection: "row",
-    backgroundColor: "#f9fafb",
+    backgroundColor: palette.light.surface,
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
   },
@@ -629,14 +630,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 12,
     fontWeight: "600",
-    color: "#6b7280",
+    color: palette.light.text.muted,
     textTransform: "uppercase",
   },
   tableRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
-    backgroundColor: "#fff",
+    backgroundColor: Colors.light.background,
   },
   tableRowLast: {
     borderBottomWidth: 0, // No border for the last row in the table
@@ -645,6 +646,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 10,
     fontSize: 14,
-    color: "#111827",
+    color: Colors.light.text,
   },
 });

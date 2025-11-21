@@ -7,6 +7,7 @@ import {
   FlatList,
   Platform,
 } from "react-native";
+import { Colors, palette } from '@/constants/theme';
 
 type Item = { id: number | string; displayName: string };
 
@@ -69,25 +70,25 @@ const styles = StyleSheet.create({
   root: { width: "100%" },
   toggle: {
     borderWidth: 1,
-    borderColor: "#e6e6e6",
+    borderColor: palette.light.border,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: "#fff",
+    backgroundColor: Colors.light.background,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  toggleOpen: { borderColor: "#0b74ff" },
-  toggleText: { color: "#111827" },
-  chev: { color: "#6b7280", marginLeft: 8 },
+  toggleOpen: { borderColor: Colors.light.tint },
+  toggleText: { color: Colors.light.text },
+  chev: { color: palette.light.text.muted, marginLeft: 8 },
   panel: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "#e6e6e6",
+    borderColor: palette.light.border,
     borderRadius: 8,
     maxHeight: 240,
-    backgroundColor: "#fff",
+    backgroundColor: Colors.light.background,
   },
   itemRow: { paddingVertical: 10, paddingHorizontal: 12 },
   itemText: { fontSize: 14 },

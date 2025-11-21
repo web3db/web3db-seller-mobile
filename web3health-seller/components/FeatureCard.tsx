@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Colors, palette } from '@/constants/theme';
 
 // 1. Define the type for the component's props
 type FeatureCardProps = {
@@ -22,13 +23,13 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ title, desc }) => {
 // 5. Create a StyleSheet to define the component's appearance
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.light.background,
     borderRadius: 8,
     padding: 20,
     marginVertical: 8,
     marginHorizontal: 16,
     // Shadow for iOS
-    shadowColor: '#000',
+    shadowColor: Colors.light.text,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
@@ -38,12 +39,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333333',
+    color: Colors.light.text,
     marginBottom: 8,
   },
   description: {
     fontSize: 14,
-    color: '#6c757d', // A muted gray color
+    color: palette.light.text.muted, // A muted gray color
     lineHeight: 20,
   },
 });

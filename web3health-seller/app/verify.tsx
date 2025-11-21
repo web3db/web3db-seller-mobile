@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSignUp } from '@clerk/clerk-expo';
 import { useAuth as localAuth } from '@/hooks/AuthContext';
+import { Colors, palette } from '@/constants/theme';
 
 const VerifyScreen: React.FC = () => {
   // Use the REAL hooks, not mocks
@@ -60,7 +61,7 @@ const VerifyScreen: React.FC = () => {
   if (!isLoaded) {
     return (
       <View style={[styles.authRoot, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color={Colors.light.tint} />
       </View>
     );
   }
@@ -94,7 +95,7 @@ const VerifyScreen: React.FC = () => {
             activeOpacity={0.8}
           >
             {loading ? (
-              <ActivityIndicator color="#ffffff" />
+              <ActivityIndicator color={palette.light.text.inverse} />
             ) : (
               <Text style={styles.btnPrimaryText}>Verify</Text>
             )}
@@ -110,14 +111,14 @@ const styles = StyleSheet.create({
   authRoot: {
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: '#f0f2f5',
+    backgroundColor: palette.light.surface,
     padding: 16,
   },
   authCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.light.background,
     borderRadius: 12,
     padding: 24,
-    shadowColor: '#000',
+    shadowColor: Colors.light.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -128,24 +129,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 8,
-    color: '#1e293b',
+    color: Colors.light.text,
   },
   authHelp: {
     fontSize: 14,
     textAlign: 'center',
-    color: '#64748b',
+    color: palette.light.text.secondary,
     marginBottom: 24,
   },
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#334155',
+    color: palette.light.text.secondary,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: palette.light.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: palette.light.border,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -154,10 +155,10 @@ const styles = StyleSheet.create({
   },
   authActions: { marginTop: 8 },
   btn: { paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  btnPrimary: { backgroundColor: '#4f46e5' },
-  btnPrimaryText: { color: '#ffffff', fontWeight: 'bold', fontSize: 16 },
+  btnPrimary: { backgroundColor: Colors.light.tint },
+  btnPrimaryText: { color: palette.light.text.inverse, fontWeight: 'bold', fontSize: 16 },
   errorText: {
-    color: '#ef4444',
+    color: palette.light.danger,
     textAlign: 'center',
     marginBottom: 16,
     fontWeight: '600',

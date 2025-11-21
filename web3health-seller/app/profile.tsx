@@ -1,5 +1,7 @@
 import React, { useState, useCallback } from 'react';
+import { Colors, palette } from '@/constants/theme';
 import {
+
   SafeAreaView,
   ScrollView,
   View,
@@ -60,7 +62,7 @@ const ProfileScreen: React.FC = () => {
         <Text style={styles.title}>My Profile</Text>
 
         {isLoading ? (
-          <ActivityIndicator size="large" color="#4f46e5" style={{ marginTop: 20 }} />
+          <ActivityIndicator size="large" color={Colors.light.tint} style={{ marginTop: 20 }} />
         ) : error ? (
           <Text style={styles.errorText}>{error}</Text>
         ) : userProfile ? (
@@ -99,7 +101,7 @@ const ProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#f0f2f5',
+    backgroundColor: palette.light.surface,
   },
   container: {
     padding: 24,
@@ -107,14 +109,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: Colors.light.text,
     marginBottom: 24,
   },
   profileCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.light.background,
     borderRadius: 12,
     padding: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.light.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -125,23 +127,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: palette.light.muted,
   },
   detailLabel: {
     fontSize: 16,
-    color: '#64748b',
+    color: palette.light.text.secondary,
     fontWeight: '500',
   },
   detailValue: {
     fontSize: 16,
-    color: '#1e293b',
+    color: Colors.light.text,
     fontWeight: '600',
   },
   errorText: {
     textAlign: 'center',
     padding: 20,
     fontSize: 16,
-    color: '#ef4444',
+    color: palette.light.danger,
     fontWeight: 'bold',
   },
 });

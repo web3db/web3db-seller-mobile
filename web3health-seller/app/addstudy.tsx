@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { Colors, palette } from '@/constants/theme';
 import {
+
   SafeAreaView,
   ScrollView,
   View,
@@ -526,7 +528,7 @@ export default function ManageStudy(): JSX.Element {
 
 /* Styles */
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#ffffff" },
+  root: { flex: 1, backgroundColor: Colors.light.background },
   scrollContainer: { padding: 16, paddingBottom: 48 },
   contentRow: {
     width: "100%",
@@ -541,7 +543,7 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: Colors.light.background,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
@@ -549,7 +551,7 @@ const styles = StyleSheet.create({
     // drop shadow
     ...Platform.select({
       ios: {
-        shadowColor: "#000",
+        shadowColor: Colors.light.text,
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.06,
         shadowRadius: 12,
@@ -565,13 +567,13 @@ const styles = StyleSheet.create({
   fullWidth: { width: "100%" },
 
   heading: { fontSize: 20, fontWeight: "700", marginBottom: 8 },
-  label: { fontSize: 14, marginTop: 8, marginBottom: 6, color: "#333" },
+  label: { fontSize: 14, marginTop: 8, marginBottom: 6, color: Colors.light.text },
   input: {
     borderWidth: 1,
-    borderColor: "#e6e6e6",
+    borderColor: palette.light.border,
     borderRadius: 8,
     padding: 10,
-    backgroundColor: "#fafafa",
+    backgroundColor: palette.light.surface,
     minHeight: 44,
   },
   multiline: { height: 110, textAlignVertical: "top" as const },
@@ -584,26 +586,26 @@ const styles = StyleSheet.create({
 
   dropdownToggle: {
     borderWidth: 1,
-    borderColor: "#e6e6e6",
+    borderColor: palette.light.border,
     padding: 10,
     borderRadius: 8,
-    backgroundColor: "#fff",
+    backgroundColor: Colors.light.background,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     minHeight: 44,
   },
-  dropdownOpen: { borderColor: "#0b74ff", shadowColor: "#0b74ff", elevation: 2 },
-  dropdownText: { color: "#111827" },
-  dropdownChevron: { color: "#6b7280", marginLeft: 8 },
+  dropdownOpen: { borderColor: Colors.light.tint, shadowColor: Colors.light.tint, elevation: 2 },
+  dropdownText: { color: Colors.light.text },
+  dropdownChevron: { color: palette.light.text.muted, marginLeft: 8 },
 
   dropdownPane: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "#e6e6e6",
+    borderColor: palette.light.border,
     borderRadius: 8,
     maxHeight: 240,
-    backgroundColor: "#fff",
+    backgroundColor: Colors.light.background,
     paddingVertical: 6,
   },
 
@@ -618,13 +620,13 @@ const styles = StyleSheet.create({
     width: 20,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: "#cbd5e1",
+    borderColor: palette.light.border,
     marginRight: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  checkboxChecked: { backgroundColor: "#0b74ff", borderColor: "#0b74ff" },
-  checkboxTick: { color: "#fff", fontSize: 12 },
+  checkboxChecked: { backgroundColor: Colors.light.tint, borderColor: Colors.light.tint },
+  checkboxTick: { color: Colors.light.background, fontSize: 12 },
   metricLabel: { fontSize: 14 },
 
   participantsList: { marginTop: 6 },
@@ -641,28 +643,28 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
-  btnPrimary: { backgroundColor: "#0b74ff" },
-  btnPrimaryText: { color: "#fff", fontWeight: "700" },
-  btnGhost: { backgroundColor: "transparent", borderWidth: 1, borderColor: "#cbd5e1" },
-  btnGhostText: { color: "#374151", fontWeight: "600" },
+  btnPrimary: { backgroundColor: Colors.light.tint },
+  btnPrimaryText: { color: Colors.light.background, fontWeight: "700" },
+  btnGhost: { backgroundColor: "transparent", borderWidth: 1, borderColor: palette.light.border },
+  btnGhostText: { color: Colors.light.text, fontWeight: "600" },
 
   toggleBtn: {
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: palette.light.border,
   },
   toggleBtnActive: { backgroundColor: "#e6f2ff", borderColor: "#8fc9ff" },
-  toggleText: { color: "#374151" },
-  toggleTextActive: { color: "#0b74ff", fontWeight: "700" },
+  toggleText: { color: Colors.light.text },
+  toggleTextActive: { color: Colors.light.tint, fontWeight: "700" },
 
   /* Stats */
   statHeading: { fontSize: 16, fontWeight: "700", marginBottom: 12 },
   statRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   statBox: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: palette.light.surface,
     borderRadius: 10,
     paddingVertical: 18,
     alignItems: "center",
@@ -670,22 +672,22 @@ const styles = StyleSheet.create({
     borderColor: "rgba(15,23,42,0.04)",
   },
   statNumber: { fontSize: 28, fontWeight: "800" },
-  statLabel: { color: "#6b7280", marginTop: 6 },
+  statLabel: { color: palette.light.text.muted, marginTop: 6 },
 
   metaBlock: { marginTop: 12 },
-  metaLabel: { fontSize: 12, color: "#6b7280" },
+  metaLabel: { fontSize: 12, color: palette.light.text.muted },
   metaValue: { fontSize: 14, fontWeight: "600", marginTop: 4 },
 
   helpBox: {
     marginTop: 16,
-    backgroundColor: "#f1f5f9",
+    backgroundColor: palette.light.muted,
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "rgba(15,23,42,0.03)",
   },
   helpTitle: { fontWeight: "700", marginBottom: 6 },
-  helpText: { color: "#374151" },
+  helpText: { color: Colors.light.text },
 
-  muted: { color: "#8b8b8b" },
+  muted: { color: palette.light.text.muted },
 });

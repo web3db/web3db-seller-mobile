@@ -12,6 +12,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import { useFocusEffect, useRouter } from "expo-router";
 import StudyCard from "../components/StudyCard"; 
 import { useAuth as localAuth } from "@/hooks/AuthContext";
+import { Colors, palette } from '@/constants/theme';
 
 // --- API Imports ---
 // This file now uses the raw fetch implementation
@@ -74,8 +75,6 @@ const StudiesScreen: React.FC = () => {
                 {/* Stats Section */}
                 <View style={styles.stats}>
                     <StatBox label="Active Studies" value={isLoading ? '...' : totalActiveStudies} />
-                    <StatBox label="Total Participants" value={isLoading ? '...' : totalParticipants} />
-                    <StatBox label="Open Spots" value={isLoading ? '...' : totalOpenSpots} />
                 </View>
 
                 {/* Loading/Error/Data Display */}
@@ -113,7 +112,7 @@ const StatBox: React.FC<{ label: string; value: string | number }> = ({ label, v
 const styles = StyleSheet.create({
     root: {
         flex: 1,
-        backgroundColor: "#ffffff",
+        backgroundColor: Colors.light.background,
     },
     homeRoot: {
         paddingVertical: 32,
@@ -122,11 +121,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
     },
     header: {
-        backgroundColor: "#f8fafc",
+        backgroundColor: palette.light.surface,
         padding: 16, 
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: "rgba(15,23,42,0.04)",
+        borderColor: palette.light.border,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
@@ -147,10 +146,10 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     statBox: {
-        backgroundColor: "#f8fafc",
+        backgroundColor: palette.light.surface,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: "rgba(15,23,42,0.04)",
+        borderColor: palette.light.border,
         alignItems: "center",
         flex: 1,
         padding: 8, 
@@ -163,7 +162,7 @@ const styles = StyleSheet.create({
     },
     statLabel: { 
         fontSize: 14, 
-        color: 'gray', 
+        color: palette.light.text.secondary, 
         marginBottom: 8 
     },
     title: {
@@ -173,7 +172,7 @@ const styles = StyleSheet.create({
     },
     subtitle: {
         fontSize: 16,
-        color: "gray",
+        color: palette.light.text.secondary,
     },
     btn: {
         paddingVertical: 8,
@@ -183,10 +182,10 @@ const styles = StyleSheet.create({
         borderColor: "transparent",
     },
     btnPrimary: {
-        backgroundColor: "#4f46e5",
+        backgroundColor: Colors.light.tint,
     },
     btnTextPrimary: {
-        color: "white",
+        color: palette.light.text.inverse,
         fontWeight: "600",
     },
     addButton: {
@@ -196,10 +195,10 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         padding: 20,
         fontSize: 16,
-        color: 'gray',
+        color: palette.light.text.secondary,
     },
     errorText: {
-        color: 'red',
+        color: palette.light.danger,
         fontWeight: 'bold',
     }
 });

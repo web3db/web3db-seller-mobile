@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView } from 'react-native';
+import { Colors, palette } from '@/constants/theme';
 import { useAuth, useUser } from '@clerk/clerk-expo'; // 1. Import Clerk's useAuth
 import { useRouter } from 'expo-router';
 
@@ -48,7 +49,7 @@ export const Navbar: React.FC = () => {
 
 const styles = StyleSheet.create({
   headerSafeArea: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: palette.light.surface,
   },
   portalHeader: {
     flexDirection: 'row',
@@ -56,9 +57,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#f8fafc',
+    backgroundColor: palette.light.surface,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(15,23,42,0.04)',
+    borderBottomColor: palette.light.border,
   },
   brand: {
     flexDirection: 'row',
@@ -72,7 +73,7 @@ const styles = StyleSheet.create({
   brandText: {
     fontWeight: '700',
     fontSize: 16,
-    color: '#0f172a',
+    color: Colors.light.text,
   },
   nav: {
     flexDirection: 'row',
@@ -80,18 +81,18 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   navLink: {
-    color: '#0f172a',
+    color: Colors.light.text,
     fontWeight: '600',
     fontSize: 16,
   },
   logoutBtn: {
-    color: '#374151',
+    color: Colors.light.text,
     fontWeight: '600',
     fontSize: 15,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: 'rgba(15,23,42,0.06)',
+    borderColor: palette.light.border,
     borderRadius: 8,
   },
 });

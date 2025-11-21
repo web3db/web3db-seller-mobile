@@ -15,6 +15,7 @@ import { useSignUp, useClerk } from '@clerk/clerk-expo'; // Import useClerk for 
 import { listSexes, listRaces, createUser, CreateUserPayload } from './services/users/api';
 import { Modal, FlatList } from 'react-native';
 import { useAuth as localAuth } from '@/hooks/AuthContext';
+import { Colors, palette } from '@/constants/theme';
 import { CreateUserPayloadDTO } from './services/users/types';
 import { useAuth } from '@clerk/clerk-expo';
 
@@ -166,7 +167,7 @@ const RegisterScreen: React.FC = () => {
           { justifyContent: 'center', alignItems: 'center' },
         ]}
       >
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color={Colors.light.tint} />
       </View>
     );
   }
@@ -329,7 +330,7 @@ const RegisterScreen: React.FC = () => {
             activeOpacity={0.8}
           >
             {loading ? (
-              <ActivityIndicator color="#ffffff" />
+              <ActivityIndicator color={palette.light.text.inverse} />
             ) : (
               <Text style={styles.btnPrimaryText}>Create Account</Text>
             )}
@@ -347,19 +348,19 @@ const RegisterScreen: React.FC = () => {
 const styles = StyleSheet.create({
   authRoot: {
     flex: 1,
-    backgroundColor: '#f0f2f5',
+    backgroundColor: palette.light.surface,
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#f0f2f5',
+    backgroundColor: palette.light.surface,
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.light.background,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: Colors.light.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -378,30 +379,30 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 8,
-    color: '#1e293b',
+    color: Colors.light.text,
   },
   authHelp: {
     fontSize: 14,
     textAlign: 'center',
-    color: '#64748b',
+    color: palette.light.text.secondary,
     marginBottom: 24,
   },
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#334155',
+    color: palette.light.text.secondary,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: palette.light.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: palette.light.border,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
     marginBottom: 16,
-    color: '#1e293b', // Added text color for input
+    color: Colors.light.text, // Added text color for input
   },
   authActions: {
     flexDirection: 'row',
@@ -425,28 +426,28 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   btnPrimary: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: Colors.light.tint,
   },
   btnPrimaryText: {
-    color: '#ffffff',
+    color: palette.light.text.inverse,
     fontWeight: 'bold',
     fontSize: 16,
   },
   link: {
-    color: '#4f46e5',
+    color: Colors.light.tint,
     fontWeight: '600',
     padding: 8,
   },
   errorText: {
-    color: '#ef4444',
+    color: palette.light.danger,
     textAlign: 'center',
     marginBottom: 16,
     fontWeight: '600',
   },
   dropdownPaneInline: {
     borderWidth: 1,
-    borderColor: '#e6e6e6',
-    backgroundColor: '#fff',
+    borderColor: palette.light.border,
+    backgroundColor: Colors.light.background,
     borderRadius: 8,
     marginTop: 8,
     // Ensure the dropdown matches the field width and sits inline
@@ -457,33 +458,33 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: palette.light.muted,
   },
   dropdownItemText: {
     fontSize: 15,
-    color: '#111827',
+    color: Colors.light.text,
   },
   dropdownToggle: {
     borderWidth: 1,
-    borderColor: '#e6e6e6',
+    borderColor: palette.light.border,
     padding: 10,
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.light.background,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     minHeight: 44,
   },
-  dropdownOpen: { borderColor: '#0b74ff', shadowColor: '#0b74ff', elevation: 2 },
-  dropdownText: { color: '#111827' },
-  dropdownChevron: { color: '#6b7280', marginLeft: 8 },
+  dropdownOpen: { borderColor: Colors.light.tint, shadowColor: Colors.light.tint, elevation: 2 },
+  dropdownText: { color: Colors.light.text },
+  dropdownChevron: { color: palette.light.text.muted, marginLeft: 8 },
   dropdownPane: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#e6e6e6',
+    borderColor: palette.light.border,
     borderRadius: 8,
     maxHeight: 240,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.light.background,
     paddingVertical: 6,
   },
   metricRow: {
@@ -497,15 +498,15 @@ const styles = StyleSheet.create({
     width: 20,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: palette.light.border,
     marginRight: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxChecked: { backgroundColor: '#0b74ff', borderColor: '#0b74ff' },
-  checkboxTick: { color: '#fff', fontSize: 12 },
+  checkboxChecked: { backgroundColor: Colors.light.tint, borderColor: Colors.light.tint },
+  checkboxTick: { color: palette.light.text.inverse, fontSize: 12 },
   metricLabel: { fontSize: 14 },
-  muted: { color: '#8b8b8b' },
+  muted: { color: palette.light.text.muted },
 });
 
 export default RegisterScreen;

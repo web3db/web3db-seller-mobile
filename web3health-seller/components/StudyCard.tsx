@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Colors, palette } from '@/constants/theme';
 import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 
@@ -84,13 +85,13 @@ const StudyCard: React.FC<StudyCardProps> = ({ study }) => {
 // StyleSheet remains the same
 const styles = StyleSheet.create({
   studyCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.light.background,
     borderRadius: 8,
     padding: 16,
     marginVertical: 8,
     marginHorizontal: 16,
     // Shadow for iOS
-    shadowColor: '#000',
+    shadowColor: Colors.light.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -106,12 +107,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: Colors.light.text,
     flex: 1, // Ensures title doesn't push badge off-screen
     marginRight: 8,
   },
   badge: {
-    backgroundColor: '#e0e0e0',
+    backgroundColor: palette.light.surface,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
@@ -119,16 +120,16 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#555',
+    color: palette.light.text.secondary,
   },
   description: {
     fontSize: 14,
-    color: '#666',
+    color: palette.light.text.secondary,
     lineHeight: 20,
   },
   secureMuted: {
     fontSize: 12,
-    color: '#888',
+    color: palette.light.text.muted,
     fontStyle: 'italic',
     marginTop: 12,
   },
@@ -137,12 +138,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: palette.light.border,
     paddingTop: 12,
   },
   metaText: {
     fontSize: 14,
-    color: '#444',
+    color: palette.light.text.secondary,
   },
   boldText: {
     fontWeight: 'bold',
@@ -161,19 +162,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnPrimary: {
-    backgroundColor: '#007bff',
+    backgroundColor: Colors.light.tint,
   },
   btnTextPrimary: {
-    color: '#ffffff',
+    color: palette.light.text.inverse,
     fontWeight: 'bold',
   },
   btnGhost: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#007bff',
+    borderColor: Colors.light.tint,
   },
   btnTextGhost: {
-    color: '#007bff',
+    color: Colors.light.tint,
     fontWeight: 'bold',
   },
 });

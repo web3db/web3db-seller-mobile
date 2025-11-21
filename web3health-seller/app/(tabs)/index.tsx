@@ -1,5 +1,7 @@
 import React from 'react';
+import { Colors, palette } from '@/constants/theme';
 import {
+
   SafeAreaView,
   ScrollView,
   View,
@@ -116,7 +118,7 @@ const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.light.background,
   },
   homeRoot: {
     paddingVertical: 32,
@@ -138,14 +140,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   muted: {
-    color: '#6b7280',
+    color: palette.light.text.muted,
     fontSize: 16,
     lineHeight: 24,
   },
   // Hero Section
   heroLanding: {
     // Simplified from linear-gradient
-    backgroundColor: '#f8fafc',
+    backgroundColor: palette.light.surface,
     paddingVertical: 48,
     paddingHorizontal: 16,
     borderRadius: 12,
@@ -175,19 +177,19 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   btnPrimary: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: Colors.light.tint,
   },
   btnTextPrimary: {
-    color: 'white',
+    color: Colors.light.tint,
     fontWeight: '600',
   },
   btnGhost: {
-    borderColor: '#cbd5e1',
+    borderColor:  Colors.light.tint,
     backgroundColor: 'transparent',
     marginLeft: 8,
   },
   btnTextGhost: {
-    color: '#374151',
+    color: Colors.light.text,
     fontWeight: '600',
   },
   // Features Section
@@ -216,20 +218,20 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18, // half of width/height
-    backgroundColor: '#eef2ff',
+    backgroundColor: palette.light.muted,
     justifyContent: 'center',
     alignItems: 'center',
   },
   stepCounterText: {
     fontWeight: '700',
     fontSize: 20,
-    color: '#4338ca',
+    color: Colors.light.tint,
   },
   stepText: {
     flex: 1, // Allows text to wrap
     fontSize: 16,
     lineHeight: 24,
-    color: '#334155', // A suitable color from your other styles
+    color: Colors.light.text, // A suitable color from your other styles
   },
   // Security Section
   security: {

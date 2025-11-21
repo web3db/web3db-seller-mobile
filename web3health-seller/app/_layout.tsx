@@ -5,6 +5,7 @@ import { ActivityIndicator, View, StyleSheet, SafeAreaView, Platform } from 'rea
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { palette } from '@/constants/theme';
 import React, { useEffect } from 'react';
 
 import Navbar from './NavBar'; // Import the Navbar
@@ -78,6 +79,6 @@ function AppContent() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc', // Match Navbar background
+    backgroundColor: palette.light.surface, // Match Navbar background
   },
 });
