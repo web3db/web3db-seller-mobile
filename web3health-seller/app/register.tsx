@@ -19,6 +19,13 @@ import { Colors, palette } from '@/constants/theme';
 import { CreateUserPayloadDTO } from './services/users/types';
 import { useAuth } from '@clerk/clerk-expo';
 
+import { makeRedirectUri } from "expo-auth-session";
+import * as QueryParams from "expo-auth-session/build/QueryParams";
+import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
+import {supabase} from '../supbase';
+
+
 const RegisterScreen: React.FC = () => {
   const { isLoaded, signUp } = useSignUp();
   const { signOut } = useAuth();
@@ -63,7 +70,113 @@ const RegisterScreen: React.FC = () => {
 
   const { login } = localAuth();
 
-  const handleRegister = async () => {
+  // Assume the necessary variables and imports are in scope:
+// import { createUser, CreateUserPayloadDTO } from '.../services/users/api';
+// const { email, password, orgName, birthYear, raceId, sexId, heightNum, weightNum } = ...;
+// const supabase = ...; // Supabase client instance
+
+const handleRegister = async () => {
+  try {
+    setLoading(true);
+    setError('');
+
+    // Required for web and deep linking setup (Steps 1, 2, 3)
+    WebBrowser.maybeCompleteAuthSession();
+    const redirectTo = makeRedirectUri();
+
+    // 1️⃣ Sign up user (email verification magic link)
+    // IMPORTANT: Only pass fields needed for the verification/redirect logic.
+    // We remove the physical/metadata fields here, as we will use the dedicated API call later.
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectTo,
+        data: {
+          // Keep minimal metadata if needed, but the main data goes via 'createUser'
+          // We will use 'orgName' for 'name' as per the previous request.
+          name: orgName, 
+        },
+      },
+    });
+
+    if (signUpError) throw signUpError;
+    
+    // ... (Steps 2, 3: Wait for email verification and extract tokens) ...
+    
+    // ... (URL listening and token extraction logic remains the same) ...
+
+    const url = await new Promise<string | null>((resolve) => {
+        // ... (existing Linking.addEventListener and setTimeout logic) ...
+        const sub = Linking.addEventListener('url', ({ url }) => {
+            sub.remove();
+            resolve(url);
+        });
+        setTimeout(() => {
+            sub.remove();
+            resolve(null);
+        }, 60000); // Increased timeout to 1 minute
+    });
+
+    if (!url) {
+      alert('Check your email to verify your account.');
+      return;
+    }
+
+    const { params, errorCode } = QueryParams.getQueryParams(url);
+    if (errorCode) throw new Error(errorCode);
+    const { access_token, refresh_token } = params;
+    if (!access_token || !refresh_token) return;
+
+    // 4️⃣ Create Supabase session
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token,
+      refresh_token,
+    });
+
+    if (sessionError) throw sessionError;
+    
+    // 5️⃣ Call the dedicated API function to create the MST_User record
+    // This happens AFTER successful authentication/session creation.
+    
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user || !user.id) {
+        throw new Error("Could not retrieve user ID after session creation.");
+    }
+    
+    const registrationPayload: CreateUserPayloadDTO = {
+      clerkId: user.id,            // The Supabase Auth ID
+      email: user.email!,          // The user's email
+      name: orgName,               // Using 'orgName' for the user's display name
+      birthYear: Number(birthYear),
+      raceId: Number(raceId),
+      sexId: Number(sexId),
+      heightNum: Number(heightNum),
+      weightNum: Number(weightNum),
+      // We assume default unit IDs are handled by the database or left null
+      // heightUnitId: Number(heightUnitId),
+      // weightUnitId: Number(weightUnitId),
+      // measurementSystemId: Number(measurementSystemId),
+      roleId: 2,                   // Role ID is hardcoded to 2
+      isActive: true,
+    };
+    
+    // The createUser function uses your API client to call the Edge Function
+    const newUser = await createUser(registrationPayload);
+    
+    console.log("MST_User record created successfully:", newUser);
+
+    alert('Account verified and signed in!');
+    
+  } catch (err: any) {
+    setError(err.message ?? 'Registration failed');
+  } finally {
+    setLoading(false);
+  }
+};
+  
+
+  /*const handleRegister = async () => {
     if (!isLoaded) return;
     setLoading(true);
     setError('');
@@ -157,7 +270,7 @@ const RegisterScreen: React.FC = () => {
 
       //router.push('/login');
     }
-  };
+  }; */
 
   if (!isLoaded) {
     return (
@@ -337,6 +450,9 @@ const RegisterScreen: React.FC = () => {
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/login')}>
             <Text style={styles.link}>Sign In</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/verify')}>
+            <Text style={styles.link}>Test</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
