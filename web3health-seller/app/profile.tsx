@@ -69,26 +69,7 @@ const ProfileScreen: React.FC = () => {
           <View style={styles.profileCard}>
             {renderProfileDetail('Name', userProfile.name)}
             {renderProfileDetail('Email', userProfile.email)}
-            {renderProfileDetail('Birth Year', userProfile.birthYear)}
-
-            {/* Use DisplayName fields */}
-            {renderProfileDetail('Race', userProfile.raceName)}
-            {renderProfileDetail('Sex', userProfile.sexName)}
             {renderProfileDetail('Role', userProfile.roleName)}
-
-            {/* Append units when present */}
-            {renderProfileDetail(
-              'Height',
-              userProfile.heightNum != null
-                ? `${userProfile.heightNum}${userProfile.heightUnitName ? ' ' + userProfile.heightUnitName : ''}`
-                : null
-            )}
-            {renderProfileDetail(
-              'Weight',
-              userProfile.weightNum != null
-                ? `${userProfile.weightNum}${userProfile.weightUnitName ? ' ' + userProfile.weightUnitName : ''}`
-                : null
-            )}
           </View>
         ) : (
           <Text style={styles.errorText}>No profile data found in the database for your account.</Text>

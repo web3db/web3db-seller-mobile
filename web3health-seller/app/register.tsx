@@ -11,12 +11,8 @@ import {
   Alert, // Note: Alert may not work as expected in Expo Go on web.
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSignUp, useClerk } from '@clerk/clerk-expo'; // Import useClerk for later
-import { listSexes, listRaces, createUser, CreateUserPayload } from './services/users/api';
-import { Modal, FlatList } from 'react-native';
-import { useAuth as localAuth } from '@/hooks/AuthContext';
+import { useSignUp } from '@clerk/clerk-expo';
 import { Colors, palette } from '@/constants/theme';
-import { CreateUserPayloadDTO } from './services/users/types';
 import { useAuth } from '@clerk/clerk-expo';
 
 const RegisterScreen: React.FC = () => {
@@ -27,41 +23,14 @@ const RegisterScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [orgName, setOrgName] = useState('');
-  const [birthYear, setBirthYear] = useState('');
-  const [raceId, setRaceId] = useState('');
-  const [sexId, setSexId] = useState('');
-  const [sexes, setSexes] = useState<Array<{sexId:number; sexCode:string; displayName:string; isActive:boolean}>>([]);
-  const [sexDropdownOpen, setSexDropdownOpen] = useState(false);
-  const [races, setRaces] = useState<Array<{raceId:number; raceCode:string; displayName:string; isActive:boolean}>>([]);
-  const [raceDropdownOpen, setRaceDropdownOpen] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const [sexItems, raceItems] = await Promise.all([listSexes(), listRaces()]);
-        if (!mounted) return;
-        setSexes(sexItems);
-        setRaces(raceItems);
-        // Intentionally do NOT auto-select a default value; user must choose
-        // this keeps the placeholder 'Select ...' visible and makes these fields required.
-      } catch (err) {
-        console.warn('Failed to load sexes or races', err);
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
-  const [heightNum, setHeightNum] = useState('');
-  const [weightNum, setWeightNum] = useState('');
-  // For simplicity, we'll assume IDs for units. In a real app, you'd fetch these.
-  const [heightUnitId, setHeightUnitId] = useState('1'); // e.g., 1 for 'cm'
-  const [weightUnitId, setWeightUnitId] = useState('1'); // e.g., 1 for 'kg'
-  const [measurementSystemId, setMeasurementSystemId] = useState('1'); // e.g., 1 for 'Metric'
+
+
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { login } = localAuth();
+
 
   const handleRegister = async () => {
     if (!isLoaded) return;
@@ -74,11 +43,6 @@ const RegisterScreen: React.FC = () => {
     if (!orgName) missing.push('Organization Name');
     if (!email) missing.push('Email');
     if (!password) missing.push('Password');
-    if (!birthYear) missing.push('Birth Year');
-    if (!raceId) missing.push('Race');
-    if (!sexId) missing.push('Gender');
-    if (!heightNum) missing.push('Height');
-    if (!weightNum) missing.push('Weight');
 
     if (missing.length > 0) {
       setError(`Please fill out required fields: ${missing.join(', ')}`);
@@ -92,14 +56,6 @@ const RegisterScreen: React.FC = () => {
       // This is so we can retrieve it AFTER email verification
       const userMetadata = {
         orgName: orgName,
-        birthYear: parseInt(birthYear, 10) || null,
-        raceId: parseInt(raceId, 10) || null,
-        sexId: parseInt(sexId, 10) || null,
-        heightNum: parseFloat(heightNum) || null,
-        heightUnitId: parseInt(heightUnitId, 10) || null,
-        weightNum: parseFloat(weightNum) || null,
-        weightUnitId: parseInt(weightUnitId, 10) || null,
-        measurementSystemId: parseInt(measurementSystemId, 10) || null,
         roleId: 2, // Default role
         isActive: true,
       };
@@ -203,114 +159,13 @@ const RegisterScreen: React.FC = () => {
           editable={!loading}
         />
 
-        <Text style={styles.label}>Birth Year</Text>
-        <TextInput
-          style={styles.input}
-          value={birthYear}
-          onChangeText={setBirthYear}
-          placeholder="YYYY"
-          keyboardType="number-pad"
-          maxLength={4}
-          editable={!loading}
-        />
 
-        {/* For simplicity, these are text inputs. In a real app, use dropdowns. */}
-        <Text style={styles.label}>Race</Text>
-        <TouchableOpacity
-          style={[styles.dropdownToggle, raceDropdownOpen && styles.dropdownOpen]}
-          onPress={() => setRaceDropdownOpen((v) => !v)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.dropdownText}>
-            {raceId
-              ? (races.find((r) => String(r.raceId) === raceId)?.displayName ?? `Race ${raceId}`)
-              : 'Select race...'}
-          </Text>
-          <Text style={styles.dropdownChevron}>{raceDropdownOpen ? '▴' : '▾'}</Text>
-        </TouchableOpacity>
 
-        {raceDropdownOpen && (
-          <View style={styles.dropdownPane}>
-            <FlatList
-              data={races.filter((r) => r.isActive)}
-              keyExtractor={(it) => String(it.raceId)}
-              style={{ maxHeight: 160 }}
-              nestedScrollEnabled
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.metricRow}
-                  onPress={() => {
-                    setRaceId(String(item.raceId));
-                    setRaceDropdownOpen(false);
-                  }}
-                >
-                  <Text style={styles.metricLabel}>{item.displayName}</Text>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        )}
 
-        <Text style={styles.label}>Gender</Text>
-        <TouchableOpacity
-          style={[styles.dropdownToggle, sexDropdownOpen && styles.dropdownOpen]}
-          onPress={() => setSexDropdownOpen((v) => !v)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.dropdownText}>
-            {sexId
-              ? (sexes.find((s) => String(s.sexId) === sexId)?.displayName ?? `Sex ${sexId}`)
-              : 'Select gender...'}
-          </Text>
-          <Text style={styles.dropdownChevron}>{sexDropdownOpen ? '▴' : '▾'}</Text>
-        </TouchableOpacity>
 
-        {sexDropdownOpen && (
-          <View style={styles.dropdownPane}>
-            <FlatList
-              data={sexes.filter((s) => s.isActive)}
-              keyExtractor={(it) => String(it.sexId)}
-              style={{ maxHeight: 160 }}
-              nestedScrollEnabled
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.metricRow}
-                  onPress={() => {
-                    setSexId(String(item.sexId));
-                    setSexDropdownOpen(false);
-                  }}
-                >
-                  <Text style={styles.metricLabel}>{item.displayName}</Text>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        )}
 
-        <View style={styles.row}>
-          <View style={styles.flex}>
-            <Text style={styles.label}>Height</Text>
-            <TextInput
-              style={styles.input}
-              value={heightNum}
-              onChangeText={setHeightNum}
-              placeholder="e.g., 180"
-              keyboardType="numeric"
-              editable={!loading}
-            />
-          </View>
-          <View style={styles.flex}>
-            <Text style={styles.label}>Weight</Text>
-            <TextInput
-              style={styles.input}
-              value={weightNum}
-              onChangeText={setWeightNum}
-              placeholder="e.g., 75"
-              keyboardType="numeric"
-              editable={!loading}
-            />
-          </View>
-        </View>
+
+
 
         <Text style={styles.label}>Password</Text>
         <TextInput
