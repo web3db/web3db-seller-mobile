@@ -148,8 +148,10 @@ const ManageStudy: React.FC = () => {
     if (selectedDate) {
       if (datePickerField === 'open') {
         setApplyOpenAt(selectedDate);
+        setOpenDateString(formatDateForDisplay(selectedDate));
       } else if (datePickerField === 'close') {
         setApplyCloseAt(selectedDate);
+        setCloseDateString(formatDateForDisplay(selectedDate));
       }
     }
     // Reset which field is being edited
@@ -307,11 +309,17 @@ const ManageStudy: React.FC = () => {
             {/* Date Pickers */}
             <Text style={styles.label}>Apply Open Date</Text>
             {Platform.OS === 'web' ? (
-              <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DD"
+              <input
+                type="date"
+                style={{
+                  borderWidth: 1,
+                  borderColor: palette.light.border,
+                  borderRadius: 8,
+                  backgroundColor: palette.light.surface,
+                  minHeight: 44,
+                } as React.CSSProperties}
                 value={openDateString}
-                onChangeText={(text) => handleWebDateChange(text, 'open')}
+                onChange={(e: any) => handleWebDateChange(e.target.value, 'open')}
                 onBlur={() => normalizeWebDate('open')}
               />
             ) : (
@@ -322,11 +330,17 @@ const ManageStudy: React.FC = () => {
 
             <Text style={styles.label}>Apply Close Date</Text>
             {Platform.OS === 'web' ? (
-              <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DD"
+              <input
+                type="date"
+                style={{
+                  borderWidth: 1,
+                  borderColor: palette.light.border,
+                  borderRadius: 8,
+                  backgroundColor: palette.light.surface,
+                  minHeight: 44,
+                } as React.CSSProperties}
                 value={closeDateString}
-                onChangeText={(text) => handleWebDateChange(text, 'close')}
+                onChange={(e: any) => handleWebDateChange(e.target.value, 'close')}
                 onBlur={() => normalizeWebDate('close')}
               />
             ) : (

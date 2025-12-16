@@ -39,7 +39,7 @@ type Study = {
   active?: boolean;
 };
 
-export default function ManageStudy(): JSX.Element {
+export default function ManageStudy(): React.ReactElement {
   const { studyId } = useLocalSearchParams() as { studyId?: string };
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -199,8 +199,10 @@ export default function ManageStudy(): JSX.Element {
     if (selectedDate) {
       if (datePickerField === 'open') {
         setApplyOpenAt(selectedDate);
+        setOpenDateString(formatDateForDisplay(selectedDate));
       } else if (datePickerField === 'close') {
         setApplyCloseAt(selectedDate);
+        setCloseDateString(formatDateForDisplay(selectedDate));
       }
     }
     setDatePickerField(null);
@@ -340,11 +342,17 @@ export default function ManageStudy(): JSX.Element {
             {/* Date Pickers */}
             <Text style={styles.label}>Apply Open Date</Text>
             {Platform.OS === 'web' ? (
-              <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DD"
+              <input
+                type="date"
+                style={{
+                  borderWidth: 1,
+                  borderColor: palette.light.border,
+                  borderRadius: 8,
+                  backgroundColor: palette.light.surface,
+                  minHeight: 44,
+                } as React.CSSProperties}
                 value={openDateString}
-                onChangeText={(text) => handleWebDateChange(text, 'open')}
+                onChange={(e: any) => handleWebDateChange(e.target.value, 'open')}
                 onBlur={() => normalizeWebDate('open')}
               />
             ) : (
@@ -355,11 +363,17 @@ export default function ManageStudy(): JSX.Element {
 
             <Text style={styles.label}>Apply Close Date</Text>
             {Platform.OS === 'web' ? (
-              <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DD"
+              <input
+                type="date"
+                style={{
+                  borderWidth: 1,
+                  borderColor: palette.light.border,
+                  borderRadius: 8,
+                  backgroundColor: palette.light.surface,
+                  minHeight: 44,
+                } as React.CSSProperties}
                 value={closeDateString}
-                onChangeText={(text) => handleWebDateChange(text, 'close')}
+                onChange={(e: any) => handleWebDateChange(e.target.value, 'close')}
                 onBlur={() => normalizeWebDate('close')}
               />
             ) : (
