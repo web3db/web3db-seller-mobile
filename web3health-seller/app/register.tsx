@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from "react";
 import {
   SafeAreaView,
   View,
@@ -8,46 +8,52 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert, // Note: Alert may not work as expected in Expo Go on web.
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useSignUp } from '@clerk/clerk-expo';
-import { Colors, palette } from '@/constants/theme';
-import { useAuth } from '@clerk/clerk-expo';
+  Platform,
+} from "react-native";
+
+import { useRouter } from "expo-router";
+import { useSignUp } from "@clerk/clerk-expo";
+import { Colors, palette } from "@/constants/theme";
+import { useAuth } from "@clerk/clerk-expo";
+import { createUser } from "@/app/services/users/api";
+import { unstable_createElement } from "react-native-web";
 
 const RegisterScreen: React.FC = () => {
   const { isLoaded, signUp } = useSignUp();
-  const { signOut } = useAuth();
+  const { signOut, isSignedIn } = useAuth();
   const router = useRouter();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [orgName, setOrgName] = useState('');
-
-
-
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [orgName, setOrgName] = useState("");
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-
+  const [error, setError] = useState("");
 
   const handleRegister = async () => {
-    if (!isLoaded) return;
-    setLoading(true);
-    setError('');
+    if (isSignedIn) {
+      setError(
+        "You're already signed in. Please sign out before creating a new account."
+      );
+      setLoading(false);
+      return;
+    }
 
-    console.log('[DEBUG] Starting registration process...');
+    setLoading(true);
+    setError("");
+
+    console.log("[DEBUG] Starting registration process...");
 
     const missing: string[] = [];
-    if (!orgName) missing.push('Organization Name');
-    if (!email) missing.push('Email');
-    if (!password) missing.push('Password');
+
+    if (!orgName) missing.push("Organization Name");
+    if (!email) missing.push("Email");
+    if (!password) missing.push("Password");
 
     if (missing.length > 0) {
-      setError(`Please fill out required fields: ${missing.join(', ')}`);
+      setError(`Please fill out required fields: ${missing.join(", ")}`);
       setLoading(false);
-      console.warn('[DEBUG] Validation failed: Missing', missing);
+      console.warn("[DEBUG] Validation failed: Missing", missing);
       return;
     }
 
@@ -61,17 +67,44 @@ const RegisterScreen: React.FC = () => {
       };
 
       console.log(
-        '[DEBUG] Step 1: Attempting Clerk sign up with payload and metadata:',
+        "[DEBUG] Step 1: Attempting Clerk sign up with payload and metadata:"
       );
-      console.log('Email:', email);
-      console.log('Metadata:', userMetadata);
+      console.log("Email:", email);
+      console.log("Metadata:", userMetadata);
 
-      // Create the user in Clerk
+      console.log("[DEBUG] Step 2: Calling signUp.create(...)");
+
       await signUp.create({
         emailAddress: email,
         password,
         unsafeMetadata: userMetadata, // Pass ALL data here
       });
+
+      console.log("[DEBUG] Step 2: signUp.create(...) succeeded");
+      const clerkId = (signUp as any)?.createdUserId;
+
+      console.log("[DEBUG] signUp state after create:", {
+        status: (signUp as any)?.status,
+        createdUserId: clerkId,
+      });
+
+      if (!clerkId) {
+        throw new Error("Missing createdUserId after signUp.create");
+      }
+
+      console.log("[DEBUG] Step 3: Calling backend createUser(...)");
+      await createUser({
+        clerkId,
+        email,
+        name: orgName,
+        roleId: 2,
+        isActive: true,
+      });
+
+      console.log("[DEBUG] Step 3: Backend createUser(...) succeeded");
+      await signOut();
+      router.replace("/login");
+      return;
 
       // NOTE: signUp.createdUserId will NOT exist yet.
       // We no longer call createUser() from this screen.
@@ -86,30 +119,42 @@ const RegisterScreen: React.FC = () => {
       // Step 4: Navigate to the verification screen
       //router.push('/verify');
     } catch (err: any) {
-      console.error('Clerk Sign Up Error:', JSON.stringify(err, null, 2));
+      console.error("[DEBUG] Clerk Sign Up Error (raw):", err);
+      console.error(
+        "[DEBUG] Clerk Sign Up Error (json):",
+        JSON.stringify(err, null, 2)
+      );
+
       // Provide clearer messaging for captcha-related failures which are
       // commonly returned by Clerk when a captcha/reCAPTCHA token is required
       const rawMsg =
-        err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || '';
+        err.errors?.[0]?.longMessage ||
+        err.errors?.[0]?.message ||
+        err.message ||
+        "";
 
       const lc = String(rawMsg).toLowerCase();
-      if (lc.includes('captcha') || lc.includes('recaptcha') || lc.includes('hcaptcha')) {
+      if (
+        lc.includes("captcha") ||
+        lc.includes("recaptcha") ||
+        lc.includes("hcaptcha")
+      ) {
         // Friendly guidance for developers/users: in dev you can disable captcha
         // in the Clerk dashboard, or configure the site key for reCAPTCHA on the
         // frontend. On production ensure your Clerk settings include the correct
         // captcha provider/site key for your domain.
         setError(
-          'Signup blocked by CAPTCHA requirement. In development you can disable CAPTCHA in your Clerk dashboard, or configure reCAPTCHA site keys for your frontend environment. See console for full error details.'
+          "Signup blocked by CAPTCHA requirement. In development you can disable CAPTCHA in your Clerk dashboard, or configure reCAPTCHA site keys for your frontend environment. See console for full error details."
         );
-        console.warn('Clerk CAPTCHA error details:', err);
+        console.warn("Clerk CAPTCHA error details:", err);
       } else {
-        const clerkError = rawMsg || 'An unknown error occurred during sign-up';
+        const clerkError = rawMsg || "An unknown error occurred during sign-up";
         setError(clerkError);
       }
     } finally {
       setLoading(false);
 
-      await signOut({ redirectUrl: '/login' }); // Sign out to clear any session
+      // await signOut({ redirectUrl: '/login' }); // Sign out to clear any session
 
       //router.push('/login');
     }
@@ -120,7 +165,7 @@ const RegisterScreen: React.FC = () => {
       <View
         style={[
           styles.authRoot,
-          { justifyContent: 'center', alignItems: 'center' },
+          { justifyContent: "center", alignItems: "center" },
         ]}
       >
         <ActivityIndicator size="large" color={Colors.light.tint} />
@@ -159,14 +204,6 @@ const RegisterScreen: React.FC = () => {
           editable={!loading}
         />
 
-
-
-
-
-
-
-
-
         <Text style={styles.label}>Password</Text>
         <TextInput
           style={styles.input}
@@ -176,6 +213,13 @@ const RegisterScreen: React.FC = () => {
           secureTextEntry={true}
           editable={!loading}
         />
+
+        {Platform.OS === "web"
+          ? unstable_createElement("div", {
+              id: "clerk-captcha",
+              style: { marginBottom: 16 },
+            })
+          : null}
 
         <View style={styles.authActions}>
           <TouchableOpacity
@@ -190,7 +234,7 @@ const RegisterScreen: React.FC = () => {
               <Text style={styles.btnPrimaryText}>Create Account</Text>
             )}
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/login')}>
+          <TouchableOpacity onPress={() => router.push("/login")}>
             <Text style={styles.link}>Sign In</Text>
           </TouchableOpacity>
         </View>
@@ -211,7 +255,7 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     padding: 24,
     backgroundColor: Colors.light.background,
     borderRadius: 12,
@@ -221,8 +265,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
     maxWidth: 500,
-    width: '100%',
-    alignSelf: 'center',
+    width: "100%",
+    alignSelf: "center",
     marginVertical: 24, // Added margin for scroll view on web/tablet
   },
   authCard: {
@@ -231,20 +275,20 @@ const styles = StyleSheet.create({
   },
   h2: {
     fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
     marginBottom: 8,
     color: Colors.light.text,
   },
   authHelp: {
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
     color: palette.light.text.secondary,
     marginBottom: 24,
   },
   label: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
     color: palette.light.text.secondary,
     marginBottom: 6,
   },
@@ -260,14 +304,14 @@ const styles = StyleSheet.create({
     color: Colors.light.text, // Added text color for input
   },
   authActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 8,
     gap: 16,
   },
   row: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 16,
   },
   flex: {
@@ -277,7 +321,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     flexGrow: 1,
   },
   btnPrimary: {
@@ -285,19 +329,19 @@ const styles = StyleSheet.create({
   },
   btnPrimaryText: {
     color: palette.light.text.inverse,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     fontSize: 16,
   },
   link: {
     color: Colors.light.tint,
-    fontWeight: '600',
+    fontWeight: "600",
     padding: 8,
   },
   errorText: {
     color: palette.light.danger,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   dropdownPaneInline: {
     borderWidth: 1,
@@ -306,7 +350,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 8,
     // Ensure the dropdown matches the field width and sits inline
-    overflow: 'hidden',
+    overflow: "hidden",
     zIndex: 50,
   },
   dropdownItem: {
@@ -325,12 +369,16 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
     backgroundColor: Colors.light.background,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     minHeight: 44,
   },
-  dropdownOpen: { borderColor: Colors.light.tint, shadowColor: Colors.light.tint, elevation: 2 },
+  dropdownOpen: {
+    borderColor: Colors.light.tint,
+    shadowColor: Colors.light.tint,
+    elevation: 2,
+  },
   dropdownText: { color: Colors.light.text },
   dropdownChevron: { color: palette.light.text.muted, marginLeft: 8 },
   dropdownPane: {
@@ -345,8 +393,8 @@ const styles = StyleSheet.create({
   metricRow: {
     paddingVertical: 8,
     paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   checkbox: {
     height: 20,
@@ -355,10 +403,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.light.border,
     marginRight: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
-  checkboxChecked: { backgroundColor: Colors.light.tint, borderColor: Colors.light.tint },
+  checkboxChecked: {
+    backgroundColor: Colors.light.tint,
+    borderColor: Colors.light.tint,
+  },
   checkboxTick: { color: palette.light.text.inverse, fontSize: 12 },
   metricLabel: { fontSize: 14 },
   muted: { color: palette.light.text.muted },

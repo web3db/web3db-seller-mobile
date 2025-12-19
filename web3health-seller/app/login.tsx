@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Colors, palette } from '@/constants/theme';
+import React, { useEffect, useState, useCallback } from "react";
+import { Colors, palette } from "@/constants/theme";
 import {
   SafeAreaView,
   View,
@@ -8,57 +8,69 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-} from 'react-native';
-import { useRouter } from 'expo-router';
+} from "react-native";
+import { useRouter } from "expo-router";
 
-// 🔑 CLERK IMPORTS
-import { useAuth, useSignIn, useOAuth } from '@clerk/clerk-expo'; 
-import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
-import { useAuth as localAuth } from '@/hooks/AuthContext';
+import { useAuth, useSignIn, useOAuth } from "@clerk/clerk-expo";
+import * as WebBrowser from "expo-web-browser";
+
+import { useAuth as localAuth } from "@/hooks/AuthContext";
 
 // Required for Clerk OAuth flow in Expo
 WebBrowser.maybeCompleteAuthSession();
 
 const LoginScreen: React.FC = () => {
   const router = useRouter();
-  
+
   // 🔑 Clerk Hooks Initialization
   const { isLoaded: authLoaded, isSignedIn, setActive } = useAuth(); // For checking current auth state
-  const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn(); // For email/password flow
-  
-  // 🔑 OAuth Hook Initialization (Google Example)
-  const googleOAuth = useOAuth({ strategy: 'oauth_google' });
+  const {
+    signIn,
+    setActive: setSignInActive,
+    isLoaded: signInLoaded,
+  } = useSignIn(); // For email/password flow
 
+  // 🔑 OAuth Hook Initialization (Google Example)
+  const googleOAuth = useOAuth({ strategy: "oauth_google" });
   const { login } = localAuth();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!authLoaded) return;
+    if (isSignedIn) router.replace("/studies");
+  }, [authLoaded, isSignedIn, router]);
+
+  const [email, setEmail] = useState("");
+
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   // Handle Sign In with Google OAuth
-  const handleGoogleSignIn = useCallback(async () => {
-    try {
-      const { createdSessionId, signIn, signUp, setActive } = await googleOAuth.startOAuthFlow();
+  // const handleGoogleSignIn = useCallback(async () => {
+  //   try {
+  //     const { createdSessionId, signIn, signUp, setActive } =
+  //       await googleOAuth.startOAuthFlow();
 
-      if (createdSessionId && setActive) {
-        // Session created successfully, user is signed in.
-        setActive({ session: createdSessionId });
-      } else {
-        // Handle other cases (e.g., user needs to complete sign-up)
-        // For this example, we'll just log it.
-        console.log("OAuth flow started but session not created.", { signIn, signUp });
-      }
-    } catch (err) {
-      console.error("Google OAuth Error", JSON.stringify(err, null, 2));
-      setError("Failed to sign in with Google. Please try again.");
-    }
-  }, [googleOAuth, setActive]);
+  //     if (createdSessionId && setActive) {
+  //       // Session created successfully, user is signed in.
+  //       setActive({ session: createdSessionId });
+  //     } else {
+  //       // Handle other cases (e.g., user needs to complete sign-up)
+  //       // For this example, we'll just log it.
+  //       console.log("OAuth flow started but session not created.", {
+  //         signIn,
+  //         signUp,
+  //       });
+  //     }
+  //   } catch (err) {
+  //     console.error("Google OAuth Error", JSON.stringify(err, null, 2));
+  //     setError("Failed to sign in with Google. Please try again.");
+  //   }
+  // }, [googleOAuth, setActive]);
 
   // Handle Sign In with Email/Password
   const handleLogin = async () => {
-    setError('');
+    setError("");
     setLoading(true);
 
     if (!signInLoaded) {
@@ -67,12 +79,18 @@ const LoginScreen: React.FC = () => {
       return;
     }
 
+    if (isSignedIn) {
+      setLoading(false);
+      router.replace("/studies");
+      return;
+    }
+
     if (!email || !password) {
       setError("Please enter both email and password.");
       setLoading(false);
       return;
     }
-    
+
     try {
       // 🔑 Step 1: Attempt to sign in
       const completeSignIn = await signIn.create({
@@ -81,23 +99,16 @@ const LoginScreen: React.FC = () => {
       });
 
       // Check if sign-in is complete (i.e., no MFA required)
-      if (completeSignIn.status === 'complete') {
-        // 🔑 Step 2: Set the session active.
-        // This will automatically trigger the useEffect hook to redirect
-        // when the `isSignedIn` state becomes true.
+      if (completeSignIn.status === "complete") {
         await setSignInActive({ session: completeSignIn.createdSessionId });
+
+        // Only do local login + navigation after Clerk session is active
+        await login(email);
+        router.push("/studies");
       } else {
-        // Handle other statuses (e.g., 'needs_second_factor', 'needs_new_password')
-        // For simplicity, we'll log it, but in production, you'd navigate to an MFA screen.
-        console.log('Sign-in status:', completeSignIn.status);
+        console.log("Sign-in status:", completeSignIn.status);
         setError("Sign-in requires additional steps. Check console.");
       }
-
-      // Call the local login function
-      await login(email);
-
-      router.push('/studies');
-      
     } catch (err: any) {
       // Log the full error for debugging
       console.error("Login Error:", JSON.stringify(err, null, 2));
@@ -118,7 +129,12 @@ const LoginScreen: React.FC = () => {
   // If Clerk is still loading, show a loading indicator
   if (!authLoaded) {
     return (
-      <View style={[styles.authRoot, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View
+        style={[
+          styles.authRoot,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
         <ActivityIndicator size="large" color={Colors.light.tint} />
       </View>
     );
@@ -158,8 +174,8 @@ const LoginScreen: React.FC = () => {
         />
 
         <View style={styles.authActions}>
-          <TouchableOpacity 
-            style={[styles.btn, styles.btnPrimary]} 
+          <TouchableOpacity
+            style={[styles.btn, styles.btnPrimary]}
             onPress={handleLogin}
             disabled={loading}
             activeOpacity={0.8}
@@ -170,19 +186,20 @@ const LoginScreen: React.FC = () => {
               <Text style={styles.btnPrimaryText}>Sign in</Text>
             )}
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/register')}>
+          <TouchableOpacity onPress={() => router.push("/register")}>
             <Text style={styles.link}>Register</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Social Sign-in */}
+        {/* Social Sign-in
         <View style={styles.socialRow}>
-          <TouchableOpacity 
-            style={styles.socialBtn} 
-            onPress={handleGoogleSignIn}>
+          <TouchableOpacity
+            style={styles.socialBtn}
+            onPress={handleGoogleSignIn}
+          >
             <Text style={styles.socialBtnText}>Sign in with Google</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
       </View>
     </SafeAreaView>
   );
@@ -192,7 +209,7 @@ const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   authRoot: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     backgroundColor: palette.light.surface,
     padding: 16,
   },
@@ -206,25 +223,25 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
     maxWidth: 500,
-    width: '100%',
-    alignSelf: 'center',
+    width: "100%",
+    alignSelf: "center",
   },
   h2: {
     fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
     marginBottom: 8,
     color: Colors.light.text,
   },
   authHelp: {
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
     color: palette.light.text.secondary,
     marginBottom: 24,
   },
   label: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
     color: Colors.light.text,
     marginBottom: 6,
   },
@@ -239,9 +256,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   authActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 8,
     gap: 16, // Added gap for better spacing
   },
@@ -249,7 +266,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     minWidth: 100,
     flexGrow: 1, // Allow button to take available space
   },
@@ -258,12 +275,12 @@ const styles = StyleSheet.create({
   },
   btnPrimaryText: {
     color: Colors.light.background,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     fontSize: 16,
   },
   link: {
     color: Colors.light.tint,
-    fontWeight: '600',
+    fontWeight: "600",
     padding: 8,
   },
   socialRow: {
@@ -279,19 +296,19 @@ const styles = StyleSheet.create({
     borderColor: palette.light.border,
     borderRadius: 8,
     paddingVertical: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   socialBtnText: {
     color: Colors.light.text,
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 16,
   },
   errorText: {
     color: palette.light.danger, // Red 500
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 16,
-    fontWeight: '600',
-  }
+    fontWeight: "600",
+  },
 });
 
 export default LoginScreen;

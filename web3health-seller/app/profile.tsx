@@ -1,7 +1,6 @@
-import React, { useState, useCallback } from 'react';
-import { Colors, palette } from '@/constants/theme';
+import React, { useState, useCallback } from "react";
+import { Colors, palette } from "@/constants/theme";
 import {
-
   SafeAreaView,
   ScrollView,
   View,
@@ -9,12 +8,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
-} from 'react-native';
-import { useUser } from '@clerk/clerk-expo';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { getUserProfileByClerkId, getUserDetail } from './services/users/api'; // Corrected import path
-import type { User } from './services/users/types'; // Corrected import path
-import { useAuth as localAuth } from '@/hooks/AuthContext';
+} from "react-native";
+import { useUser } from "@clerk/clerk-expo";
+import { useFocusEffect, useRouter } from "expo-router";
+import { getUserDetail } from "./services/users/api"; // Corrected import path
+import type { User } from "./services/users/api";
+import { useAuth as localAuth } from "@/hooks/AuthContext";
 
 const ProfileScreen: React.FC = () => {
   const { user: clerkUser, isLoaded } = useUser();
@@ -35,24 +34,33 @@ const ProfileScreen: React.FC = () => {
         setError(null);
         console.log("Loading user profile for Clerk ID:", clerkUser.id);
         try {
-          const profile = await getUserDetail(user?.id ? Number(user.id) : -1);
+          if (!user?.id) {
+            setUserProfile(null);
+            setError("No local user id found (please sign in again).");
+            return;
+          }
+
+          const profile = await getUserDetail(Number(user.id));
           setUserProfile(profile);
         } catch (e: any) {
           console.error("Failed to load user profile:", e);
-          setError(`Failed to load profile: ${e.message || 'Unknown error'}`);
+          setError(`Failed to load profile: ${e.message || "Unknown error"}`);
         } finally {
           setIsLoading(false);
         }
       };
 
       loadUserProfile();
-    }, [isLoaded, clerkUser])
+    }, [isLoaded, clerkUser, user?.id])
   );
 
-  const renderProfileDetail = (label: string, value: string | number | null | undefined) => (
+  const renderProfileDetail = (
+    label: string,
+    value: string | number | null | undefined
+  ) => (
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value || 'Not set'}</Text>
+      <Text style={styles.detailValue}>{value || "Not set"}</Text>
     </View>
   );
 
@@ -62,17 +70,23 @@ const ProfileScreen: React.FC = () => {
         <Text style={styles.title}>My Profile</Text>
 
         {isLoading ? (
-          <ActivityIndicator size="large" color={Colors.light.tint} style={{ marginTop: 20 }} />
+          <ActivityIndicator
+            size="large"
+            color={Colors.light.tint}
+            style={{ marginTop: 20 }}
+          />
         ) : error ? (
           <Text style={styles.errorText}>{error}</Text>
         ) : userProfile ? (
           <View style={styles.profileCard}>
-            {renderProfileDetail('Name', userProfile.name)}
-            {renderProfileDetail('Email', userProfile.email)}
-            {renderProfileDetail('Role', userProfile.roleName)}
+            {renderProfileDetail("Name", userProfile.name)}
+            {renderProfileDetail("Email", userProfile.email)}
+            {renderProfileDetail("Role", userProfile.roleName)}
           </View>
         ) : (
-          <Text style={styles.errorText}>No profile data found in the database for your account.</Text>
+          <Text style={styles.errorText}>
+            No profile data found in the database for your account.
+          </Text>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -89,7 +103,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: Colors.light.text,
     marginBottom: 24,
   },
@@ -104,8 +118,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: palette.light.muted,
@@ -113,19 +127,19 @@ const styles = StyleSheet.create({
   detailLabel: {
     fontSize: 16,
     color: palette.light.text.secondary,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   detailValue: {
     fontSize: 16,
     color: Colors.light.text,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   errorText: {
-    textAlign: 'center',
+    textAlign: "center",
     padding: 20,
     fontSize: 16,
     color: palette.light.danger,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });
 

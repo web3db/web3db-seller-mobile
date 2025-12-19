@@ -27,6 +27,12 @@ export type UserDTO = {
   ModifiedBy: string | null; // BIGINT
   ModifiedOn: string | null; // timestamp with time zone
   RoleId: number | null;
+
+  Role?: {
+    RoleId: number;
+    RoleCode: string;
+    DisplayName: string;
+  } | null;
 };
 
 /**
@@ -50,8 +56,10 @@ export type User = {
   createdBy: string; // BIGINT
   createdOn: Date; // <-- Changed to Date for easier use
   modifiedBy: string | null; // BIGINT
-  modifiedOn: Date | null; // <-- Changed to Date for easier use
+  modifiedOn: Date | null; 
   roleId: number | null;
+    roleName: string | null;
+  roleCode: string | null;
 };
 
 /**
@@ -148,16 +156,16 @@ function mapDtoToUser(dto: UserDTO): User {
     weightUnitId: dto.WeightUnitId,
     measurementSystemId: dto.MeasurementSystemId,
     isActive: dto.IsActive,
-
-    // New display name fields (null-safe)
-    raceName: dto.Race?.DisplayName ?? null,
-    sexName: dto.Sex?.DisplayName ?? null,
+    createdBy: dto.CreatedBy,
+    createdOn: new Date(dto.CreatedOn),
+    modifiedBy: dto.ModifiedBy,
+    modifiedOn: dto.ModifiedOn ? new Date(dto.ModifiedOn) : null,
+    roleId: dto.RoleId,
     roleName: dto.Role?.DisplayName ?? null,
-    heightUnitName: dto.HeightUnit?.DisplayName ?? null,
-    weightUnitName: dto.WeightUnit?.DisplayName ?? null,
-    measurementSystemName: dto.MeasurementSystem?.DisplayName ?? null,
+    roleCode: dto.Role?.RoleCode ?? null,
   };
 }
+
 
 /**
  * The shape of the data expected when updating an existing user.
@@ -298,44 +306,6 @@ export async function updateUser(
   return mapDtoToUser(json);
 }
 
-/**
- * GET PROFILE BY CLERK ID - Fetches a single user's profile by their Clerk ID via an Edge Function.
- * @param clerkId - The Clerk ID of the user.
- */
-export async function getUserProfileByClerkId(
-  clerkId: string,
-): Promise<User | null> {
-  // Assumes an Edge Function named 'users_profile' that accepts a 'clerkId' query parameter
-  const u = buildUrl('users_profile', { clerkId });
-  if (__DEV__) console.log('[getUserProfileByClerkId] GET', u);
-
-  const res = await fetch(u, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-  });
-
-  if (!res.ok) {
-    // If the user is not found, the function might return a 404
-    if (res.status === 404) {
-      console.log(`User profile with Clerk ID ${clerkId} not found.`);
-      return null;
-    }
-    const txt = await res.text().catch(() => '');
-    if (__DEV__)
-      console.warn(
-        '[getUserProfileByClerkId] ✗',
-        res.status,
-        res.statusText,
-        txt,
-      );
-    throw new Error(
-      `users_profile API failed: ${res.status} ${res.statusText} ${txt}`,
-    );
-  }
-
-  const json = await res.json().catch(() => null);
-  return json ? mapDtoToUser(json) : null;
-}
 
 /**
  * Calls the `auth_lookup` edge function to check if a user exists and is active,
