@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { Colors, palette } from "@/constants/theme";
 import {
   SafeAreaView,
@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 
-import { useAuth, useSignIn, useOAuth } from "@clerk/clerk-expo";
+import { useAuth, useSignIn } from "@clerk/clerk-expo";
 import * as WebBrowser from "expo-web-browser";
 
 import { useAuth as localAuth } from "@/hooks/AuthContext";
@@ -30,43 +30,32 @@ const LoginScreen: React.FC = () => {
     isLoaded: signInLoaded,
   } = useSignIn(); // For email/password flow
 
-  // 🔑 OAuth Hook Initialization (Google Example)
-  const googleOAuth = useOAuth({ strategy: "oauth_google" });
   const { login } = localAuth();
 
   useEffect(() => {
     if (!authLoaded) return;
     if (isSignedIn) router.replace("/studies");
+    console.log("[LOGIN] authLoaded =", authLoaded, "isSignedIn =", isSignedIn);
   }, [authLoaded, isSignedIn, router]);
 
   const [email, setEmail] = useState("");
 
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Client Trust / step-up (Email OTP)
+  const [needsOtp, setNeedsOtp] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Handle Sign In with Google OAuth
-  // const handleGoogleSignIn = useCallback(async () => {
-  //   try {
-  //     const { createdSessionId, signIn, signUp, setActive } =
-  //       await googleOAuth.startOAuthFlow();
-
-  //     if (createdSessionId && setActive) {
-  //       // Session created successfully, user is signed in.
-  //       setActive({ session: createdSessionId });
-  //     } else {
-  //       // Handle other cases (e.g., user needs to complete sign-up)
-  //       // For this example, we'll just log it.
-  //       console.log("OAuth flow started but session not created.", {
-  //         signIn,
-  //         signUp,
-  //       });
-  //     }
-  //   } catch (err) {
-  //     console.error("Google OAuth Error", JSON.stringify(err, null, 2));
-  //     setError("Failed to sign in with Google. Please try again.");
-  //   }
-  // }, [googleOAuth, setActive]);
+  const finalizeSignedInSession = async (createdSessionId: string) => {
+    // Clerk session must be active before local hydration
+    await setSignInActive({ session: createdSessionId });
+    await login(email);
+    router.replace("/studies");
+  };
 
   // Handle Sign In with Email/Password
   const handleLogin = async () => {
@@ -97,18 +86,41 @@ const LoginScreen: React.FC = () => {
         identifier: email, // This is your email/username
         password,
       });
-
-      // Check if sign-in is complete (i.e., no MFA required)
+      // If sign-in is complete, activate session and proceed
       if (completeSignIn.status === "complete") {
-        await setSignInActive({ session: completeSignIn.createdSessionId });
-
-        // Only do local login + navigation after Clerk session is active
-        await login(email);
-        router.push("/studies");
-      } else {
-        console.log("Sign-in status:", completeSignIn.status);
-        setError("Sign-in requires additional steps. Check console.");
+        await finalizeSignedInSession(completeSignIn.createdSessionId);
+        return;
       }
+
+      // Client Trust can require a second factor on new devices.
+      // Clerk indicates this via `needs_second_factor` and `email_code` support. :contentReference[oaicite:1]{index=1}
+      if (completeSignIn.status === "needs_second_factor") {
+        const supported = (completeSignIn as any)?.supportedSecondFactors ?? [];
+        const supportsEmailCode = supported.some(
+          (f: any) => f?.strategy === "email_code" || f === "email_code"
+        );
+
+        if (!supportsEmailCode) {
+          console.log("Sign-in needs second factor, supported:", supported);
+          setError(
+            "Second-factor is required, but email OTP is not available."
+          );
+          return;
+        }
+
+        // Send the Email OTP
+        await (signIn as any).prepareSecondFactor({ strategy: "email_code" });
+
+        // Switch UI to OTP entry step
+        setNeedsOtp(true);
+        setOtpCode("");
+        setError("");
+        return;
+      }
+
+      // Any other status: surface it for debugging
+      console.log("Sign-in status:", completeSignIn.status);
+      setError(`Sign-in requires additional steps: ${completeSignIn.status}`);
     } catch (err: any) {
       // Log the full error for debugging
       console.error("Login Error:", JSON.stringify(err, null, 2));
@@ -126,7 +138,50 @@ const LoginScreen: React.FC = () => {
     }
   };
 
+  const handleVerifyOtp = async () => {
+    setError("");
+    setLoading(true);
+
+    if (!signInLoaded) {
+      setError("Still initializing... Please try again in a moment.");
+      setLoading(false);
+      return;
+    }
+
+    if (!otpCode || otpCode.length !== 6) {
+      setError("Please enter the 6-digit code.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const result = await (signIn as any).attemptSecondFactor({
+        strategy: "email_code",
+        code: otpCode,
+      });
+
+      if (result.status === "complete") {
+        await finalizeSignedInSession(result.createdSessionId);
+        return;
+      }
+
+      console.log("OTP verify status:", result.status);
+      setError("Verification did not complete. Please try again.");
+    } catch (err: any) {
+      console.error("OTP Verify Error:", JSON.stringify(err, null, 2));
+      const msg =
+        err.errors?.[0]?.longMessage ||
+        err.errors?.[0]?.message ||
+        err.message ||
+        "Invalid code. Please try again.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // If Clerk is still loading, show a loading indicator
+
   if (!authLoaded) {
     return (
       <View
@@ -151,45 +206,121 @@ const LoginScreen: React.FC = () => {
         {/* Display Error Message */}
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="you@organization.org"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!loading}
-        />
+        {!needsOtp ? (
+          <>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@organization.org"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!loading}
+            />
 
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="••••••••"
-          secureTextEntry={true}
-          editable={!loading}
-        />
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={[styles.input, styles.passwordInput]}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••"
+                secureTextEntry={!showPassword}
+                editable={!loading}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword((v) => !v)}
+                disabled={loading}
+                style={styles.toggleBtn}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.toggleBtnText}>
+                  {showPassword ? "Hide" : "Show"}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-        <View style={styles.authActions}>
-          <TouchableOpacity
-            style={[styles.btn, styles.btnPrimary]}
-            onPress={handleLogin}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color={palette.light.text.inverse} />
-            ) : (
-              <Text style={styles.btnPrimaryText}>Sign in</Text>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push("/register")}>
-            <Text style={styles.link}>Register</Text>
-          </TouchableOpacity>
-        </View>
+            <View style={styles.forgotRow}>
+              <TouchableOpacity
+                onPress={() => {
+                  console.log(
+                    "[LOGIN] tapped forgot-password, isSignedIn =",
+                    isSignedIn
+                  );
+                  router.push("/forgot-password");
+                }}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.forgotLink}>Forgot password?</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.authActions}>
+              <TouchableOpacity
+                style={[styles.btn, styles.btnPrimary]}
+                onPress={handleLogin}
+                disabled={loading}
+                activeOpacity={0.8}
+              >
+                {loading ? (
+                  <ActivityIndicator color={palette.light.text.inverse} />
+                ) : (
+                  <Text style={styles.btnPrimaryText}>Sign in</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push("/register")}>
+                <Text style={styles.link}>Register</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <>
+            <Text style={styles.h2}>Verify sign-in</Text>
+            <Text style={styles.authHelp}>
+              Enter the 6-digit code sent to your email to finish signing in.
+            </Text>
+
+            <Text style={styles.label}>Verification Code</Text>
+            <TextInput
+              style={styles.input}
+              value={otpCode}
+              onChangeText={setOtpCode}
+              placeholder="123456"
+              keyboardType="number-pad"
+              editable={!loading}
+              maxLength={6}
+            />
+
+            <View style={styles.authActions}>
+              <TouchableOpacity
+                style={[styles.btn, styles.btnPrimary]}
+                onPress={handleVerifyOtp}
+                disabled={loading}
+                activeOpacity={0.8}
+              >
+                {loading ? (
+                  <ActivityIndicator color={palette.light.text.inverse} />
+                ) : (
+                  <Text style={styles.btnPrimaryText}>Verify</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setNeedsOtp(false);
+                  setOtpCode("");
+                  setError("");
+                }}
+                disabled={loading}
+              >
+                <Text style={styles.link}>Back</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
         {/* Social Sign-in
         <View style={styles.socialRow}>
@@ -255,6 +386,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 16,
   },
+
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  passwordInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  toggleBtn: {
+    marginLeft: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  toggleBtnText: {
+    color: Colors.light.tint,
+    fontWeight: "600",
+  },
+
+  forgotRow: {
+    marginTop: -8,
+    marginBottom: 16,
+    alignItems: "flex-end",
+  },
+  forgotLink: {
+    color: Colors.light.tint,
+    fontWeight: "600",
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+
   authActions: {
     flexDirection: "row",
     justifyContent: "space-between",

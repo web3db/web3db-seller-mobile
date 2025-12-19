@@ -15,7 +15,7 @@ import { useRouter } from "expo-router";
 import { useSignUp } from "@clerk/clerk-expo";
 import { Colors, palette } from "@/constants/theme";
 import { useAuth } from "@clerk/clerk-expo";
-import { createUser } from "@/app/services/users/api";
+// import { createUser } from "@/app/services/users/api";
 import { unstable_createElement } from "react-native-web";
 
 const RegisterScreen: React.FC = () => {
@@ -25,7 +25,11 @@ const RegisterScreen: React.FC = () => {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [orgName, setOrgName] = useState("");
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -49,11 +53,19 @@ const RegisterScreen: React.FC = () => {
     if (!orgName) missing.push("Organization Name");
     if (!email) missing.push("Email");
     if (!password) missing.push("Password");
+    if (!confirmPassword) missing.push("Confirm Password");
 
     if (missing.length > 0) {
       setError(`Please fill out required fields: ${missing.join(", ")}`);
       setLoading(false);
       console.warn("[DEBUG] Validation failed: Missing", missing);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Password and Confirm Password do not match.");
+      setLoading(false);
+      console.warn("[DEBUG] Validation failed: Password mismatch");
       return;
     }
 
@@ -80,44 +92,41 @@ const RegisterScreen: React.FC = () => {
         unsafeMetadata: userMetadata, // Pass ALL data here
       });
 
+      // console.log("[DEBUG] Step 2: signUp.create(...) succeeded");
+      // const clerkId = (signUp as any)?.createdUserId;
+
+      // console.log("[DEBUG] signUp state after create:", {
+      //   status: (signUp as any)?.status,
+      //   createdUserId: clerkId,
+      // });
+
+      // if (!clerkId) {
+      //   throw new Error("Missing createdUserId after signUp.create");
+      // }
+
+      // console.log("[DEBUG] Step 3: Calling backend createUser(...)");
+      // await createUser({
+      //   clerkId,
+      //   email,
+      //   name: orgName,
+      //   roleId: 2,
+      //   isActive: true,
+      // });
+
+      // console.log("[DEBUG] Step 3: Backend createUser(...) succeeded");
+      // await signOut();
+      // router.replace("/login");
+      // return;
+
       console.log("[DEBUG] Step 2: signUp.create(...) succeeded");
-      const clerkId = (signUp as any)?.createdUserId;
 
-      console.log("[DEBUG] signUp state after create:", {
-        status: (signUp as any)?.status,
-        createdUserId: clerkId,
-      });
+      // Step 3: Prepare email OTP verification (Email Code)
+      console.log("[DEBUG] Step 3: Preparing email OTP verification...");
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
 
-      if (!clerkId) {
-        throw new Error("Missing createdUserId after signUp.create");
-      }
-
-      console.log("[DEBUG] Step 3: Calling backend createUser(...)");
-      await createUser({
-        clerkId,
-        email,
-        name: orgName,
-        roleId: 2,
-        isActive: true,
-      });
-
-      console.log("[DEBUG] Step 3: Backend createUser(...) succeeded");
-      await signOut();
-      router.replace("/login");
+      console.log("[DEBUG] Step 4: Navigating to /verify");
+      router.push("/verify");
       return;
-
-      // NOTE: signUp.createdUserId will NOT exist yet.
-      // We no longer call createUser() from this screen.
-
-      //await signOut();
-
-      //await login(email);
-
-      // Step 3: Prepare for email verification
-      //await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
-
-      // Step 4: Navigate to the verification screen
-      //router.push('/verify');
     } catch (err: any) {
       console.error("[DEBUG] Clerk Sign Up Error (raw):", err);
       console.error(
@@ -205,14 +214,48 @@ const RegisterScreen: React.FC = () => {
         />
 
         <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="••••••••"
-          secureTextEntry={true}
-          editable={!loading}
-        />
+        <View style={styles.passwordRow}>
+          <TextInput
+            style={[styles.input, styles.passwordInput]}
+            value={password}
+            onChangeText={setPassword}
+            placeholder="••••••••"
+            secureTextEntry={!showPassword}
+            editable={!loading}
+          />
+          <TouchableOpacity
+            onPress={() => setShowPassword((v) => !v)}
+            disabled={loading}
+            style={styles.toggleBtn}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.toggleBtnText}>
+              {showPassword ? "Hide" : "Show"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.label}>Confirm Password</Text>
+        <View style={styles.passwordRow}>
+          <TextInput
+            style={[styles.input, styles.passwordInput]}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            placeholder="••••••••"
+            secureTextEntry={!showConfirmPassword}
+            editable={!loading}
+          />
+          <TouchableOpacity
+            onPress={() => setShowConfirmPassword((v) => !v)}
+            disabled={loading}
+            style={styles.toggleBtn}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.toggleBtnText}>
+              {showConfirmPassword ? "Hide" : "Show"}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {Platform.OS === "web"
           ? unstable_createElement("div", {
@@ -301,8 +344,28 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     marginBottom: 16,
-    color: Colors.light.text, // Added text color for input
+    color: Colors.light.text,
   },
+
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  passwordInput: {
+    flex: 1,
+    marginBottom: 0, // row handles spacing
+  },
+  toggleBtn: {
+    marginLeft: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  toggleBtnText: {
+    color: Colors.light.tint,
+    fontWeight: "600",
+  },
+
   authActions: {
     flexDirection: "row",
     justifyContent: "space-between",

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   SafeAreaView,
   View,
@@ -7,60 +7,109 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useSignUp } from '@clerk/clerk-expo';
-import { useAuth as localAuth } from '@/hooks/AuthContext';
-import { Colors, palette } from '@/constants/theme';
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useSignUp } from "@clerk/clerk-expo";
+import { useAuth as localAuth } from "@/hooks/AuthContext";
+import { createUser } from "@/app/services/users/api";
+import { Colors, palette } from "@/constants/theme";
 
 const VerifyScreen: React.FC = () => {
   // Use the REAL hooks, not mocks
   const { isLoaded, signUp, setActive } = useSignUp();
   const router = useRouter();
 
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const { login } = localAuth();
 
   const handleVerify = async () => {
     if (!isLoaded) return;
     setLoading(true);
-    setError('');
+    setError("");
 
-    console.log('[DEBUG] Attempting email verification with code:', code);
+    console.log("[DEBUG] Attempting email verification with code:", code);
 
     try {
       const completeSignUp = await signUp.attemptEmailAddressVerification({
         code,
       });
 
-      if (completeSignUp.status === 'complete') {
+      if (completeSignUp.status === "complete") {
+        // 1) Activate the Clerk session first
         await setActive({ session: completeSignUp.createdSessionId });
-        // Call the local login function
-        router.replace('/studies');
+
+        // 2) Read required values from Clerk signUp state
+        const clerkId = (signUp as any)?.createdUserId as string | undefined;
+        const emailAddr =
+          (signUp as any)?.emailAddress ||
+          (signUp as any)?.emailAddress?.emailAddress ||
+          (signUp as any)?.emailAddress?.toString?.();
+
+        const meta = ((signUp as any)?.unsafeMetadata ?? {}) as {
+          orgName?: string;
+          roleId?: number;
+          isActive?: boolean;
+        };
+
+        const orgName = meta.orgName;
+        const roleId = meta.roleId ?? 2;
+        const isActive = meta.isActive ?? true;
+
+        if (!clerkId)
+          throw new Error("Missing createdUserId after verification");
+        if (!emailAddr)
+          throw new Error("Missing email address after verification");
+        if (!orgName) throw new Error("Missing orgName in unsafeMetadata");
+
+        // 3) Create MST_User only AFTER email verification
+        await createUser({
+          clerkId,
+          email: String(emailAddr),
+          name: orgName,
+          roleId,
+          isActive,
+        });
+
+        // 4) Hydrate local auth (auth_lookup) so downstream screens are stable
+        await login(String(emailAddr));
+
+        // 5) Land on studies
+        router.replace("/studies");
       } else {
         // This can happen if the sign-up is not complete for other reasons
-        console.warn('[DEBUG] Sign up status not complete:', completeSignUp.status);
-        setError('Verification failed. Please try again.');
+        console.warn(
+          "[DEBUG] Sign up status not complete:",
+          completeSignUp.status
+        );
+        setError("Verification failed. Please try again.");
       }
     } catch (err: any) {
       console.error(
-        '[DEBUG] Clerk Verification Error:',
-        JSON.stringify(err, null, 2),
+        "[DEBUG] Clerk Verification Error:",
+        JSON.stringify(err, null, 2)
       );
       const clerkError =
-        err.errors?.[0]?.longMessage || 'Invalid verification code.';
+        err.errors?.[0]?.longMessage ||
+        err.errors?.[0]?.message ||
+        err.message ||
+        "Invalid verification code.";
       setError(clerkError);
     } finally {
       setLoading(false);
     }
   };
-  
+
   if (!isLoaded) {
     return (
-      <View style={[styles.authRoot, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View
+        style={[
+          styles.authRoot,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
         <ActivityIndicator size="large" color={Colors.light.tint} />
       </View>
     );
@@ -110,7 +159,7 @@ const VerifyScreen: React.FC = () => {
 const styles = StyleSheet.create({
   authRoot: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     backgroundColor: palette.light.surface,
     padding: 16,
   },
@@ -126,20 +175,20 @@ const styles = StyleSheet.create({
   },
   h2: {
     fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
     marginBottom: 8,
     color: Colors.light.text,
   },
   authHelp: {
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
     color: palette.light.text.secondary,
     marginBottom: 24,
   },
   label: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
     color: palette.light.text.secondary,
     marginBottom: 6,
   },
@@ -154,14 +203,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   authActions: { marginTop: 8 },
-  btn: { paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
+  btn: { paddingVertical: 12, borderRadius: 8, alignItems: "center" },
   btnPrimary: { backgroundColor: Colors.light.tint },
-  btnPrimaryText: { color: palette.light.text.inverse, fontWeight: 'bold', fontSize: 16 },
+  btnPrimaryText: {
+    color: palette.light.text.inverse,
+    fontWeight: "bold",
+    fontSize: 16,
+  },
   errorText: {
     color: palette.light.danger,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
 

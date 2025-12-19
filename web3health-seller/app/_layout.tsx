@@ -1,5 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useSegments, Redirect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, StyleSheet, SafeAreaView, Platform } from 'react-native';
 import 'react-native-reanimated';
@@ -39,7 +39,6 @@ function AppContent() {
   const colorScheme = useColorScheme();
   const { isLoaded, isSignedIn } = useAuth();
   const segments = useSegments();
-  const router = useRouter();
 
   if (!isLoaded) {
     return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" /></View>;
@@ -50,13 +49,18 @@ function AppContent() {
   // `segments` is empty for the root landing page.
   const first = segments[0];
   const isPublicLanding = !first; // root
-  const isAuthPage = first === 'login' || first === 'register' || first === 'verify';
+  const isAuthPage =
+    first === 'login' ||
+    first === 'register' ||
+    first === 'verify' ||
+    first === 'forgot-password';
 
+  // If not signed in, only allow public landing + auth-related routes.
+  // Use Redirect (safe during render) instead of router.replace. 
   if (!isSignedIn && !isPublicLanding && !isAuthPage) {
-    // Use replace to avoid back navigation to protected page
-    router.replace('/login');
-    return null;
+    return <Redirect href="/login" />;
   }
+
 
   // Ensure the publishable key is available before rendering
   if (!CLERK_PUBLISHABLE_KEY) {
