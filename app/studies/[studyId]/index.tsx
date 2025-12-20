@@ -1,0 +1,651 @@
+import React, { useEffect, useState } from "react";
+import { Colors, palette } from '@/constants/theme';
+import {
+  SafeAreaView,
+  ScrollView,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  useWindowDimensions,
+  Platform,
+  Animated,
+  ActivityIndicator,
+} from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { getPostingShares } from "../../services/postings/api";
+import { useAuth } from "@/hooks/AuthContext";
+
+type StudyDetail = {
+  postingId: number;
+  buyerUserId: number;
+  buyerDisplayName: string;
+  postingStatusId: number;
+  postingStatusDisplayName: string;
+  title: string;
+  summary: string;
+  description: string | null;
+  applyOpenAt: string | null;
+  applyCloseAt: string | null;
+  dataCoverageDaysRequired: number | null;
+  minAge: number;
+  rewardTypeId: number | null;
+  rewardTypeDisplayName: string | null;
+  rewardValue: number | null;
+  //metrics: { metricId: number; metricDisplayName: string }[];
+  metricId: number[] | null;
+  metricDisplayName: string[] | null;
+  viewPolicies: any[];
+  healthConditions: { id: number; displayName: string }[];
+  tags: string[];
+  images: any[];
+  isActive: boolean;
+  isModified: boolean | null;
+  createdOn: string | null;
+  modifiedOn: string | null;
+};
+
+export default function StudyDetail() {
+  const { studyId, saved } = useLocalSearchParams() as { studyId?: string; saved?: string };
+  const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isNarrow = width < 720;
+
+  const [showSaved, setShowSaved] = useState<boolean>(saved === "1" || saved === "true");
+  const [bannerOpacity] = useState(new Animated.Value(showSaved ? 1 : 0));
+  const [study, setStudy] = useState<StudyDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Shares (participant/session) UI
+  const [sharesData, setSharesData] = useState<any | null>(null);
+  const [sharesLoading, setSharesLoading, ] = useState(false);
+  const [sharesError, setSharesError] = useState<string | null>(null);
+  const [expandedShares, setExpandedShares] = useState<Record<number, boolean>>({});
+
+  const { user } = useAuth();
+
+  function formatUtcToLocal(utc?: string) {
+    if (!utc) return "-";
+    try {
+      return new Date(utc).toLocaleString();
+    } catch {
+      return utc;
+    }
+  }
+
+  /**
+   * Formats a metric value to limit long decimals to 2 places.
+   * Leaves integers and numbers with 1-2 decimals as they are.
+   */
+  function formatMetricValue(value: number | null): string {
+    if (value === null) {
+      return "-";
+    }
+    if (typeof value !== 'number') {
+      return String(value);
+    }
+
+    const valueString = String(value);
+    const decimalPart = valueString.split('.')[1];
+
+    // If there is a decimal part and it has more than 2 digits, round it
+    if (decimalPart && decimalPart.length > 2) {
+      // Use toFixed(2) for rounding and ensuring 2 decimal places,
+      // then parseFloat().toString() to remove trailing zeros (e.g., "59.00" -> "59.0").
+      return parseFloat(value.toFixed(2)).toString();
+    }
+
+    // For integers or numbers with 1-2 decimal places, return as is
+    return valueString;
+  }
+  
+  function toggleShareExpand(idx: number) {
+    setExpandedShares((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  }
+
+  useEffect(() => {
+    async function fetchStudyDetail() {
+      if (!studyId) return;
+      setLoading(true);
+      setError(null);
+      try {
+        // Use the centralized API function which includes data normalization
+        const { getTrnPostingDetail } = await import("../../services/postings/api");
+        const buyerId = user?.id ?? -1;
+        const detail = await getTrnPostingDetail(buyerId, studyId);
+        setStudy(detail);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load study');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchStudyDetail();
+  }, [studyId]);
+
+  useEffect(() => {
+    if (showSaved && study) {
+      Animated.timing(bannerOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      const t = setTimeout(() => {
+        Animated.timing(bannerOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+        setShowSaved(false);
+        router.replace(`/studies/${study.postingId}`);
+      }, 3000);
+      return () => clearTimeout(t);
+    }
+    bannerOpacity.setValue(0);
+  }, [showSaved, bannerOpacity, router, study]);
+
+  useEffect(() => {
+    // In case the page was opened with the param, ensure internal state is set
+    if (saved === "1" || saved === "true") {
+      setShowSaved(true);
+    }
+  }, [saved]);
+
+  // share fetching
+  useEffect(() => {
+    async function fetchShares() {
+      if (!studyId) return;
+      setSharesLoading(true);
+      setSharesError(null);
+      try {
+        // HARD CODED TO 9001 TO GET DATA
+        const res = await getPostingShares(Number(studyId));
+        //const res = await getPostingShares(9001);
+        // save full response (postingId, postingTitle, shares[])
+        setSharesData(res);
+      } catch (err: any) {
+        console.error("Failed to load posting shares", err);
+        setSharesError(err?.message ?? String(err));
+      } finally {
+        setSharesLoading(false);
+      }
+    }
+    void fetchShares();
+  }, [studyId]);
+
+  if (!studyId) {
+    return (
+      <SafeAreaView style={styles.root}>
+        <View style={styles.center}>
+          <Text style={styles.error}>Missing study id</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.root}>
+        <View style={styles.center}>
+          <Text>Loading study...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  if (error) {
+    return (
+      <SafeAreaView style={styles.root}>
+        <View style={styles.center}>
+          <Text style={styles.error}>{error}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  if (!study) {
+    return (
+      <SafeAreaView style={styles.root}>
+        <View style={styles.center}>
+          <Text style={styles.error}>Study not found</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.root}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {showSaved && (
+          <Animated.View style={[styles.banner, { opacity: bannerOpacity }]}>
+            <Text style={styles.bannerText}>Changes saved successfully</Text>
+          </Animated.View>
+        )}
+
+        <View
+          style={[
+            styles.contentRow,
+            isNarrow ? styles.columnLayout : styles.rowLayout,
+          ]}
+        >
+          {/* LEFT: Read-only Info Card */}
+          <View style={[styles.card, isNarrow ? styles.fullWidth : styles.leftColumn]}>
+            <Text style={styles.heading}>Study Details</Text>
+
+            <Text style={styles.label}>Title</Text>
+            <Text style={styles.value}>{study.title}</Text>
+
+            <Text style={styles.label}>Summary</Text>
+            <Text style={styles.value}>{study.summary}</Text>
+
+            <Text style={styles.label}>Description</Text>
+            <Text style={[styles.value, styles.multilineValue]}>{study.description}</Text>
+
+            <Text style={styles.label}>Status</Text>
+            <Text style={styles.value}>{study.postingStatusDisplayName}</Text>
+
+            <Text style={styles.label}>Min Age</Text>
+            <Text style={styles.value}>{study.minAge}</Text>
+
+            <Text style={styles.label}>Data Coverage Days Required</Text>
+            <Text style={styles.value}>{study.dataCoverageDaysRequired ?? "-"}</Text>
+
+            <Text style={styles.label}>Apply Open At</Text>
+            <Text style={styles.value}>{study.applyOpenAt ?? "-"}</Text>
+
+            <Text style={styles.label}>Apply Close At</Text>
+            <Text style={styles.value}>{study.applyCloseAt ?? "-"}</Text>
+
+            <Text style={styles.label}>Reward Type</Text>
+            <Text style={styles.value}>{study.rewardTypeDisplayName ?? "-"}</Text>
+
+            <Text style={styles.label}>Reward Value</Text>
+            <Text style={styles.value}>{study.rewardValue !== null ? study.rewardValue : "-"}</Text>
+
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
+            <View style={styles.participantsList}>
+              {(!study.metricDisplayName || study.metricDisplayName.length === 0) ? (
+                <Text style={styles.muted}>No metrics</Text>
+              ) : (
+                study.metricDisplayName.map((m, i) => (
+                  <View key={study.metricId![i] + '-' + i} style={styles.participantRow}>
+                    <Text>{m}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Health Conditions</Text>
+            <View style={styles.participantsList}>
+              {(!study.healthConditions || study.healthConditions.length === 0) ? (
+                <Text style={styles.muted}>No conditions</Text>
+              ) : (
+                study.healthConditions.map((c, i) => (
+                  <View key={c.id + '-' + i} style={styles.participantRow}>
+                    <Text>{c.displayName}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+
+            <Text style={styles.label}>Buyer</Text>
+            <Text style={styles.value}>{study.buyerDisplayName}</Text>
+
+            <Text style={styles.label}>Study ID</Text>
+            <Text style={styles.value}>{study.postingId}</Text>
+
+            {/* <Text style={styles.label}>Created On</Text>
+            <Text style={styles.value}>{study.createdOn ?? "-"}</Text> */}
+
+            <Text style={styles.label}>Modified On</Text>
+            <Text style={styles.value}>{study.modifiedOn ?? "-"}</Text>
+
+            {/* <Text style={[styles.label, { marginTop: 12 }]}>Tags</Text>
+            <View style={styles.participantsList}>
+              {(!study.tags || study.tags.length === 0) ? (
+                <Text style={styles.muted}>No tags</Text>
+              ) : (
+                study.tags.map((tag, i) => (
+                  <View key={tag + i} style={styles.participantRow}>
+                    <Text>{tag}</Text>
+                  </View>
+                ))
+              )}
+            </View> */}
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Participant Shares</Text>
+
+            {sharesLoading ? (
+              <ActivityIndicator />
+            ) : sharesError ? (
+              <Text style={{ color: "red" }}>{sharesError}</Text>
+            ) : !sharesData?.shares || sharesData.shares.length === 0 ? (
+              <Text style={styles.muted}>No shares available</Text>
+            ) : (
+              <View style={{ marginTop: 8 }}>
+                {sharesData.shares.map((sh: any, i: number) => (
+                  <View
+                    key={(sh.userId ?? sh.sessionId ?? i) + "-" + i}
+                    style={styles.shareBox}
+                  >
+                    <TouchableOpacity
+                      onPress={() => toggleShareExpand(i)}
+                      style={styles.shareHeader}
+                    >
+                      <View>
+                        <Text style={styles.shareTitle}>{sh.userDisplayName ?? `User ${sh.userId ?? "-"}`}</Text>
+                        <Text style={styles.shareSubtitle}>
+                          Session: {sh.sessionId ?? "-"} · {sh.statusName ?? ""}
+                        </Text>
+                      </View>
+                      <Text style={styles.shareChevron}>{expandedShares[i] ? "▴" : "▾"}</Text>
+                    </TouchableOpacity>
+
+                    {expandedShares[i] && (
+                      <View style={styles.shareDetails}>
+                        {(!sh.segments || sh.segments.length === 0) ? (
+                          <Text style={styles.muted}>No segments</Text>
+                        ) : (
+                          sh.segments.map((seg: any, si: number) => (
+                            <View
+                              key={(seg.segmentId ?? si) + "-" + si}
+                              style={styles.segmentBox}
+                            >
+                              <Text style={styles.segmentHeader}>
+                                Segment {seg.segmentId ?? si} — Day {seg.dayIndex ?? "-"}
+                              </Text>
+                              <Text style={styles.segmentSubheader}>
+                                From: {formatUtcToLocal(seg.fromUtc)} · To: {formatUtcToLocal(seg.toUtc)}
+                              </Text>
+
+                              {(!seg.metrics || seg.metrics.length === 0) ? (
+                                <Text style={[styles.muted, { paddingVertical: 8 }]}>No metrics</Text>
+                              ) : (
+                                <View style={styles.tableContainer}>
+                                  {/* Table Header */}
+                                  <View style={styles.tableHeaderRow}>
+                                    <Text style={[styles.tableHeaderCell, { flex: 1.5 }]}>Metric</Text>
+                                    <Text style={[styles.tableHeaderCell, { flex: 0.7, textAlign: 'right' }]}>Unit</Text>
+                                    <Text style={[styles.tableHeaderCell, { flex: 0.8, textAlign: 'right' }]}>Avg</Text>
+                                    <Text style={[styles.tableHeaderCell, { flex: 0.8, textAlign: 'right' }]}>Min</Text>
+                                    <Text style={[styles.tableHeaderCell, { flex: 0.8, textAlign: 'right' }]}>Max</Text>
+                                    <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>Total</Text>
+                                    <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>Samples</Text>
+                                  </View>
+                                  {/* Table Body */}
+                                  {seg.metrics.map((m: any, mi: number) => (
+                                    <View key={(m.metricId ?? mi) + "-" + mi} style={[styles.tableRow, mi === seg.metrics.length - 1 && styles.tableRowLast]}>
+                                      <Text style={[styles.tableCell, { flex: 1.5 }]}>{m.metricName ?? `Metric ${m.metricId}`}</Text>
+                                      <Text style={[styles.tableCell, { flex: 0.7, textAlign: 'right' }]}>{m.unitCode ?? "-"}</Text>
+                                      <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'right' }]}>{formatMetricValue(m.avgValue)}</Text>
+                                      <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'right' }]}>{formatMetricValue(m.minValue)}</Text>
+                                      <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'right' }]}>{formatMetricValue(m.maxValue)}</Text>
+                                      <Text style={[styles.tableCell, { flex: 1, textAlign: 'right' }]}>{formatMetricValue(m.totalValue)}</Text>
+                                      <Text style={[styles.tableCell, { flex: 1, textAlign: 'right' }]}>{m.samplesCount ?? "-"}</Text>
+                                    </View>
+                                  ))}
+                                </View>
+                              )}
+                            </View>
+                          ))
+                        )}
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <View style={styles.formActions}>
+              <TouchableOpacity
+                style={[styles.btn, styles.btnPrimary]}
+                onPress={() => router.push(`/studies/${study.postingId}/manage`)}
+              >
+                <Text style={styles.btnPrimaryText}>Manage Study</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.btn, styles.btnGhost]}
+                onPress={() => router.back()}
+              >
+                <Text style={styles.btnGhostText}>Back</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* RIGHT: Stats Card */}
+          <View style={[styles.card, isNarrow ? styles.fullWidth : styles.rightColumn]}>
+            <Text style={styles.statHeading}>Study Statistics</Text>
+
+            <View style={styles.statRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statNumber}>{study.metricId?.length ?? 0}</Text>
+                <Text style={styles.statLabel}>Metrics</Text>
+              </View>
+
+              <View style={styles.statBox}>
+                <Text style={styles.statNumber}>{study.healthConditions?.length ?? 0}</Text>
+                <Text style={styles.statLabel}>Health Conditions</Text>
+              </View>
+
+              <View style={styles.statBox}>
+                <Text style={styles.statNumber}>{study.tags?.length ?? 0}</Text>
+                <Text style={styles.statLabel}>Tags</Text>
+              </View>
+            </View>
+
+            <View style={styles.metaBlock}>
+              <Text style={styles.metaLabel}>Buyer</Text>
+              <Text style={styles.metaValue}>{study.buyerDisplayName}</Text>
+            </View>
+
+            <View style={styles.metaBlock}>
+              <Text style={styles.metaLabel}>Study ID</Text>
+              <Text style={styles.metaValue}>{study.postingId}</Text>
+            </View>
+
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// Styles: intentionally matches manage.tsx for consistent layout
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: Colors.light.background },
+  scrollContainer: { padding: 16, paddingBottom: 48 },
+  banner: {
+    backgroundColor: palette.light.success,
+    borderColor: palette.light.success,
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    alignSelf: "center",
+  },
+  bannerText: { color: "#065F46", fontWeight: "600" },
+  contentRow: {
+    width: "100%",
+    gap: 16,
+  },
+  rowLayout: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  columnLayout: {
+    flexDirection: "column",
+  },
+
+  card: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.06)",
+    ...Platform.select({
+      ios: {
+        shadowColor: Colors.light.text,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+      },
+      android: { elevation: 3 },
+      default: {},
+    }),
+  },
+
+  leftColumn: { flex: 2, marginRight: 8, minWidth: 0 },
+  rightColumn: { flex: 1, marginLeft: 8, minWidth: 260, maxWidth: 420 },
+
+  fullWidth: { width: "100%" },
+
+  heading: { fontSize: 20, fontWeight: "700", marginBottom: 8 },
+  label: { fontSize: 14, marginTop: 8, marginBottom: 6, color: palette.light.text.muted },
+  value: { fontSize: 16, color: Colors.light.text },
+  multilineValue: { lineHeight: 20, marginBottom: 4 },
+
+  participantsList: { marginTop: 6 },
+
+  participantRow: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: palette.light.muted,
+  },
+
+  formActions: {
+    marginTop: 16,
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  btn: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  btnPrimary: { backgroundColor: Colors.light.tint },
+  btnPrimaryText: { color: Colors.light.background, fontWeight: "700" },
+  btnGhost: { backgroundColor: "transparent", borderWidth: 1, borderColor: palette.light.border },
+  btnGhostText: { color: Colors.light.text, fontWeight: "600" },
+
+  /* Stats */
+  statHeading: { fontSize: 16, fontWeight: "700", marginBottom: 12 },
+  statRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
+  statBox: {
+    flex: 1,
+    backgroundColor: palette.light.surface,
+    borderRadius: 10,
+    paddingVertical: 18,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(15,23,42,0.04)",
+    textAlign: "center",
+  },
+  statNumber: { fontSize: 28, fontWeight: "800" },
+  statLabel: { color: palette.light.text.muted, marginTop: 6 ,     textAlign: "center",
+},
+
+  metaBlock: { marginTop: 12 },
+  metaLabel: { fontSize: 12, color: palette.light.text.muted },
+  metaValue: { fontSize: 14, fontWeight: "600", marginTop: 4 },
+
+  helpBox: {
+    marginTop: 16,
+    backgroundColor: palette.light.muted,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(15,23,42,0.03)",
+  },
+  helpTitle: { fontWeight: "700", marginBottom: 6 },
+  helpText: { color: Colors.light.text },
+
+  muted: { color: palette.light.text.muted },
+
+  error: { color: "red", textAlign: "center", marginTop: 24 },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 16 },
+
+  shareBox: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    marginTop: 8,
+    backgroundColor: Colors.light.background,
+    overflow: 'hidden', // to contain the rounded corners
+  },
+  shareHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: Colors.light.background,
+  },
+  shareTitle: {
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  shareSubtitle: {
+    color: palette.light.text.muted,
+    marginTop: 2,
+  },
+  shareChevron: {
+    color: palette.light.text.muted,
+    fontSize: 18,
+    transform: [{ translateY: -2 }], // visual alignment
+  },
+  shareDetails: {
+    padding: 12,
+    paddingTop: 0, // No top padding, already spaced
+    backgroundColor: palette.light.surface,
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+  },
+
+  segmentBox: {
+    padding: 10,
+    backgroundColor: palette.light.surface,
+    borderRadius: 8,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: palette.light.muted,
+  },
+  segmentHeader: {
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  segmentSubheader: {
+    color: palette.light.text.muted,
+    marginTop: 4,
+    marginBottom: 10,
+    fontSize: 13,
+  },
+  tableContainer: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 6,
+    overflow: "hidden", // clips the corners
+  },
+  tableHeaderRow: {
+    flexDirection: "row",
+    backgroundColor: palette.light.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  tableHeaderCell: {
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    fontSize: 12,
+    fontWeight: "600",
+    color: palette.light.text.muted,
+    textTransform: "uppercase",
+  },
+  tableRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+    backgroundColor: Colors.light.background,
+  },
+  tableRowLast: {
+    borderBottomWidth: 0, // No border for the last row in the table
+  },
+  tableCell: {
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: Colors.light.text,
+  },
+});
