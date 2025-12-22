@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Colors, palette } from '@/constants/theme';
+import { Colors, palette } from "@/constants/theme";
 import {
   SafeAreaView,
   ScrollView,
@@ -15,43 +15,20 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getPostingShares } from "../../services/postings/api";
 import { useAuth } from "@/hooks/AuthContext";
-
-type StudyDetail = {
-  postingId: number;
-  buyerUserId: number;
-  buyerDisplayName: string;
-  postingStatusId: number;
-  postingStatusDisplayName: string;
-  title: string;
-  summary: string;
-  description: string | null;
-  applyOpenAt: string | null;
-  applyCloseAt: string | null;
-  dataCoverageDaysRequired: number | null;
-  minAge: number;
-  rewardTypeId: number | null;
-  rewardTypeDisplayName: string | null;
-  rewardValue: number | null;
-  //metrics: { metricId: number; metricDisplayName: string }[];
-  metricId: number[] | null;
-  metricDisplayName: string[] | null;
-  viewPolicies: any[];
-  healthConditions: { id: number; displayName: string }[];
-  tags: string[];
-  images: any[];
-  isActive: boolean;
-  isModified: boolean | null;
-  createdOn: string | null;
-  modifiedOn: string | null;
-};
+import type { StudyDetail } from "../../services/postings/types";
 
 export default function StudyDetail() {
-  const { studyId, saved } = useLocalSearchParams() as { studyId?: string; saved?: string };
+  const { studyId, saved } = useLocalSearchParams() as {
+    studyId?: string;
+    saved?: string;
+  };
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isNarrow = width < 720;
 
-  const [showSaved, setShowSaved] = useState<boolean>(saved === "1" || saved === "true");
+  const [showSaved, setShowSaved] = useState<boolean>(
+    saved === "1" || saved === "true"
+  );
   const [bannerOpacity] = useState(new Animated.Value(showSaved ? 1 : 0));
   const [study, setStudy] = useState<StudyDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,9 +36,11 @@ export default function StudyDetail() {
 
   // Shares (participant/session) UI
   const [sharesData, setSharesData] = useState<any | null>(null);
-  const [sharesLoading, setSharesLoading, ] = useState(false);
+  const [sharesLoading, setSharesLoading] = useState(false);
   const [sharesError, setSharesError] = useState<string | null>(null);
-  const [expandedShares, setExpandedShares] = useState<Record<number, boolean>>({});
+  const [expandedShares, setExpandedShares] = useState<Record<number, boolean>>(
+    {}
+  );
 
   const { user } = useAuth();
 
@@ -82,12 +61,12 @@ export default function StudyDetail() {
     if (value === null) {
       return "-";
     }
-    if (typeof value !== 'number') {
+    if (typeof value !== "number") {
       return String(value);
     }
 
     const valueString = String(value);
-    const decimalPart = valueString.split('.')[1];
+    const decimalPart = valueString.split(".")[1];
 
     // If there is a decimal part and it has more than 2 digits, round it
     if (decimalPart && decimalPart.length > 2) {
@@ -99,7 +78,7 @@ export default function StudyDetail() {
     // For integers or numbers with 1-2 decimal places, return as is
     return valueString;
   }
-  
+
   function toggleShareExpand(idx: number) {
     setExpandedShares((prev) => ({ ...prev, [idx]: !prev[idx] }));
   }
@@ -111,12 +90,15 @@ export default function StudyDetail() {
       setError(null);
       try {
         // Use the centralized API function which includes data normalization
-        const { getTrnPostingDetail } = await import("../../services/postings/api");
-        const buyerId = user?.id ?? -1;
+        const { getTrnPostingDetail } = await import(
+          "../../services/postings/api"
+        );
+        const buyerId = user?.id ? Number(user.id) : -1;
         const detail = await getTrnPostingDetail(buyerId, studyId);
+
         setStudy(detail);
       } catch (err: any) {
-        setError(err.message || 'Failed to load study');
+        setError(err.message || "Failed to load study");
       } finally {
         setLoading(false);
       }
@@ -126,9 +108,17 @@ export default function StudyDetail() {
 
   useEffect(() => {
     if (showSaved && study) {
-      Animated.timing(bannerOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      Animated.timing(bannerOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
       const t = setTimeout(() => {
-        Animated.timing(bannerOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+        Animated.timing(bannerOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
         setShowSaved(false);
         router.replace(`/studies/${study.postingId}`);
       }, 3000);
@@ -219,7 +209,12 @@ export default function StudyDetail() {
           ]}
         >
           {/* LEFT: Read-only Info Card */}
-          <View style={[styles.card, isNarrow ? styles.fullWidth : styles.leftColumn]}>
+          <View
+            style={[
+              styles.card,
+              isNarrow ? styles.fullWidth : styles.leftColumn,
+            ]}
+          >
             <Text style={styles.heading}>Study Details</Text>
 
             <Text style={styles.label}>Title</Text>
@@ -229,7 +224,9 @@ export default function StudyDetail() {
             <Text style={styles.value}>{study.summary}</Text>
 
             <Text style={styles.label}>Description</Text>
-            <Text style={[styles.value, styles.multilineValue]}>{study.description}</Text>
+            <Text style={[styles.value, styles.multilineValue]}>
+              {study.description}
+            </Text>
 
             <Text style={styles.label}>Status</Text>
             <Text style={styles.value}>{study.postingStatusDisplayName}</Text>
@@ -238,7 +235,9 @@ export default function StudyDetail() {
             <Text style={styles.value}>{study.minAge}</Text>
 
             <Text style={styles.label}>Data Coverage Days Required</Text>
-            <Text style={styles.value}>{study.dataCoverageDaysRequired ?? "-"}</Text>
+            <Text style={styles.value}>
+              {study.dataCoverageDaysRequired ?? "-"}
+            </Text>
 
             <Text style={styles.label}>Apply Open At</Text>
             <Text style={styles.value}>{study.applyOpenAt ?? "-"}</Text>
@@ -247,32 +246,42 @@ export default function StudyDetail() {
             <Text style={styles.value}>{study.applyCloseAt ?? "-"}</Text>
 
             <Text style={styles.label}>Reward Type</Text>
-            <Text style={styles.value}>{study.rewardTypeDisplayName ?? "-"}</Text>
+            <Text style={styles.value}>
+              {study.rewardTypeDisplayName ?? "-"}
+            </Text>
 
             <Text style={styles.label}>Reward Value</Text>
-            <Text style={styles.value}>{study.rewardValue !== null ? study.rewardValue : "-"}</Text>
-
+            <Text style={styles.value}>
+              {study.rewardValue !== null ? study.rewardValue : "-"}
+            </Text>
 
             <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
             <View style={styles.participantsList}>
-              {(!study.metricDisplayName || study.metricDisplayName.length === 0) ? (
+              {!study.metricDisplayName ||
+              study.metricDisplayName.length === 0 ? (
                 <Text style={styles.muted}>No metrics</Text>
               ) : (
                 study.metricDisplayName.map((m, i) => (
-                  <View key={study.metricId![i] + '-' + i} style={styles.participantRow}>
+                  <View
+                    key={study.metricId![i] + "-" + i}
+                    style={styles.participantRow}
+                  >
                     <Text>{m}</Text>
                   </View>
                 ))
               )}
             </View>
 
-            <Text style={[styles.label, { marginTop: 12 }]}>Health Conditions</Text>
+            <Text style={[styles.label, { marginTop: 12 }]}>
+              Health Conditions
+            </Text>
             <View style={styles.participantsList}>
-              {(!study.healthConditions || study.healthConditions.length === 0) ? (
+              {!study.healthConditions ||
+              study.healthConditions.length === 0 ? (
                 <Text style={styles.muted}>No conditions</Text>
               ) : (
                 study.healthConditions.map((c, i) => (
-                  <View key={c.id + '-' + i} style={styles.participantRow}>
+                  <View key={c.id + "-" + i} style={styles.participantRow}>
                     <Text>{c.displayName}</Text>
                   </View>
                 ))
@@ -304,7 +313,9 @@ export default function StudyDetail() {
               )}
             </View> */}
 
-            <Text style={[styles.label, { marginTop: 12 }]}>Participant Shares</Text>
+            <Text style={[styles.label, { marginTop: 12 }]}>
+              Participant Shares
+            </Text>
 
             {sharesLoading ? (
               <ActivityIndicator />
@@ -324,17 +335,21 @@ export default function StudyDetail() {
                       style={styles.shareHeader}
                     >
                       <View>
-                        <Text style={styles.shareTitle}>{sh.userDisplayName ?? `User ${sh.userId ?? "-"}`}</Text>
+                        <Text style={styles.shareTitle}>
+                          {sh.userDisplayName ?? `User ${sh.userId ?? "-"}`}
+                        </Text>
                         <Text style={styles.shareSubtitle}>
                           Session: {sh.sessionId ?? "-"} · {sh.statusName ?? ""}
                         </Text>
                       </View>
-                      <Text style={styles.shareChevron}>{expandedShares[i] ? "▴" : "▾"}</Text>
+                      <Text style={styles.shareChevron}>
+                        {expandedShares[i] ? "▴" : "▾"}
+                      </Text>
                     </TouchableOpacity>
 
                     {expandedShares[i] && (
                       <View style={styles.shareDetails}>
-                        {(!sh.segments || sh.segments.length === 0) ? (
+                        {!sh.segments || sh.segments.length === 0 ? (
                           <Text style={styles.muted}>No segments</Text>
                         ) : (
                           sh.segments.map((seg: any, si: number) => (
@@ -343,36 +358,147 @@ export default function StudyDetail() {
                               style={styles.segmentBox}
                             >
                               <Text style={styles.segmentHeader}>
-                                Segment {seg.segmentId ?? si} — Day {seg.dayIndex ?? "-"}
+                                Segment {seg.segmentId ?? si} — Day{" "}
+                                {seg.dayIndex ?? "-"}
                               </Text>
                               <Text style={styles.segmentSubheader}>
-                                From: {formatUtcToLocal(seg.fromUtc)} · To: {formatUtcToLocal(seg.toUtc)}
+                                From: {formatUtcToLocal(seg.fromUtc)} · To:{" "}
+                                {formatUtcToLocal(seg.toUtc)}
                               </Text>
 
-                              {(!seg.metrics || seg.metrics.length === 0) ? (
-                                <Text style={[styles.muted, { paddingVertical: 8 }]}>No metrics</Text>
+                              {!seg.metrics || seg.metrics.length === 0 ? (
+                                <Text
+                                  style={[styles.muted, { paddingVertical: 8 }]}
+                                >
+                                  No metrics
+                                </Text>
                               ) : (
                                 <View style={styles.tableContainer}>
                                   {/* Table Header */}
                                   <View style={styles.tableHeaderRow}>
-                                    <Text style={[styles.tableHeaderCell, { flex: 1.5 }]}>Metric</Text>
-                                    <Text style={[styles.tableHeaderCell, { flex: 0.7, textAlign: 'right' }]}>Unit</Text>
-                                    <Text style={[styles.tableHeaderCell, { flex: 0.8, textAlign: 'right' }]}>Avg</Text>
-                                    <Text style={[styles.tableHeaderCell, { flex: 0.8, textAlign: 'right' }]}>Min</Text>
-                                    <Text style={[styles.tableHeaderCell, { flex: 0.8, textAlign: 'right' }]}>Max</Text>
-                                    <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>Total</Text>
-                                    <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>Samples</Text>
+                                    <Text
+                                      style={[
+                                        styles.tableHeaderCell,
+                                        { flex: 1.5 },
+                                      ]}
+                                    >
+                                      Metric
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.tableHeaderCell,
+                                        { flex: 0.7, textAlign: "right" },
+                                      ]}
+                                    >
+                                      Unit
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.tableHeaderCell,
+                                        { flex: 0.8, textAlign: "right" },
+                                      ]}
+                                    >
+                                      Avg
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.tableHeaderCell,
+                                        { flex: 0.8, textAlign: "right" },
+                                      ]}
+                                    >
+                                      Min
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.tableHeaderCell,
+                                        { flex: 0.8, textAlign: "right" },
+                                      ]}
+                                    >
+                                      Max
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.tableHeaderCell,
+                                        { flex: 1, textAlign: "right" },
+                                      ]}
+                                    >
+                                      Total
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.tableHeaderCell,
+                                        { flex: 1, textAlign: "right" },
+                                      ]}
+                                    >
+                                      Samples
+                                    </Text>
                                   </View>
                                   {/* Table Body */}
                                   {seg.metrics.map((m: any, mi: number) => (
-                                    <View key={(m.metricId ?? mi) + "-" + mi} style={[styles.tableRow, mi === seg.metrics.length - 1 && styles.tableRowLast]}>
-                                      <Text style={[styles.tableCell, { flex: 1.5 }]}>{m.metricName ?? `Metric ${m.metricId}`}</Text>
-                                      <Text style={[styles.tableCell, { flex: 0.7, textAlign: 'right' }]}>{m.unitCode ?? "-"}</Text>
-                                      <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'right' }]}>{formatMetricValue(m.avgValue)}</Text>
-                                      <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'right' }]}>{formatMetricValue(m.minValue)}</Text>
-                                      <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'right' }]}>{formatMetricValue(m.maxValue)}</Text>
-                                      <Text style={[styles.tableCell, { flex: 1, textAlign: 'right' }]}>{formatMetricValue(m.totalValue)}</Text>
-                                      <Text style={[styles.tableCell, { flex: 1, textAlign: 'right' }]}>{m.samplesCount ?? "-"}</Text>
+                                    <View
+                                      key={(m.metricId ?? mi) + "-" + mi}
+                                      style={[
+                                        styles.tableRow,
+                                        mi === seg.metrics.length - 1 &&
+                                          styles.tableRowLast,
+                                      ]}
+                                    >
+                                      <Text
+                                        style={[
+                                          styles.tableCell,
+                                          { flex: 1.5 },
+                                        ]}
+                                      >
+                                        {m.metricName ?? `Metric ${m.metricId}`}
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.tableCell,
+                                          { flex: 0.7, textAlign: "right" },
+                                        ]}
+                                      >
+                                        {m.unitCode ?? "-"}
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.tableCell,
+                                          { flex: 0.8, textAlign: "right" },
+                                        ]}
+                                      >
+                                        {formatMetricValue(m.avgValue)}
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.tableCell,
+                                          { flex: 0.8, textAlign: "right" },
+                                        ]}
+                                      >
+                                        {formatMetricValue(m.minValue)}
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.tableCell,
+                                          { flex: 0.8, textAlign: "right" },
+                                        ]}
+                                      >
+                                        {formatMetricValue(m.maxValue)}
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.tableCell,
+                                          { flex: 1, textAlign: "right" },
+                                        ]}
+                                      >
+                                        {formatMetricValue(m.totalValue)}
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.tableCell,
+                                          { flex: 1, textAlign: "right" },
+                                        ]}
+                                      >
+                                        {m.samplesCount ?? "-"}
+                                      </Text>
                                     </View>
                                   ))}
                                 </View>
@@ -390,7 +516,9 @@ export default function StudyDetail() {
             <View style={styles.formActions}>
               <TouchableOpacity
                 style={[styles.btn, styles.btnPrimary]}
-                onPress={() => router.push(`/studies/${study.postingId}/manage`)}
+                onPress={() =>
+                  router.push(`/studies/${study.postingId}/manage`)
+                }
               >
                 <Text style={styles.btnPrimaryText}>Manage Study</Text>
               </TouchableOpacity>
@@ -405,17 +533,26 @@ export default function StudyDetail() {
           </View>
 
           {/* RIGHT: Stats Card */}
-          <View style={[styles.card, isNarrow ? styles.fullWidth : styles.rightColumn]}>
+          <View
+            style={[
+              styles.card,
+              isNarrow ? styles.fullWidth : styles.rightColumn,
+            ]}
+          >
             <Text style={styles.statHeading}>Study Statistics</Text>
 
             <View style={styles.statRow}>
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{study.metricId?.length ?? 0}</Text>
+                <Text style={styles.statNumber}>
+                  {study.metricId?.length ?? 0}
+                </Text>
                 <Text style={styles.statLabel}>Metrics</Text>
               </View>
 
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{study.healthConditions?.length ?? 0}</Text>
+                <Text style={styles.statNumber}>
+                  {study.healthConditions?.length ?? 0}
+                </Text>
                 <Text style={styles.statLabel}>Health Conditions</Text>
               </View>
 
@@ -434,7 +571,6 @@ export default function StudyDetail() {
               <Text style={styles.metaLabel}>Study ID</Text>
               <Text style={styles.metaValue}>{study.postingId}</Text>
             </View>
-
           </View>
         </View>
       </ScrollView>
@@ -493,7 +629,12 @@ const styles = StyleSheet.create({
   fullWidth: { width: "100%" },
 
   heading: { fontSize: 20, fontWeight: "700", marginBottom: 8 },
-  label: { fontSize: 14, marginTop: 8, marginBottom: 6, color: palette.light.text.muted },
+  label: {
+    fontSize: 14,
+    marginTop: 8,
+    marginBottom: 6,
+    color: palette.light.text.muted,
+  },
   value: { fontSize: 16, color: Colors.light.text },
   multilineValue: { lineHeight: 20, marginBottom: 4 },
 
@@ -519,7 +660,11 @@ const styles = StyleSheet.create({
   },
   btnPrimary: { backgroundColor: Colors.light.tint },
   btnPrimaryText: { color: Colors.light.background, fontWeight: "700" },
-  btnGhost: { backgroundColor: "transparent", borderWidth: 1, borderColor: palette.light.border },
+  btnGhost: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: palette.light.border,
+  },
   btnGhostText: { color: Colors.light.text, fontWeight: "600" },
 
   /* Stats */
@@ -536,8 +681,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   statNumber: { fontSize: 28, fontWeight: "800" },
-  statLabel: { color: palette.light.text.muted, marginTop: 6 ,     textAlign: "center",
-},
+  statLabel: {
+    color: palette.light.text.muted,
+    marginTop: 6,
+    textAlign: "center",
+  },
 
   metaBlock: { marginTop: 12 },
   metaLabel: { fontSize: 12, color: palette.light.text.muted },
@@ -557,7 +705,12 @@ const styles = StyleSheet.create({
   muted: { color: palette.light.text.muted },
 
   error: { color: "red", textAlign: "center", marginTop: 24 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 16 },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
 
   shareBox: {
     borderWidth: 1,
@@ -565,7 +718,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 8,
     backgroundColor: Colors.light.background,
-    overflow: 'hidden', // to contain the rounded corners
+    overflow: "hidden", // to contain the rounded corners
   },
   shareHeader: {
     flexDirection: "row",

@@ -1,39 +1,24 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Colors, palette } from '@/constants/theme';
-import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
+import React from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Colors, palette } from "@/constants/theme";
+import { useRouter } from "expo-router";
+import type { StudySummary } from "@/app/services/postings/types";
 
-// Define a type for the study object to ensure data consistency
-type Study = {
-  id: string; // Assuming ID is a string, could also be a number
-  title: string;
-  type: string;
-  description: string;
-  organizer: string;
-  spots: number;
-};
-
-// Define the props type for the StudyCard component
 type StudyCardProps = {
-  study: Study;
+  study: StudySummary;
+  statusLabel?: string;
+  onPress?: () => void;
 };
 
-const router = useRouter();
-
-// Define the component using React.FC (Functional Component) with its props type
-const StudyCard: React.FC<StudyCardProps> = ({ study }) => {
-  // Type the navigation hook for better type safety.
-  // Replace `ParamListBase` with your RootStackParamList for specific screen names and params.
-  const navigation = useNavigation<NavigationProp<ParamListBase>>();
+const StudyCard: React.FC<StudyCardProps> = ({ study, statusLabel, onPress }) => {
+  const router = useRouter();
 
   // Navigation functions to call on button press
   const handleViewPress = () => {
-    // Navigate to a screen named 'StudyDetail', passing the study's ID as a parameter
-    //navigation.navigate('Studies', { studyId: study.id });
+    if (onPress) return onPress();
     router.push({
       pathname: "/studies/[studyId]",
-      params: { studyId: study.id },
+      params: { studyId: String(study.id) },
     });
   };
 
@@ -51,14 +36,17 @@ const StudyCard: React.FC<StudyCardProps> = ({ study }) => {
       <View style={styles.header}>
         <Text style={styles.title}>{study.title}</Text>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>{study.type}</Text>
+          <Text style={styles.badgeText}>
+            {statusLabel ?? `Status ${study.statusId}`}
+          </Text>
         </View>
       </View>
 
       <Text style={styles.description}>{study.description}</Text>
 
       <Text style={styles.secureMuted}>
-        Data shared will be de-identified and transferred over secure channels; participants must consent.
+        Data shared will be de-identified and transferred over secure channels;
+        participants must consent.
       </Text>
 
       <View style={styles.metaContainer}>
@@ -71,10 +59,16 @@ const StudyCard: React.FC<StudyCardProps> = ({ study }) => {
       </View>
 
       <View style={styles.actionsContainer}>
-        <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={handleManagePress}>
+        <TouchableOpacity
+          style={[styles.btn, styles.btnGhost]}
+          onPress={handleManagePress}
+        >
           <Text style={styles.btnTextGhost}>Manage</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={handleViewPress}>
+        <TouchableOpacity
+          style={[styles.btn, styles.btnPrimary]}
+          onPress={handleViewPress}
+        >
           <Text style={styles.btnTextPrimary}>View</Text>
         </TouchableOpacity>
       </View>
@@ -99,14 +93,14 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: Colors.light.text,
     flex: 1, // Ensures title doesn't push badge off-screen
     marginRight: 8,
@@ -119,7 +113,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     color: palette.light.text.secondary,
   },
   description: {
@@ -130,12 +124,12 @@ const styles = StyleSheet.create({
   secureMuted: {
     fontSize: 12,
     color: palette.light.text.muted,
-    fontStyle: 'italic',
+    fontStyle: "italic",
     marginTop: 12,
   },
   metaContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: 16,
     borderTopWidth: 1,
     borderTopColor: palette.light.border,
@@ -146,11 +140,11 @@ const styles = StyleSheet.create({
     color: palette.light.text.secondary,
   },
   boldText: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   actionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     marginTop: 16,
     gap: 10,
   },
@@ -158,24 +152,24 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 20,
     borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   btnPrimary: {
     backgroundColor: Colors.light.tint,
   },
   btnTextPrimary: {
     color: palette.light.text.inverse,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   btnGhost: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: Colors.light.tint,
   },
   btnTextGhost: {
     color: Colors.light.tint,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });
 

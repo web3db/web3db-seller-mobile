@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Colors, palette } from '@/constants/theme';
+import { Colors, palette } from "@/constants/theme";
 import {
   SafeAreaView,
   ScrollView,
@@ -14,7 +14,7 @@ import {
   FlatList,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   updateTrnPosting,
   listMetrics,
@@ -22,11 +22,12 @@ import {
   listRewardTypes,
   listPostingStatuses,
 } from "../../services/postings/api";
-import {
+import type {
   Metric,
   HealthCondition,
   RewardType,
   PostingStatus,
+  StudyDetail,
 } from "../../services/postings/types";
 import SingleSelectDropdown from "../../../components/SingleSelectDropdown";
 import { useAuth } from "@/hooks/AuthContext";
@@ -49,17 +50,21 @@ const ManageStudy: React.FC = () => {
   // --- Date Picker State ---
   const [applyOpenAt, setApplyOpenAt] = useState<Date | null>(null);
   const [applyCloseAt, setApplyCloseAt] = useState<Date | null>(null);
-  const [openDateString, setOpenDateString] = useState(''); // <-- Add this
-  const [closeDateString, setCloseDateString] = useState(''); // <-- Add this
+  const [openDateString, setOpenDateString] = useState(""); // <-- Add this
+  const [closeDateString, setCloseDateString] = useState(""); // <-- Add this
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [datePickerField, setDatePickerField] = useState<'open' | 'close' | null>(null);
+  const [datePickerField, setDatePickerField] = useState<
+    "open" | "close" | null
+  >(null);
 
   // --- Dropdown options state ---
   const [statuses, setStatuses] = useState<PostingStatus[]>([]);
   const [rewardTypes, setRewardTypes] = useState<RewardType[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
-  const [healthConditions, setHealthConditions] = useState<HealthCondition[]>([]);
-  
+  const [healthConditions, setHealthConditions] = useState<HealthCondition[]>(
+    []
+  );
+
   // --- Loading/Errors state ---
   const [statusesLoading, setStatusesLoading] = useState(true);
   const [rewardTypesLoading, setRewardTypesLoading] = useState(true);
@@ -68,9 +73,13 @@ const ManageStudy: React.FC = () => {
 
   // --- Selected IDs state ---
   const [selectedStatusId, setSelectedStatusId] = useState<number | null>(null);
-  const [selectedRewardTypeId, setSelectedRewardTypeId] = useState<number | null>(null);
+  const [selectedRewardTypeId, setSelectedRewardTypeId] = useState<
+    number | null
+  >(null);
   const [selectedMetricIds, setSelectedMetricIds] = useState<number[]>([]);
-  const [selectedHealthConditionIds, setSelectedHealthConditionIds] = useState<number[]>([]);
+  const [selectedHealthConditionIds, setSelectedHealthConditionIds] = useState<
+    number[]
+  >([]);
 
   // --- Dropdown UI state ---
   const [metricsDropdownOpen, setMetricsDropdownOpen] = useState(false);
@@ -79,10 +88,18 @@ const ManageStudy: React.FC = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    listPostingStatuses().then(setStatuses).finally(() => setStatusesLoading(false));
-    listRewardTypes().then(setRewardTypes).finally(() => setRewardTypesLoading(false));
-    listMetrics().then(setMetrics).finally(() => setMetricsLoading(false));
-    listHealthConditions().then(setHealthConditions).finally(() => setHealthLoading(false));
+    listPostingStatuses()
+      .then(setStatuses)
+      .finally(() => setStatusesLoading(false));
+    listRewardTypes()
+      .then(setRewardTypes)
+      .finally(() => setRewardTypesLoading(false));
+    listMetrics()
+      .then(setMetrics)
+      .finally(() => setMetricsLoading(false));
+    listHealthConditions()
+      .then(setHealthConditions)
+      .finally(() => setHealthLoading(false));
   }, []);
 
   useEffect(() => {
@@ -90,27 +107,39 @@ const ManageStudy: React.FC = () => {
       if (!studyId) return;
       setLoading(true);
       try {
-        const buyerId = user?.id ?? -1;
-        const { getTrnPostingDetail } = await import("../../services/postings/api");
-        const detail = await getTrnPostingDetail(buyerId, studyId);
+        const buyerId = user?.id ? Number(user.id) : -1;
+        const { getTrnPostingDetail } = await import(
+          "../../services/postings/api"
+        );
+        const detail: StudyDetail = await getTrnPostingDetail(buyerId, studyId);
 
         if (detail) {
           setPostingId(Number(detail.postingId));
           setTitle(detail.title ?? "");
           setSummary(detail.summary ?? "");
           setDescription(detail.description ?? "");
-          setDataCoverageDaysRequired(detail.dataCoverageDaysRequired ? String(detail.dataCoverageDaysRequired) : "");
-          setRewardValue(detail.rewardValue ? String(detail.rewardValue) : ""); // Set rewardValue from fetched detail
+          setDataCoverageDaysRequired(
+            detail.dataCoverageDaysRequired
+              ? String(detail.dataCoverageDaysRequired)
+              : ""
+          );
+          setRewardValue(
+            detail.rewardValue !== null && detail.rewardValue !== undefined
+              ? String(detail.rewardValue)
+              : ""
+          );
           // If the API returned ISO strings, extract the YYYY-MM-DD portion so we don't show timezone-shifted times
           const extractDatePart = (iso?: string | null) => {
-            if (!iso) return '';
-            return String(iso).split('T')[0];
+            if (!iso) return "";
+            return String(iso).split("T")[0];
           };
 
           const openDateStr = extractDatePart(detail.applyOpenAt);
           setOpenDateString(openDateStr);
           if (openDateStr) {
-            const [y, m, d] = openDateStr.split('-').map((s: string) => Number(s));
+            const [y, m, d] = openDateStr
+              .split("-")
+              .map((s: string) => Number(s));
             setApplyOpenAt(new Date(Date.UTC(y, (m || 1) - 1, d || 1)));
           } else {
             setApplyOpenAt(null);
@@ -119,7 +148,9 @@ const ManageStudy: React.FC = () => {
           const closeDateStr = extractDatePart(detail.applyCloseAt);
           setCloseDateString(closeDateStr);
           if (closeDateStr) {
-            const [y, m, d] = closeDateStr.split('-').map((s: string) => Number(s));
+            const [y, m, d] = closeDateStr
+              .split("-")
+              .map((s: string) => Number(s));
             setApplyCloseAt(new Date(Date.UTC(y, (m || 1) - 1, d || 1)));
           } else {
             setApplyCloseAt(null);
@@ -129,8 +160,16 @@ const ManageStudy: React.FC = () => {
           setSelectedRewardTypeId(detail.rewardTypeId ?? null);
           // The detail API returns an array of objects: { metricId: number, ... }
           // We need to map this to an array of just the IDs.
-          setSelectedMetricIds(Array.isArray(detail.metrics) ? detail.metrics.map((m: any) => Number(m.metricId)) : []); // metricId is consistent
-          setSelectedHealthConditionIds(Array.isArray(detail.healthConditions) ? detail.healthConditions.map((h: any) => Number(h.id)) : []); // Use 'id' from normalized data
+          setSelectedMetricIds(
+            Array.isArray(detail.metrics)
+              ? detail.metrics.map((m) => Number(m.metricId))
+              : []
+          );
+          setSelectedHealthConditionIds(
+            Array.isArray(detail.healthConditions)
+              ? detail.healthConditions.map((h: any) => Number(h.id))
+              : []
+          ); // Use 'id' from normalized data
         }
       } catch (err) {
         console.error(err);
@@ -144,12 +183,12 @@ const ManageStudy: React.FC = () => {
   // --- Date Picker Handler ---
   const onDateChange = (event: any, selectedDate?: Date) => {
     // On Android, the picker closes automatically. On iOS, we need to hide it manually.
-    setShowDatePicker(Platform.OS === 'ios');
+    setShowDatePicker(Platform.OS === "ios");
     if (selectedDate) {
-      if (datePickerField === 'open') {
+      if (datePickerField === "open") {
         setApplyOpenAt(selectedDate);
         setOpenDateString(formatDateForDisplay(selectedDate));
-      } else if (datePickerField === 'close') {
+      } else if (datePickerField === "close") {
         setApplyCloseAt(selectedDate);
         setCloseDateString(formatDateForDisplay(selectedDate));
       }
@@ -158,9 +197,9 @@ const ManageStudy: React.FC = () => {
     setDatePickerField(null);
   };
 
-  const handleWebDateChange = (text: string, field: 'open' | 'close') => {
+  const handleWebDateChange = (text: string, field: "open" | "close") => {
     // Always update the visible string so the user can type partial values
-    if (field === 'open') {
+    if (field === "open") {
       setOpenDateString(text);
     } else {
       setCloseDateString(text);
@@ -168,11 +207,11 @@ const ManageStudy: React.FC = () => {
 
     // Try to parse full YYYY-MM-DD into a Date and update date state only when valid
     // Parse YYYY-MM-DD and create a UTC date (so toISOString() will keep the same calendar date)
-    const parts = text.split('-').map((s) => Number(s));
+    const parts = text.split("-").map((s) => Number(s));
     if (parts.length === 3 && parts.every((n) => !isNaN(n))) {
       const [y, m, d] = parts;
       const utcDate = new Date(Date.UTC(y, m - 1, d));
-      if (field === 'open') {
+      if (field === "open") {
         setApplyOpenAt(utcDate);
       } else {
         setApplyCloseAt(utcDate);
@@ -180,14 +219,16 @@ const ManageStudy: React.FC = () => {
     }
   };
 
-  const normalizeWebDate = (field: 'open' | 'close') => {
-    const text = field === 'open' ? openDateString : closeDateString;
-    const parts = String(text).split('-').map((s) => Number(s));
+  const normalizeWebDate = (field: "open" | "close") => {
+    const text = field === "open" ? openDateString : closeDateString;
+    const parts = String(text)
+      .split("-")
+      .map((s) => Number(s));
     if (parts.length === 3 && parts.every((n) => !isNaN(n))) {
       const [y, m, d] = parts;
       const utcDate = new Date(Date.UTC(y, m - 1, d));
-      const normalized = utcDate.toISOString().split('T')[0];
-      if (field === 'open') {
+      const normalized = utcDate.toISOString().split("T")[0];
+      if (field === "open") {
         setOpenDateString(normalized);
         setApplyOpenAt(utcDate);
       } else {
@@ -198,25 +239,27 @@ const ManageStudy: React.FC = () => {
       // keep user's text, don't update apply dates
     }
   };
-  
-  const showDatepickerFor = (field: 'open' | 'close') => {
+
+  const showDatepickerFor = (field: "open" | "close") => {
     setDatePickerField(field);
     setShowDatePicker(true);
   };
 
   // Helper to format date to YYYY-MM-DD
   const formatDateForDisplay = (date: Date | null) => {
-    if (!date) return '';
-    return date.toISOString().split('T')[0];
+    if (!date) return "";
+    return date.toISOString().split("T")[0];
   };
 
   const formatDate = (date: Date | null) => {
-    return date ? date.toISOString().split('T')[0] : 'Select date...';
+    return date ? date.toISOString().split("T")[0] : "Select date...";
   };
 
   function toggleMetric(metricId: number) {
     setSelectedMetricIds((prev) =>
-      prev.includes(metricId) ? prev.filter((id) => id !== metricId) : [...prev, metricId]
+      prev.includes(metricId)
+        ? prev.filter((id) => id !== metricId)
+        : [...prev, metricId]
     );
   }
 
@@ -241,45 +284,56 @@ const ManageStudy: React.FC = () => {
   }
 
   async function handleSave() {
-  if (!postingId) return alert("No study loaded");
-  const payload = {
-    title,
-    summary,
-    description,
-    dataCoverageDaysRequired: dataCoverageDaysRequired ? Number(dataCoverageDaysRequired) : null,
-    // posting status id (number or null)
-    postingStatusId: selectedStatusId ? Number(selectedStatusId) : null,
-    // reward type id
-    rewardTypeId: selectedRewardTypeId,
-    // The create/update functions expect `postingMetricsIds` (not `metrics`)
-    rewardValue: Number(rewardValue) || 0, // Include rewardValue in payload
-    metrics: selectedMetricIds,
-    // The create/update functions expect `healthConditionIds`
-    healthConditionIds: selectedHealthConditionIds,
-    // dates (ISO strings or null)
-    applyOpenAt: applyOpenAt ? applyOpenAt.toISOString() : null,
-    applyCloseAt: applyCloseAt ? applyCloseAt.toISOString() : null,
-  };
-  try {
-    const res = await updateTrnPosting(user?.id ?? -1, postingId, payload as any);
-    console.log(res)
-    router.replace(`/studies/${postingId}?saved=1`);
-  } catch (err) {
-    alert("Failed to save changes: " + (err instanceof Error ? err.message : String(err)));
+    if (!postingId) return alert("No study loaded");
+    const payload = {
+      title,
+      summary,
+      description,
+      dataCoverageDaysRequired: dataCoverageDaysRequired
+        ? Number(dataCoverageDaysRequired)
+        : null,
+      // posting status id (number or null)
+      postingStatusId: selectedStatusId ? Number(selectedStatusId) : null,
+      // reward type id
+      rewardTypeId: selectedRewardTypeId,
+      // The create/update functions expect `postingMetricsIds` (not `metrics`)
+      rewardValue: Number(rewardValue) || 0, // Include rewardValue in payload
+      metrics: selectedMetricIds,
+      // The create/update functions expect `healthConditionIds`
+      healthConditionIds: selectedHealthConditionIds,
+      // dates (ISO strings or null)
+      applyOpenAt: applyOpenAt ? applyOpenAt.toISOString() : null,
+      applyCloseAt: applyCloseAt ? applyCloseAt.toISOString() : null,
+    };
+    try {
+      const buyerId = user?.id ? Number(user.id) : -1;
+      const res = await updateTrnPosting(buyerId, postingId, payload as any);
+      console.log(res);
+      router.replace(`/studies/${postingId}?saved=1`);
+    } catch (err) {
+      alert(
+        "Failed to save changes: " +
+          (err instanceof Error ? err.message : String(err))
+      );
+    }
   }
-}
 
   function handleCancel() {
     router.back();
   }
 
   // Determine which date is currently being edited for the picker
-  const currentPickerDate = datePickerField === 'open' ? (applyOpenAt || new Date()) : (applyCloseAt || new Date());
-  
+  const currentPickerDate =
+    datePickerField === "open"
+      ? applyOpenAt || new Date()
+      : applyCloseAt || new Date();
+
   if (loading) {
     return (
       <SafeAreaView style={styles.root}>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
           <ActivityIndicator size="large" />
           <Text style={{ marginTop: 8 }}>Loading study...</Text>
         </View>
@@ -289,70 +343,127 @@ const ManageStudy: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.root}>
-      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-        <View style={[styles.contentRow, isNarrow ? styles.columnLayout : styles.rowLayout]}>
-          <View style={[styles.card, isNarrow ? styles.fullWidth : styles.leftColumn]}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View
+          style={[
+            styles.contentRow,
+            isNarrow ? styles.columnLayout : styles.rowLayout,
+          ]}
+        >
+          <View
+            style={[
+              styles.card,
+              isNarrow ? styles.fullWidth : styles.leftColumn,
+            ]}
+          >
             <Text style={styles.heading}>Manage Study</Text>
 
             <Text style={styles.label}>Title</Text>
-            <TextInput value={title} onChangeText={setTitle} style={styles.input} />
+            <TextInput
+              value={title}
+              onChangeText={setTitle}
+              style={styles.input}
+            />
 
             <Text style={styles.label}>Summary</Text>
-            <TextInput value={summary} onChangeText={setSummary} style={styles.input} />
+            <TextInput
+              value={summary}
+              onChangeText={setSummary}
+              style={styles.input}
+            />
 
             <Text style={styles.label}>Description</Text>
-            <TextInput value={description ?? ""} onChangeText={setDescription} style={[styles.input, styles.multiline]} multiline />
-            
+            <TextInput
+              value={description ?? ""}
+              onChangeText={setDescription}
+              style={[styles.input, styles.multiline]}
+              multiline
+            />
+
             <Text style={styles.label}>Length (days)</Text>
-            <TextInput value={dataCoverageDaysRequired} onChangeText={setDataCoverageDaysRequired} style={styles.input} keyboardType="numeric" />
+            <TextInput
+              value={dataCoverageDaysRequired}
+              onChangeText={setDataCoverageDaysRequired}
+              style={styles.input}
+              keyboardType="numeric"
+            />
 
             {/* Date Pickers */}
             <Text style={styles.label}>Apply Open Date</Text>
-            {Platform.OS === 'web' ? (
+            {Platform.OS === "web" ? (
               <input
                 type="date"
-                style={{
-                  borderWidth: 1,
-                  borderColor: palette.light.border,
-                  borderRadius: 8,
-                  backgroundColor: palette.light.surface,
-                  minHeight: 44,
-                } as React.CSSProperties}
+                style={
+                  {
+                    borderWidth: 1,
+                    borderColor: palette.light.border,
+                    borderRadius: 8,
+                    backgroundColor: palette.light.surface,
+                    minHeight: 44,
+                  } as React.CSSProperties
+                }
                 value={openDateString}
-                onChange={(e: any) => handleWebDateChange(e.target.value, 'open')}
-                onBlur={() => normalizeWebDate('open')}
+                onChange={(e: any) =>
+                  handleWebDateChange(e.target.value, "open")
+                }
+                onBlur={() => normalizeWebDate("open")}
               />
             ) : (
-              <TouchableOpacity onPress={() => showDatepickerFor('open')} style={styles.input}>
-                <Text>{applyOpenAt ? formatDateForDisplay(applyOpenAt) : 'Select date...'}</Text>
+              <TouchableOpacity
+                onPress={() => showDatepickerFor("open")}
+                style={styles.input}
+              >
+                <Text>
+                  {applyOpenAt
+                    ? formatDateForDisplay(applyOpenAt)
+                    : "Select date..."}
+                </Text>
               </TouchableOpacity>
             )}
 
             <Text style={styles.label}>Apply Close Date</Text>
-            {Platform.OS === 'web' ? (
+            {Platform.OS === "web" ? (
               <input
                 type="date"
-                style={{
-                  borderWidth: 1,
-                  borderColor: palette.light.border,
-                  borderRadius: 8,
-                  backgroundColor: palette.light.surface,
-                  minHeight: 44,
-                } as React.CSSProperties}
+                style={
+                  {
+                    borderWidth: 1,
+                    borderColor: palette.light.border,
+                    borderRadius: 8,
+                    backgroundColor: palette.light.surface,
+                    minHeight: 44,
+                  } as React.CSSProperties
+                }
                 value={closeDateString}
-                onChange={(e: any) => handleWebDateChange(e.target.value, 'close')}
-                onBlur={() => normalizeWebDate('close')}
+                onChange={(e: any) =>
+                  handleWebDateChange(e.target.value, "close")
+                }
+                onBlur={() => normalizeWebDate("close")}
               />
             ) : (
-              <TouchableOpacity onPress={() => showDatepickerFor('close')} style={styles.input}>
-                <Text>{applyCloseAt ? formatDateForDisplay(applyCloseAt) : 'Select date...'}</Text>
+              <TouchableOpacity
+                onPress={() => showDatepickerFor("close")}
+                style={styles.input}
+              >
+                <Text>
+                  {applyCloseAt
+                    ? formatDateForDisplay(applyCloseAt)
+                    : "Select date..."}
+                </Text>
               </TouchableOpacity>
             )}
 
             {/* DateTimePicker Modal (for native only) */}
-            {showDatePicker && Platform.OS !== 'web' && (
+            {showDatePicker && Platform.OS !== "web" && (
               <DateTimePicker
-                value={datePickerField === 'open' ? (applyOpenAt || new Date()) : (applyCloseAt || new Date())}
+                value={
+                  datePickerField === "open"
+                    ? applyOpenAt || new Date()
+                    : applyCloseAt || new Date()
+                }
                 mode="date"
                 display="default"
                 onChange={onDateChange}
@@ -360,24 +471,34 @@ const ManageStudy: React.FC = () => {
             )}
 
             <Text style={styles.label}>Status</Text>
-            {statusesLoading ? <ActivityIndicator/> : 
+            {statusesLoading ? (
+              <ActivityIndicator />
+            ) : (
               <SingleSelectDropdown
-                items={statuses.map((s) => ({ id: s.postingStatusId, displayName: s.displayName }))}
+                items={statuses.map((s) => ({
+                  id: s.postingStatusId,
+                  displayName: s.displayName,
+                }))}
                 selectedId={selectedStatusId}
                 onSelect={(id) => setSelectedStatusId(Number(id))}
                 placeholder="Select status..."
               />
-            }
+            )}
 
             <Text style={styles.label}>Reward Type</Text>
-            {rewardTypesLoading ? <ActivityIndicator/> : 
+            {rewardTypesLoading ? (
+              <ActivityIndicator />
+            ) : (
               <SingleSelectDropdown
-                items={rewardTypes.map((r) => ({ id: r.rewardTypeId, displayName: r.displayName }))}
+                items={rewardTypes.map((r) => ({
+                  id: r.rewardTypeId,
+                  displayName: r.displayName,
+                }))}
                 selectedId={selectedRewardTypeId}
                 onSelect={(id) => setSelectedRewardTypeId(Number(id))}
                 placeholder="Select reward type..."
               />
-            }
+            )}
 
             <Text style={styles.label}>Reward Value</Text>
             <TextInput
@@ -388,17 +509,33 @@ const ManageStudy: React.FC = () => {
             />
 
             <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
-            <TouchableOpacity style={[styles.dropdownToggle, metricsDropdownOpen && styles.dropdownOpen]} onPress={() => setMetricsDropdownOpen((v) => !v)}>
+            <TouchableOpacity
+              style={[
+                styles.dropdownToggle,
+                metricsDropdownOpen && styles.dropdownOpen,
+              ]}
+              onPress={() => setMetricsDropdownOpen((v) => !v)}
+            >
               <Text style={styles.dropdownText} numberOfLines={1}>
-                {selectedMetricIds.length > 0 ? selectedMetricsNames() : "Select metrics..."}
+                {selectedMetricIds.length > 0
+                  ? selectedMetricsNames()
+                  : "Select metrics..."}
               </Text>
-              <Text style={styles.dropdownChevron}>{metricsDropdownOpen ? "▴" : "▾"}</Text>
+              <Text style={styles.dropdownChevron}>
+                {metricsDropdownOpen ? "▴" : "▾"}
+              </Text>
             </TouchableOpacity>
             {metricsDropdownOpen && (
               <View style={styles.dropdownPane}>
-                {metricsLoading ? <ActivityIndicator /> : 
+                {metricsLoading ? (
+                  <ActivityIndicator />
+                ) : (
                   <FlatList
-                    data={((metrics as any).filter((m: any) => (m.isActive ?? true)) as any[])
+                    data={(
+                      (metrics as any).filter(
+                        (m: any) => m.isActive ?? true
+                      ) as any[]
+                    )
                       .slice()
                       .sort((a, b) => {
                         const aSel = selectedMetricIds.includes(a.metricId);
@@ -410,59 +547,116 @@ const ManageStudy: React.FC = () => {
                     renderItem={({ item }) => {
                       const picked = selectedMetricIds.includes(item.metricId);
                       return (
-                        <TouchableOpacity style={styles.metricRow} onPress={() => toggleMetric(item.metricId)}>
-                          <View style={[styles.checkbox, picked && styles.checkboxChecked]}><Text style={styles.checkboxTick}>✓</Text></View>
-                          <Text style={styles.metricLabel}>{item.displayName}</Text>
+                        <TouchableOpacity
+                          style={styles.metricRow}
+                          onPress={() => toggleMetric(item.metricId)}
+                        >
+                          <View
+                            style={[
+                              styles.checkbox,
+                              picked && styles.checkboxChecked,
+                            ]}
+                          >
+                            <Text style={styles.checkboxTick}>✓</Text>
+                          </View>
+                          <Text style={styles.metricLabel}>
+                            {item.displayName}
+                          </Text>
                         </TouchableOpacity>
                       );
                     }}
                   />
-                }
+                )}
               </View>
             )}
 
-            <Text style={[styles.label, { marginTop: 12 }]}>Health Conditions</Text>
-            <TouchableOpacity style={[styles.dropdownToggle, healthDropdownOpen && styles.dropdownOpen]} onPress={() => setHealthDropdownOpen((v) => !v)}>
+            <Text style={[styles.label, { marginTop: 12 }]}>
+              Health Conditions
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.dropdownToggle,
+                healthDropdownOpen && styles.dropdownOpen,
+              ]}
+              onPress={() => setHealthDropdownOpen((v) => !v)}
+            >
               <Text style={styles.dropdownText} numberOfLines={1}>
-                {selectedHealthConditionIds.length > 0 ? selectedHealthConditionNames() : "Select conditions..."}
+                {selectedHealthConditionIds.length > 0
+                  ? selectedHealthConditionNames()
+                  : "Select conditions..."}
               </Text>
-              <Text style={styles.dropdownChevron}>{healthDropdownOpen ? "▴" : "▾"}</Text>
+              <Text style={styles.dropdownChevron}>
+                {healthDropdownOpen ? "▴" : "▾"}
+              </Text>
             </TouchableOpacity>
             {healthDropdownOpen && (
               <View style={styles.dropdownPane}>
-                {healthLoading ? <ActivityIndicator /> : 
+                {healthLoading ? (
+                  <ActivityIndicator />
+                ) : (
                   <FlatList
                     data={healthConditions.slice().sort((a, b) => {
-                      const aSel = selectedHealthConditionIds.includes(a.healthConditionId);
-                      const bSel = selectedHealthConditionIds.includes(b.healthConditionId);
+                      const aSel = selectedHealthConditionIds.includes(
+                        a.healthConditionId
+                      );
+                      const bSel = selectedHealthConditionIds.includes(
+                        b.healthConditionId
+                      );
                       if (aSel === bSel) return 0;
                       return aSel ? -1 : 1;
                     })}
                     keyExtractor={(h) => String(h.healthConditionId)}
                     renderItem={({ item }) => {
-                      const picked = selectedHealthConditionIds.includes(item.healthConditionId);
+                      const picked = selectedHealthConditionIds.includes(
+                        item.healthConditionId
+                      );
                       return (
-                        <TouchableOpacity style={styles.metricRow} onPress={() => toggleHealthCondition(item.healthConditionId)}>
-                          <View style={[styles.checkbox, picked && styles.checkboxChecked]}><Text style={styles.checkboxTick}>✓</Text></View>
-                          <Text style={styles.metricLabel}>{item.displayName}</Text>
+                        <TouchableOpacity
+                          style={styles.metricRow}
+                          onPress={() =>
+                            toggleHealthCondition(item.healthConditionId)
+                          }
+                        >
+                          <View
+                            style={[
+                              styles.checkbox,
+                              picked && styles.checkboxChecked,
+                            ]}
+                          >
+                            <Text style={styles.checkboxTick}>✓</Text>
+                          </View>
+                          <Text style={styles.metricLabel}>
+                            {item.displayName}
+                          </Text>
                         </TouchableOpacity>
                       );
                     }}
                   />
-                }
+                )}
               </View>
             )}
 
             <View style={styles.formActions}>
-              <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={handleSave}>
+              <TouchableOpacity
+                style={[styles.btn, styles.btnPrimary]}
+                onPress={handleSave}
+              >
                 <Text style={styles.btnPrimaryText}>Save Changes</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={handleCancel}>
+              <TouchableOpacity
+                style={[styles.btn, styles.btnGhost]}
+                onPress={handleCancel}
+              >
                 <Text style={styles.btnGhostText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
-          <View style={[styles.card, isNarrow ? styles.fullWidth : styles.rightColumn]}></View>
+          <View
+            style={[
+              styles.card,
+              isNarrow ? styles.fullWidth : styles.rightColumn,
+            ]}
+          ></View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -482,7 +676,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.06)",
     ...Platform.select({
-      ios: { shadowColor: Colors.light.text, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12 },
+      ios: {
+        shadowColor: Colors.light.text,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+      },
       android: { elevation: 3 },
     }),
   },
@@ -490,7 +689,12 @@ const styles = StyleSheet.create({
   rightColumn: { flex: 1, marginLeft: 8, minWidth: 260, maxWidth: 420 },
   fullWidth: { width: "100%" },
   heading: { fontSize: 20, fontWeight: "700", marginBottom: 8 },
-  label: { fontSize: 14, marginTop: 8, marginBottom: 6, color: Colors.light.text },
+  label: {
+    fontSize: 14,
+    marginTop: 8,
+    marginBottom: 6,
+    color: Colors.light.text,
+  },
   input: {
     borderWidth: 1,
     borderColor: palette.light.border,
@@ -498,7 +702,7 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: palette.light.surface,
     minHeight: 44,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   multiline: { height: 110, textAlignVertical: "top", paddingVertical: 10 },
   dropdownToggle: {
@@ -512,7 +716,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     minHeight: 44,
   },
-  dropdownOpen: { borderColor: Colors.light.tint, shadowColor: Colors.light.tint, elevation: 2 },
+  dropdownOpen: {
+    borderColor: Colors.light.tint,
+    shadowColor: Colors.light.tint,
+    elevation: 2,
+  },
   dropdownText: { color: Colors.light.text, flex: 1 },
   dropdownChevron: { color: palette.light.text.muted, marginLeft: 8 },
   dropdownPane: {
@@ -540,14 +748,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  checkboxChecked: { backgroundColor: Colors.light.tint, borderColor: Colors.light.tint },
-  checkboxTick: { color: Colors.light.background, fontSize: 12, fontWeight: 'bold' },
+  checkboxChecked: {
+    backgroundColor: Colors.light.tint,
+    borderColor: Colors.light.tint,
+  },
+  checkboxTick: {
+    color: Colors.light.background,
+    fontSize: 12,
+    fontWeight: "bold",
+  },
   metricLabel: { fontSize: 14 },
-  formActions: { marginTop: 24, flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  btn: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, alignItems: "center" },
+  formActions: {
+    marginTop: 24,
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  btn: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
   btnPrimary: { backgroundColor: Colors.light.tint },
   btnPrimaryText: { color: Colors.light.background, fontWeight: "700" },
-  btnGhost: { backgroundColor: "transparent", borderWidth: 1, borderColor: palette.light.border },
+  btnGhost: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: palette.light.border,
+  },
   btnGhostText: { color: Colors.light.text, fontWeight: "600" },
 });
 
