@@ -51,8 +51,9 @@ function AppContent() {
   const first = segments[0];
   const isPublicLanding = !first; // root
   const isAuthPage = first === 'login' || first === 'register' || first === 'verify';
+  const isPublicPage = first === 'about' || first === 'services';
 
-  if (!isSignedIn && !isPublicLanding && !isAuthPage) {
+  if (!isSignedIn && !isPublicLanding && !isAuthPage && !isPublicPage) {
     // Use replace to avoid back navigation to protected page
     router.replace('/login');
     return null;
@@ -63,12 +64,15 @@ function AppContent() {
     throw new Error('Missing Clerk Publishable Key in .env file.');
   }
 
+  // Hide navbar on landing page (root route)
+  const isLandingPage = !first;
+
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <SafeAreaView style={styles.container}>
         <StatusBar style="auto" />
         <View style={{ flex: 1 }}>
-          <Navbar />
+          {!isLandingPage && <Navbar />}
           <Stack screenOptions={{ headerShown: false }} />
         </View>
       </SafeAreaView>

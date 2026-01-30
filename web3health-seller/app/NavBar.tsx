@@ -16,7 +16,8 @@ export const Navbar: React.FC = () => {
                     source={require('../assets/images/Web3Health.png')} // Make sure this path is correct
                     style={styles.brandLogo} 
                 />
-                <Text style={styles.brandText}>Web3Health</Text>
+                <Text style={styles.Web}>Web3</Text>
+                <Text style={styles.Health}>Health</Text>
             </TouchableOpacity>
             <View style={styles.nav}>
                 {isSignedIn ? (
@@ -34,10 +35,10 @@ export const Navbar: React.FC = () => {
                 ) : (
                     <>
                         <TouchableOpacity onPress={() => router.push('/login')}>
-                            <Text style={styles.navLink}>Sign In</Text>
+                            <Text style={[styles.loginButton, { backgroundColor: '#B22222',color: 'rgba(255, 255, 255, 0.85)', }]}>Sign In</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => router.push('/register')}>
-                            <Text style={styles.navLink}>Register</Text>
+                            <Text style={[styles.loginButton, { backgroundColor: 'white' }]}>Register</Text>
                         </TouchableOpacity>
                     </>
                 )}
@@ -58,8 +59,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: palette.light.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: palette.light.border,
   },
   brand: {
     flexDirection: 'row',
@@ -67,13 +66,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   brandLogo: {
-    width: 28,
-    height: 28,
+    width: 35,
+    height: 35,
   },
-  brandText: {
+  Health: {
+    marginLeft: -7,
     fontWeight: '700',
     fontSize: 16,
     color: Colors.light.text,
+  },
+  Web: {
+    fontWeight: '700',
+    fontSize: 16,
+    color: '#B22222',
   },
   nav: {
     flexDirection: 'row',
@@ -84,6 +89,16 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     fontWeight: '600',
     fontSize: 16,
+  },
+  loginButton: {
+    fontWeight: '600',
+    fontSize: 16, 
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical:10,
+    borderRadius: 10,
+
   },
   logoutBtn: {
     color: Colors.light.text,
