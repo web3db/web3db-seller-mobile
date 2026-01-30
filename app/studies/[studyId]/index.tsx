@@ -11,6 +11,8 @@ import {
   Platform,
   Animated,
   ActivityIndicator,
+  Share,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getPostingShares } from "../../services/postings/api";
@@ -41,8 +43,171 @@ export default function StudyDetail() {
   const [expandedShares, setExpandedShares] = useState<Record<number, boolean>>(
     {}
   );
+  const [csvDownloading, setCsvDownloading] = useState(false);
 
   const { user } = useAuth();
+
+  /** Escape a CSV field (quote if contains comma, newline, or quote). */
+  function escapeCsvField(value: string | number | null | undefined): string {
+    const s = value === null || value === undefined ? "" : String(value);
+    if (/[",\r\n]/.test(s)) {
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+  }
+
+  /** Build CSV string from shares data (one row per metric, flattened). */
+  function buildSharesCsv(
+    postingId: number | string,
+    postingTitle: string,
+    shares: any[]
+  ): string {
+    const headers = [
+      "Study ID",
+      "Study Title",
+      "User",
+      "User ID",
+      "Session ID",
+      "Status",
+      "Segment ID",
+      "Day",
+      "Segment From",
+      "Segment To",
+      "Metric",
+      "Unit",
+      "Avg",
+      "Min",
+      "Max",
+      "Total",
+      "Samples",
+    ];
+    const rows: string[][] = [headers.map(escapeCsvField)];
+
+    for (const sh of shares) {
+      const segs = sh.segments ?? [];
+      for (const seg of segs) {
+        const metrics = seg.metrics ?? [];
+        const fromStr = seg.fromUtc
+          ? formatUtcToLocal(seg.fromUtc)
+          : "";
+        const toStr = seg.toUtc ? formatUtcToLocal(seg.toUtc) : "";
+        for (const m of metrics) {
+          rows.push(
+            [
+              postingId,
+              postingTitle,
+              sh.userDisplayName ?? "",
+              sh.userId ?? "",
+              sh.sessionId ?? "",
+              sh.statusName ?? "",
+              seg.segmentId ?? "",
+              seg.dayIndex ?? "",
+              fromStr,
+              toStr,
+              m.metricName ?? "",
+              m.unitCode ?? "",
+              formatMetricValue(m.avgValue),
+              formatMetricValue(m.minValue),
+              formatMetricValue(m.maxValue),
+              formatMetricValue(m.totalValue),
+              m.samplesCount ?? "",
+            ].map(escapeCsvField)
+          );
+        }
+        if (metrics.length === 0) {
+          rows.push(
+            [
+              postingId,
+              postingTitle,
+              sh.userDisplayName ?? "",
+              sh.userId ?? "",
+              sh.sessionId ?? "",
+              sh.statusName ?? "",
+              seg.segmentId ?? "",
+              seg.dayIndex ?? "",
+              fromStr,
+              toStr,
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+            ].map(escapeCsvField)
+          );
+        }
+      }
+      if (segs.length === 0) {
+        rows.push(
+          [
+            postingId,
+            postingTitle,
+            sh.userDisplayName ?? "",
+            sh.userId ?? "",
+            sh.sessionId ?? "",
+            sh.statusName ?? "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+          ].map(escapeCsvField)
+        );
+      }
+    }
+
+    return rows.map((r) => r.join(",")).join("\r\n");
+  }
+
+  async function handleDownloadCsv() {
+    if (!sharesData?.shares || sharesData.shares.length === 0) {
+      Alert.alert(
+        "No data",
+        "There is no share data available to download for this study."
+      );
+      return;
+    }
+    setCsvDownloading(true);
+    try {
+      const postingId = sharesData.postingId ?? study?.postingId ?? studyId;
+      const postingTitle =
+        sharesData.postingTitle ?? study?.title ?? "Study";
+      const csv = buildSharesCsv(
+        postingId,
+        postingTitle,
+        sharesData.shares
+      );
+
+      if (Platform.OS === "web") {
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `study-${postingId}-data.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+      } else {
+        await Share.share({
+          message: csv,
+          title: "Study Data",
+        });
+      }
+    } catch (err: any) {
+      Alert.alert(
+        "Download failed",
+        err?.message ?? "Could not download CSV"
+      );
+    } finally {
+      setCsvDownloading(false);
+    }
+  }
 
   function formatUtcToLocal(utc?: string) {
     if (!utc) return "-";
@@ -524,6 +689,20 @@ export default function StudyDetail() {
               </TouchableOpacity>
 
               <TouchableOpacity
+                style={[styles.btn, styles.btnSecondary]}
+                onPress={handleDownloadCsv}
+                disabled={csvDownloading}
+              >
+                {csvDownloading ? (
+                  <ActivityIndicator size="small" color={Colors.light.tint} />
+                ) : (
+                  <Text style={styles.btnSecondaryText}>
+                    Download Data as CSV
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 style={[styles.btn, styles.btnGhost]}
                 onPress={() => router.back()}
               >
@@ -660,6 +839,12 @@ const styles = StyleSheet.create({
   },
   btnPrimary: { backgroundColor: Colors.light.tint },
   btnPrimaryText: { color: Colors.light.background, fontWeight: "700" },
+  btnSecondary: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: Colors.light.tint,
+  },
+  btnSecondaryText: { color: Colors.light.tint, fontWeight: "600" },
   btnGhost: {
     backgroundColor: "transparent",
     borderWidth: 1,
