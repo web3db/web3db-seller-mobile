@@ -7,6 +7,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   useWindowDimensions,
   Platform,
   Animated,
@@ -44,6 +45,15 @@ export default function StudyDetail() {
     {}
   );
   const [csvDownloading, setCsvDownloading] = useState(false);
+  /** Per-metric chart data: dates (X) and average value per date (Y). */
+  const [metricCharts, setMetricCharts] = useState<
+    { metricId: number; metricName: string; dates: string[]; averages: number[] }[]
+  >([]);
+  /** Active bar for hover/press: show value and expand. */
+  const [activeBar, setActiveBar] = useState<{
+    metricId: number;
+    date: string;
+  } | null>(null);
 
   const { user } = useAuth();
 
@@ -244,6 +254,60 @@ export default function StudyDetail() {
     return valueString;
   }
 
+  /** Returns a "nice" Y-axis ceiling (1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, …). */
+  function niceYCeiling(maxVal: number): number {
+    if (maxVal <= 0) return 1;
+    const exp = Math.floor(Math.log10(maxVal));
+    const magnitude = Math.pow(10, exp);
+    const normalized = maxVal / magnitude;
+    if (normalized <= 1) return 1 * magnitude;
+    if (normalized <= 2) return 2 * magnitude;
+    if (normalized <= 5) return 5 * magnitude;
+    return 10 * magnitude;
+  }
+
+  /**
+   * For a given metric, groups shares data by date.
+   * Returns JSON in the form { [date]: list of data }.
+   * Date key is YYYY-MM-DD from segment.fromUtc when present, otherwise "day-{dayIndex}".
+   * Each list item includes the metric values plus segment/session context.
+   */
+  function groupMetricDataByDate(
+    shares: any[],
+    metric: number | string
+  ): Record<string, any[]> {
+    const byDate: Record<string, any[]> = {};
+    const matchByMetricId = typeof metric === "number";
+    for (const sh of shares ?? []) {
+      const segs = sh.segments ?? [];
+      for (const seg of segs) {
+        const dateKey = seg.fromUtc
+          ? new Date(seg.fromUtc).toISOString().slice(0, 10)
+          : `day-${seg.dayIndex ?? "?"}`;
+        const metrics = seg.metrics ?? [];
+        for (const m of metrics) {
+          const matches =
+            matchByMetricId
+              ? (m.metricId ?? m.metric_id) === metric
+              : (m.metricName ?? m.metric_name ?? "").toString() === String(metric);
+          if (!matches) continue;
+          if (!byDate[dateKey]) byDate[dateKey] = [];
+          byDate[dateKey].push({
+            ...m,
+            userId: sh.userId,
+            userDisplayName: sh.userDisplayName,
+            sessionId: sh.sessionId,
+            segmentId: seg.segmentId,
+            dayIndex: seg.dayIndex,
+            fromUtc: seg.fromUtc,
+            toUtc: seg.toUtc,
+          });
+        }
+      }
+    }
+    return byDate;
+  }
+
   function toggleShareExpand(idx: number) {
     setExpandedShares((prev) => ({ ...prev, [idx]: !prev[idx] }));
   }
@@ -320,6 +384,44 @@ export default function StudyDetail() {
     }
     void fetchShares();
   }, [studyId]);
+
+  // After shares are loaded, group each metric by date, log to console, and build chart data
+  useEffect(() => {
+    if (!sharesData?.shares?.length) {
+      setMetricCharts([]);
+      return;
+    }
+    const shares = sharesData.shares;
+    const metricsSeen = new Map<number, string>();
+    for (const sh of shares) {
+      for (const seg of sh.segments ?? []) {
+        for (const m of seg.metrics ?? []) {
+          const id = m.metricId ?? (m as any).metric_id;
+          const name = m.metricName ?? (m as any).metric_name ?? `Metric ${id}`;
+          if (id != null && !metricsSeen.has(id)) metricsSeen.set(id, name);
+        }
+      }
+    }
+    const charts: { metricId: number; metricName: string; dates: string[]; averages: number[] }[] = [];
+    for (const [metricId, metricName] of metricsSeen) {
+      const byDate = groupMetricDataByDate(shares, metricId);
+      const dates = Object.keys(byDate).sort();
+      const data: Record<string, number[]> = {};
+      for (const date of dates) {
+        const arr = byDate[date] ?? [];
+        data[date] = arr.map(
+          (d: any) => d.totalValue ?? d.total ?? d.total_value ?? 0
+        );
+      }
+      console.log(`[Metric ${metricId}] ${metricName}:`, { dates, data });
+      const averages = dates.map(
+        (d) =>
+          (data[d].reduce((a, b) => a + b, 0) / (data[d].length || 1))
+      );
+      charts.push({ metricId, metricName, dates, averages });
+    }
+    setMetricCharts(charts);
+  }, [sharesData]);
 
   if (!studyId) {
     return (
@@ -477,6 +579,138 @@ export default function StudyDetail() {
                 ))
               )}
             </View> */}
+
+            <Text style={[styles.label, { marginTop: 12 }]}>
+              Metric trends
+            </Text>
+            {metricCharts.length === 0 && !sharesLoading && sharesData?.shares?.length > 0 ? (
+              <Text style={styles.muted}>No metric data to chart</Text>
+            ) : (
+              <View style={styles.chartsContainer}>
+                {metricCharts.map((chart) => {
+                  const maxAvg =
+                    Math.max(...chart.averages, 0) || 1;
+                  const yMax = niceYCeiling(maxAvg);
+                  const chartHeight = 200;
+                  const yTicks = [
+                    yMax,
+                    (3 * yMax) / 4,
+                    yMax / 2,
+                    yMax / 4,
+                    0,
+                  ];
+                  return (
+                    <View
+                      key={chart.metricId}
+                      style={styles.chartCard}
+                    >
+                      <Text style={styles.chartTitle}>
+                        {chart.metricName}
+                      </Text>
+                      <View style={[styles.chartRow, { height: chartHeight + 28 }]}>
+                        <View style={[styles.chartYAxis, { height: chartHeight }]}>
+                          {yTicks.map((tick, ti) => (
+                            <View
+                              key={ti}
+                              style={[
+                                styles.chartYAxisTick,
+                                ti === 0 && styles.chartYAxisTickFirst,
+                                ti === 4 && styles.chartYAxisTickLast,
+                              ]}
+                            >
+                              <Text style={styles.chartYAxisLabel}>
+                                {Number.isInteger(tick)
+                                  ? String(tick)
+                                  : tick.toFixed(1)}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                        <View style={styles.chartBars}>
+                          {chart.dates.map((date, i) => {
+                            const avg = chart.averages[i] ?? 0;
+                            const barHeight =
+                              yMax > 0
+                                ? (avg / yMax) * chartHeight
+                                : 0;
+                            const isActive =
+                              activeBar?.metricId === chart.metricId &&
+                              activeBar?.date === date;
+                            const barScale = isActive ? 1.1 : 1;
+                            return (
+                              <Pressable
+                                key={date}
+                                style={styles.chartBarWrapper}
+                                onPressIn={() =>
+                                  setActiveBar({
+                                    metricId: chart.metricId,
+                                    date,
+                                  })
+                                }
+                                onPressOut={() => setActiveBar(null)}
+                                {...(Platform.OS === "web"
+                                  ? ({
+                                      onMouseEnter: () =>
+                                        setActiveBar({
+                                          metricId: chart.metricId,
+                                          date,
+                                        }),
+                                      onMouseLeave: () =>
+                                        setActiveBar(null),
+                                    } as any)
+                                  : {})}
+                              >
+                                <View
+                                  style={[
+                                    styles.chartBar,
+                                    { height: chartHeight },
+                                  ]}
+                                >
+                                  <View style={styles.chartBarValueSlot}>
+                                    {isActive && (
+                                      <Text
+                                        style={styles.chartBarValue}
+                                        numberOfLines={1}
+                                      >
+                                        {Number.isInteger(avg)
+                                          ? String(avg)
+                                          : avg.toFixed(1)}
+                                      </Text>
+                                    )}
+                                  </View>
+                                  <View style={{ flex: 1 }} />
+                                  <View
+                                    style={[
+                                      styles.chartBarFill,
+                                      {
+                                        height: Math.max(
+                                          barHeight,
+                                          avg > 0 ? 4 : 0
+                                        ),
+                                        transform: [
+                                          { scaleX: barScale },
+                                          { scaleY: barScale },
+                                        ],
+                                      },
+                                    ]}
+                                  />
+                                </View>
+                                <Text
+                                  style={styles.chartBarLabel}
+                                  numberOfLines={1}
+                                >
+                                  {date}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
 
             <Text style={[styles.label, { marginTop: 12 }]}>
               Participant Shares
@@ -985,5 +1219,89 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     color: Colors.light.text,
+  },
+
+  chartsContainer: {
+    marginTop: 8,
+    gap: 24,
+  },
+  chartCard: {
+    padding: 12,
+    backgroundColor: palette.light.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: palette.light.muted,
+  },
+  chartTitle: {
+    fontWeight: "700",
+    fontSize: 15,
+    marginBottom: 8,
+    color: Colors.light.text,
+  },
+  chartRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  chartYAxis: {
+    width: 40,
+    justifyContent: "space-between",
+    paddingRight: 8,
+    borderRightWidth: 1,
+    borderRightColor: palette.light.muted,
+  },
+  chartYAxisTick: {
+    height: 20,
+    justifyContent: "center",
+  },
+  chartYAxisTickFirst: {
+    justifyContent: "flex-start",
+  },
+  chartYAxisTickLast: {
+    justifyContent: "flex-end",
+  },
+  chartYAxisLabel: {
+    fontSize: 11,
+    color: palette.light.text.muted,
+  },
+  chartBars: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    flex: 1,
+    paddingHorizontal: 4,
+  },
+  chartBarWrapper: {
+    flex: 1,
+    alignItems: "center",
+    minWidth: 40,
+  },
+  chartBar: {
+    width: "70%",
+    maxWidth: 48,
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+  chartBarFill: {
+    width: "100%",
+    backgroundColor: palette.light.primary,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+  },
+  chartBarValueSlot: {
+    minHeight: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  chartBarValue: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: palette.light.primary,
+  },
+  chartBarLabel: {
+    marginTop: 6,
+    fontSize: 10,
+    color: palette.light.text.muted,
+    textAlign: "center",
   },
 });
