@@ -323,7 +323,9 @@ export default function StudyDetail() {
           "../../services/postings/api"
         );
         const buyerId = user?.id ? Number(user.id) : -1;
+        // console.log("[StudyDetail] auth user (used as buyerId):", { user, buyerId });
         const detail = await getTrnPostingDetail(buyerId, studyId);
+        // console.log("[StudyDetail] getTrnPostingDetail return value:", detail);
 
         setStudy(detail);
       } catch (err: any) {
@@ -373,6 +375,7 @@ export default function StudyDetail() {
         // HARD CODED TO 9001 TO GET DATA
         const res = await getPostingShares(Number(studyId));
         //const res = await getPostingShares(9001);
+        console.log("[StudyDetail] getPostingShares return value:", res);
         // save full response (postingId, postingTitle, shares[])
         setSharesData(res);
       } catch (err: any) {
@@ -482,48 +485,75 @@ export default function StudyDetail() {
               isNarrow ? styles.fullWidth : styles.leftColumn,
             ]}
           >
-            <Text style={styles.heading}>Study Details</Text>
+            <View style={styles.detailHero}>
+              <Text style={styles.detailHeroLabel}>Study Details</Text>
+              <Text style={styles.detailHeroTitle}>{study.title}</Text>
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusBadgeText}>
+                  {study.postingStatusDisplayName}
+                </Text>
+              </View>
+            </View>
 
-            <Text style={styles.label}>Title</Text>
-            <Text style={styles.value}>{study.title}</Text>
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Overview</Text>
+              <Text style={styles.detailSummary}>{study.summary}</Text>
+              <Text style={[styles.detailDescription, styles.multilineValue]}>
+                {study.description}
+              </Text>
+            </View>
 
-            <Text style={styles.label}>Summary</Text>
-            <Text style={styles.value}>{study.summary}</Text>
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Eligibility</Text>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Min Age</Text>
+                <Text style={styles.infoValue}>{study.minAge}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Data Coverage Days Required</Text>
+                <Text style={styles.infoValue}>
+                  {study.dataCoverageDaysRequired ?? "-"}
+                </Text>
+              </View>
+            </View>
 
-            <Text style={styles.label}>Description</Text>
-            <Text style={[styles.value, styles.multilineValue]}>
-              {study.description}
-            </Text>
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Application Window</Text>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Apply Open At</Text>
+                <Text style={styles.infoValue}>
+                  {study.applyOpenAt ? formatUtcToLocal(study.applyOpenAt) : "-"}
+                </Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Apply Close At</Text>
+                <Text style={styles.infoValue}>
+                  {study.applyCloseAt
+                    ? formatUtcToLocal(study.applyCloseAt)
+                    : "-"}
+                </Text>
+              </View>
+            </View>
 
-            <Text style={styles.label}>Status</Text>
-            <Text style={styles.value}>{study.postingStatusDisplayName}</Text>
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Reward</Text>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Type</Text>
+                <Text style={styles.infoValue}>
+                  {study.rewardTypeDisplayName ?? "-"}
+                </Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Value</Text>
+                <Text style={styles.infoValue}>
+                  {study.rewardValue !== null ? study.rewardValue : "-"}
+                </Text>
+              </View>
+            </View>
 
-            <Text style={styles.label}>Min Age</Text>
-            <Text style={styles.value}>{study.minAge}</Text>
-
-            <Text style={styles.label}>Data Coverage Days Required</Text>
-            <Text style={styles.value}>
-              {study.dataCoverageDaysRequired ?? "-"}
-            </Text>
-
-            <Text style={styles.label}>Apply Open At</Text>
-            <Text style={styles.value}>{study.applyOpenAt ?? "-"}</Text>
-
-            <Text style={styles.label}>Apply Close At</Text>
-            <Text style={styles.value}>{study.applyCloseAt ?? "-"}</Text>
-
-            <Text style={styles.label}>Reward Type</Text>
-            <Text style={styles.value}>
-              {study.rewardTypeDisplayName ?? "-"}
-            </Text>
-
-            <Text style={styles.label}>Reward Value</Text>
-            <Text style={styles.value}>
-              {study.rewardValue !== null ? study.rewardValue : "-"}
-            </Text>
-
-            <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
-            <View style={styles.participantsList}>
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Metrics</Text>
+              <View style={styles.tagList}>
               {!study.metricDisplayName ||
               study.metricDisplayName.length === 0 ? (
                 <Text style={styles.muted}>No metrics</Text>
@@ -531,41 +561,45 @@ export default function StudyDetail() {
                 study.metricDisplayName.map((m, i) => (
                   <View
                     key={study.metricId![i] + "-" + i}
-                    style={styles.participantRow}
+                    style={styles.tagPill}
                   >
-                    <Text>{m}</Text>
+                    <Text style={styles.tagPillText}>{m}</Text>
                   </View>
                 ))
               )}
+              </View>
             </View>
 
-            <Text style={[styles.label, { marginTop: 12 }]}>
-              Health Conditions
-            </Text>
-            <View style={styles.participantsList}>
-              {!study.healthConditions ||
-              study.healthConditions.length === 0 ? (
-                <Text style={styles.muted}>No conditions</Text>
-              ) : (
-                study.healthConditions.map((c, i) => (
-                  <View key={c.id + "-" + i} style={styles.participantRow}>
-                    <Text>{c.displayName}</Text>
-                  </View>
-                ))
-              )}
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Health Conditions</Text>
+              <View style={styles.tagList}>
+                {!study.healthConditions ||
+                study.healthConditions.length === 0 ? (
+                  <Text style={styles.muted}>No conditions</Text>
+                ) : (
+                  study.healthConditions.map((c, i) => (
+                    <View key={c.id + "-" + i} style={styles.tagPill}>
+                      <Text style={styles.tagPillText}>{c.displayName}</Text>
+                    </View>
+                  ))
+                )}
+              </View>
             </View>
 
-            <Text style={styles.label}>Buyer</Text>
-            <Text style={styles.value}>{study.buyerDisplayName}</Text>
-
-            <Text style={styles.label}>Study ID</Text>
-            <Text style={styles.value}>{study.postingId}</Text>
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Study Info</Text>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Buyer</Text>
+                <Text style={styles.infoValue}>{study.buyerDisplayName}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Modified On</Text>
+                <Text style={styles.infoValue}>{study.modifiedOn ?? "-"}</Text>
+              </View>
+            </View>
 
             {/* <Text style={styles.label}>Created On</Text>
             <Text style={styles.value}>{study.createdOn ?? "-"}</Text> */}
-
-            <Text style={styles.label}>Modified On</Text>
-            <Text style={styles.value}>{study.modifiedOn ?? "-"}</Text>
 
             {/* <Text style={[styles.label, { marginTop: 12 }]}>Tags</Text>
             <View style={styles.participantsList}>
@@ -580,9 +614,8 @@ export default function StudyDetail() {
               )}
             </View> */}
 
-            <Text style={[styles.label, { marginTop: 12 }]}>
-              Metric trends
-            </Text>
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Metric Trends</Text>
             {metricCharts.length === 0 && !sharesLoading && sharesData?.shares?.length > 0 ? (
               <Text style={styles.muted}>No metric data to chart</Text>
             ) : (
@@ -711,10 +744,10 @@ export default function StudyDetail() {
                 })}
               </View>
             )}
+            </View>
 
-            <Text style={[styles.label, { marginTop: 12 }]}>
-              Participant Shares
-            </Text>
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Participant Shares</Text>
 
             {sharesLoading ? (
               <ActivityIndicator />
@@ -911,6 +944,7 @@ export default function StudyDetail() {
                 ))}
               </View>
             )}
+            </View>
 
             <View style={styles.formActions}>
               <TouchableOpacity
@@ -979,11 +1013,6 @@ export default function StudyDetail() {
               <Text style={styles.metaLabel}>Buyer</Text>
               <Text style={styles.metaValue}>{study.buyerDisplayName}</Text>
             </View>
-
-            <View style={styles.metaBlock}>
-              <Text style={styles.metaLabel}>Study ID</Text>
-              <Text style={styles.metaValue}>{study.postingId}</Text>
-            </View>
           </View>
         </View>
       </ScrollView>
@@ -994,7 +1023,11 @@ export default function StudyDetail() {
 // Styles: intentionally matches manage.tsx for consistent layout
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.light.background },
-  scrollContainer: { padding: 16, paddingBottom: 48 },
+  scrollContainer: {
+    padding: 20,
+    paddingBottom: 48,
+    backgroundColor: palette.light.surface,
+  },
   banner: {
     backgroundColor: palette.light.success,
     borderColor: palette.light.success,
@@ -1020,19 +1053,22 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: Colors.light.background,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 24,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.06)",
+    borderColor: palette.light.border,
+    overflow: "hidden",
     ...Platform.select({
       ios: {
-        shadowColor: Colors.light.text,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
       },
-      android: { elevation: 3 },
-      default: {},
+      android: { elevation: 4 },
+      default: {
+        boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+      },
     }),
   },
 
@@ -1042,6 +1078,108 @@ const styles = StyleSheet.create({
   fullWidth: { width: "100%" },
 
   heading: { fontSize: 20, fontWeight: "700", marginBottom: 8 },
+
+  /* Beautified Study Details */
+  detailHero: {
+    marginBottom: 24,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: palette.light.muted,
+  },
+  detailHeroLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: palette.light.primary,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  detailHeroTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: Colors.light.text,
+    lineHeight: 32,
+    marginBottom: 12,
+  },
+  statusBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: palette.light.muted,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  statusBadgeText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: palette.light.text.secondary,
+  },
+  detailSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: palette.light.text.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  detailSummary: {
+    fontSize: 16,
+    color: palette.light.text.secondary,
+    lineHeight: 24,
+  },
+  detailDescription: {
+    fontSize: 15,
+    color: Colors.light.text,
+    lineHeight: 22,
+    marginTop: 8,
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: palette.light.surface,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: palette.light.text.muted,
+    flex: 1,
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.light.text,
+    flex: 1,
+    flexShrink: 1,
+    textAlign: "right",
+    marginLeft: 12,
+  },
+  tagList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  tagPill: {
+    backgroundColor: palette.light.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: palette.light.muted,
+  },
+  tagPillText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: Colors.light.text,
+  },
+
   label: {
     fontSize: 14,
     marginTop: 8,
@@ -1087,19 +1225,28 @@ const styles = StyleSheet.create({
   btnGhostText: { color: Colors.light.text, fontWeight: "600" },
 
   /* Stats */
-  statHeading: { fontSize: 16, fontWeight: "700", marginBottom: 12 },
-  statRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
+  statHeading: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 16,
+    color: Colors.light.text,
+  },
+  statRow: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
   statBox: {
     flex: 1,
     backgroundColor: palette.light.surface,
-    borderRadius: 10,
-    paddingVertical: 18,
+    borderRadius: 12,
+    paddingVertical: 20,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.04)",
+    borderColor: palette.light.border,
     textAlign: "center",
   },
-  statNumber: { fontSize: 28, fontWeight: "800" },
+  statNumber: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: palette.light.primary,
+  },
   statLabel: {
     color: palette.light.text.muted,
     marginTop: 6,
