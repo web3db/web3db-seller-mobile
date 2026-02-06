@@ -534,9 +534,11 @@ export async function getPostingShares(
 
   const anyJson: any = json;
 
-  return {
+  const result: PostingSharesResponse = {
     postingId: Number(anyJson.postingId ?? postingId),
     postingTitle: String(anyJson.postingTitle ?? ""),
     shares: Array.isArray(anyJson.shares) ? anyJson.shares : [],
   };
+  // console.log("[getPostingShares] Participant shares response:", result);
+  return result;
 }
