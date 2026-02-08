@@ -266,6 +266,172 @@ export default function StudyDetail() {
     return 10 * magnitude;
   }
 
+  /** Format bucket time for x-axis label (time only). */
+  function formatBucketTime(iso: string): string {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "";
+    }
+  }
+
+  /**
+   * Line chart for computedJson.buckets: value over time.
+   * Buckets: { start, end, value }[].
+   */
+  function BucketsLineChart({
+    buckets,
+    metricName,
+    unitCode,
+    chartWidth,
+    chartHeight = 320,
+  }: {
+    buckets: { start: string; end: string; value: number }[];
+    metricName: string;
+    unitCode?: string | null;
+    chartWidth: number;
+    chartHeight?: number;
+  }) {
+    const padding = { left: 44, right: 12, top: 8, bottom: 28 };
+    const plotWidth = chartWidth - padding.left - padding.right;
+    const plotHeight = chartHeight - padding.top - padding.bottom;
+
+    const points = React.useMemo(() => {
+      const list = buckets
+        .map((b) => {
+          const t = new Date(b.start).getTime();
+          const v = Number(b.value);
+          if (Number.isNaN(t) || Number.isNaN(v)) return null;
+          return { t, v };
+        })
+        .filter((p): p is { t: number; v: number } => p != null);
+      list.sort((a, b) => a.t - b.t);
+      return list;
+    }, [buckets]);
+
+    const { tMin, tMax, vMin, vMax } = React.useMemo(() => {
+      if (points.length === 0)
+        return { tMin: 0, tMax: 1, vMin: 0, vMax: 1 };
+      const ts = points.map((p) => p.t);
+      const vs = points.map((p) => p.v);
+      return {
+        tMin: Math.min(...ts),
+        tMax: Math.max(...ts),
+        vMin: Math.min(...vs),
+        vMax: Math.max(...vs),
+      };
+    }, [points]);
+
+    const tRange = tMax - tMin || 1;
+    const vRange = vMax - vMin || 1;
+
+    const toX = (t: number) =>
+      padding.left + ((t - tMin) / tRange) * plotWidth;
+    const toY = (v: number) =>
+      padding.top + (1 - (v - vMin) / vRange) * plotHeight;
+
+    const segments: { x1: number; y1: number; x2: number; y2: number }[] = [];
+    for (let i = 0; i < points.length - 1; i++) {
+      segments.push({
+        x1: toX(points[i].t),
+        y1: toY(points[i].v),
+        x2: toX(points[i + 1].t),
+        y2: toY(points[i + 1].v),
+      });
+    }
+
+    return (
+      <View style={[styles.bucketsChartCard, { width: chartWidth }]}>
+        <Text style={styles.bucketsChartTitle}>
+          {metricName}
+          {unitCode ? ` (${unitCode})` : ""} — over time
+        </Text>
+        <View style={[styles.bucketsChartPlot, { width: chartWidth, height: chartHeight }]}>
+          {/* Y-axis labels */}
+          <View
+            style={[
+              styles.bucketsChartYAxis,
+              { left: 0, top: 0, height: chartHeight, width: padding.left },
+            ]}
+          >
+            <Text style={styles.bucketsChartAxisLabel} numberOfLines={1}>
+              {vMax === vMin ? String(vMax) : Number.isInteger(vMax) ? String(vMax) : vMax.toFixed(1)}
+            </Text>
+            <Text style={[styles.bucketsChartAxisLabel, { marginTop: "auto" }]} numberOfLines={1}>
+              {vMax === vMin ? String(vMin) : Number.isInteger(vMin) ? String(vMin) : vMin.toFixed(1)}
+            </Text>
+          </View>
+          {/* Line segments */}
+          {segments.map((seg, idx) => {
+            const dx = seg.x2 - seg.x1;
+            const dy = seg.y2 - seg.y1;
+            const length = Math.sqrt(dx * dx + dy * dy) || 1;
+            const angle = Math.atan2(dy, dx);
+            const centerX = (seg.x1 + seg.x2) / 2;
+            const centerY = (seg.y1 + seg.y2) / 2;
+            return (
+              <View
+                key={idx}
+                style={[
+                  styles.bucketsChartLineSegment,
+                  {
+                    position: "absolute",
+                    left: centerX - length / 2,
+                    top: centerY - 1,
+                    width: length,
+                    height: 2,
+                    transform: [{ rotate: `${angle}rad` }],
+                  },
+                ]}
+              />
+            );
+          })}
+          {/* Dots at each point */}
+          {points.map((p, idx) => (
+            <View
+              key={idx}
+              style={[
+                styles.bucketsChartDot,
+                {
+                  position: "absolute",
+                  left: toX(p.t) - 4,
+                  top: toY(p.v) - 4,
+                },
+              ]}
+            />
+          ))}
+          {/* X-axis labels */}
+          {points.length > 0 && (
+            <>
+              <Text
+                style={[
+                  styles.bucketsChartXLabel,
+                  { left: padding.left, bottom: 4 },
+                ]}
+                numberOfLines={1}
+              >
+                {formatBucketTime(buckets[0].start)}
+              </Text>
+              <Text
+                style={[
+                  styles.bucketsChartXLabel,
+                  { right: padding.right, bottom: 4, left: undefined },
+                ]}
+                numberOfLines={1}
+              >
+                {formatBucketTime(buckets[buckets.length - 1].end)}
+              </Text>
+            </>
+          )}
+        </View>
+      </View>
+    );
+  }
+
   /**
    * For a given metric, groups shares data by date.
    * Returns JSON in the form { [date]: list of data }.
@@ -412,9 +578,12 @@ export default function StudyDetail() {
       const data: Record<string, number[]> = {};
       for (const date of dates) {
         const arr = byDate[date] ?? [];
-        data[date] = arr.map(
-          (d: any) => d.totalValue ?? d.total ?? d.total_value ?? 0
-        );
+        data[date] = arr.map((d: any) => {
+          const total = d.totalValue ?? d.total ?? d.total_value;
+          if (total != null && !Number.isNaN(Number(total))) return Number(total);
+          const avg = d.avgValue ?? d.avg_value;
+          return (avg != null && !Number.isNaN(Number(avg))) ? Number(avg) : 0;
+        });
       }
       console.log(`[Metric ${metricId}] ${metricName}:`, { dates, data });
       const averages = dates.map(
@@ -757,9 +926,26 @@ export default function StudyDetail() {
               <Text style={styles.muted}>No shares available</Text>
             ) : (
               <View style={{ marginTop: 8 }}>
-                {sharesData.shares.map((sh: any, i: number) => (
+                {sharesData.shares.map((sh: any, i: number) => {
+                  const meta = sh.participantMeta ?? {};
+                  const raceName = meta.race?.name ?? "";
+                  const sexName = meta.sex?.name ?? "";
+                  const heightVal = meta.height;
+                  const heightStr =
+                    heightVal != null && heightVal.value != null
+                      ? `${heightVal.value} ${heightVal.displayName ?? ""}`.trim()
+                      : "";
+                  const weightVal = meta.weight;
+                  const weightStr =
+                    weightVal != null && weightVal.value != null
+                      ? `${weightVal.value} ${weightVal.displayName ?? ""}`.trim()
+                      : "";
+                  const participantId = sh.participantId ?? sh.userId ?? "-";
+                  const metaParts = [raceName, sexName, heightStr, weightStr].filter(Boolean);
+                  const metaLine = metaParts.length > 0 ? metaParts.join(" · ") : null;
+                  return (
                   <View
-                    key={(sh.userId ?? sh.sessionId ?? i) + "-" + i}
+                    key={(sh.participantId ?? sh.userId ?? sh.sessionId ?? i) + "-" + i}
                     style={styles.shareBox}
                   >
                     <TouchableOpacity
@@ -768,11 +954,16 @@ export default function StudyDetail() {
                     >
                       <View>
                         <Text style={styles.shareTitle}>
-                          {sh.userDisplayName ?? `User ${sh.userId ?? "-"}`}
+                          User — {participantId}
                         </Text>
                         <Text style={styles.shareSubtitle}>
-                          Session: {sh.sessionId ?? "-"} · {sh.statusName ?? ""}
+                          Session: {sh.sessionNumber ?? sh.sessionId ?? "-"} · {sh.statusName ?? ""}
                         </Text>
+                        {metaLine ? (
+                          <Text style={styles.shareSubtitle}>
+                            {metaLine}
+                          </Text>
+                        ) : null}
                       </View>
                       <Text style={styles.shareChevron}>
                         {expandedShares[i] ? "▴" : "▾"}
@@ -790,8 +981,8 @@ export default function StudyDetail() {
                               style={styles.segmentBox}
                             >
                               <Text style={styles.segmentHeader}>
-                                Segment {seg.segmentId ?? si} — Day{" "}
-                                {seg.dayIndex ?? "-"}
+                                Segment {seg.segmentNumber ?? seg.segmentId ?? si} — Day{" "}
+                                {seg.dayNumber ?? seg.dayIndex ?? "-"}
                               </Text>
                               <Text style={styles.segmentSubheader}>
                                 From: {formatUtcToLocal(seg.fromUtc)} · To:{" "}
@@ -935,13 +1126,40 @@ export default function StudyDetail() {
                                   ))}
                                 </View>
                               )}
+                              {seg.metrics?.map((m: any, mi: number) => {
+                                const buckets = m.computedJson?.buckets;
+                                if (!Array.isArray(buckets) || buckets.length === 0) return null;
+                                const minWidthPerPoint = 12;
+                                const widthFromPoints = buckets.length * minWidthPerPoint;
+                                const chartWidth = Math.max(
+                                  Math.max(320, Math.min(width - 48, 900)),
+                                  widthFromPoints
+                                );
+                                return (
+                                  <ScrollView
+                                    key={(m.metricId ?? mi) + "-buckets-scroll"}
+                                    horizontal
+                                    showsHorizontalScrollIndicator
+                                    style={styles.bucketsChartScroll}
+                                    contentContainerStyle={styles.bucketsChartScrollContent}
+                                  >
+                                    <BucketsLineChart
+                                      key={(m.metricId ?? mi) + "-buckets"}
+                                      buckets={buckets}
+                                      metricName={m.metricName ?? `Metric ${m.metricId}`}
+                                      unitCode={m.unitCode}
+                                      chartWidth={chartWidth}
+                                    />
+                                  </ScrollView>
+                                );
+                              })}
                             </View>
                           ))
                         )}
                       </View>
                     )}
                   </View>
-                ))}
+                ); })}
               </View>
             )}
             </View>
@@ -1450,5 +1668,53 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: palette.light.text.muted,
     textAlign: "center",
+  },
+
+  bucketsChartScroll: {
+    marginTop: 12,
+    width: "100%",
+  },
+  bucketsChartScrollContent: {
+    flexGrow: 0,
+  },
+  bucketsChartCard: {
+    marginTop: 0,
+    padding: 10,
+    backgroundColor: Colors.light.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  bucketsChartTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: Colors.light.text,
+    marginBottom: 6,
+  },
+  bucketsChartPlot: {
+    position: "relative",
+  },
+  bucketsChartYAxis: {
+    position: "absolute",
+    justifyContent: "space-between",
+    paddingRight: 4,
+  },
+  bucketsChartAxisLabel: {
+    fontSize: 10,
+    color: palette.light.text.muted,
+  },
+  bucketsChartLineSegment: {
+    backgroundColor: palette.light.primary,
+  },
+  bucketsChartDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: palette.light.primary,
+  },
+  bucketsChartXLabel: {
+    position: "absolute",
+    fontSize: 10,
+    color: palette.light.text.muted,
   },
 });
