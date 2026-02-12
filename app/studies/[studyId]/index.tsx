@@ -66,110 +66,75 @@ export default function StudyDetail() {
     return s;
   }
 
-  /** Build CSV string from shares data (one row per metric, flattened). */
-  function buildSharesCsv(
-    postingId: number | string,
-    postingTitle: string,
-    shares: any[]
-  ): string {
+  /**
+   * Build CSV string from raw bucket data.
+   * One row per bucket across all participants/segments/metrics.
+   * Columns: participant_id,start_time,end_time,metric_name,data
+   */
+  function buildSharesCsv(shares: any[]): string {
     const headers = [
-      "Study ID",
-      "Study Title",
-      "User",
-      "User ID",
-      "Session ID",
-      "Status",
-      "Segment ID",
-      "Day",
-      "Segment From",
-      "Segment To",
-      "Metric",
-      "Unit",
-      "Avg",
-      "Min",
-      "Max",
-      "Total",
-      "Samples",
+      "participant_id",
+      "start_time",
+      "end_time",
+      "metric_name",
+      "data",
     ];
     const rows: string[][] = [headers.map(escapeCsvField)];
 
-    for (const sh of shares) {
+    for (const sh of shares ?? []) {
+      const participantId =
+        sh.participantId ??
+        sh.participant_id ??
+        sh.userId ??
+        sh.user_id ??
+        sh.userDisplayName ??
+        sh.user_display_name ??
+        "";
+
       const segs = sh.segments ?? [];
       for (const seg of segs) {
         const metrics = seg.metrics ?? [];
-        const fromStr = seg.fromUtc
-          ? formatUtcToLocal(seg.fromUtc)
-          : "";
-        const toStr = seg.toUtc ? formatUtcToLocal(seg.toUtc) : "";
         for (const m of metrics) {
-          rows.push(
-            [
-              postingId,
-              postingTitle,
-              sh.userDisplayName ?? "",
-              sh.userId ?? "",
-              sh.sessionId ?? "",
-              sh.statusName ?? "",
-              seg.segmentId ?? "",
-              seg.dayIndex ?? "",
-              fromStr,
-              toStr,
-              m.metricName ?? "",
-              m.unitCode ?? "",
-              formatMetricValue(m.avgValue),
-              formatMetricValue(m.minValue),
-              formatMetricValue(m.maxValue),
-              formatMetricValue(m.totalValue),
-              m.samplesCount ?? "",
-            ].map(escapeCsvField)
-          );
+          const metricName =
+            m.metricName ??
+            m.metric_name ??
+            `Metric ${m.metricId ?? m.metric_id ?? ""}`;
+
+          const buckets =
+            m.computedJson?.buckets ?? m.computed_json?.buckets ?? null;
+          if (!Array.isArray(buckets) || buckets.length === 0) continue;
+
+          for (const b of buckets) {
+            const start =
+              b.start ??
+              b.startUtc ??
+              b.start_utc ??
+              b.from ??
+              b.fromUtc ??
+              b.from_utc ??
+              "";
+            const end =
+              b.end ??
+              b.endUtc ??
+              b.end_utc ??
+              b.to ??
+              b.toUtc ??
+              b.to_utc ??
+              "";
+            const value =
+              b.value ?? b.val ?? b.data ?? "";
+
+            rows.push(
+              [
+                participantId,
+                start,
+                end,
+                metricName,
+                value,
+              ].map(escapeCsvField)
+            );
+          }
         }
-        if (metrics.length === 0) {
-          rows.push(
-            [
-              postingId,
-              postingTitle,
-              sh.userDisplayName ?? "",
-              sh.userId ?? "",
-              sh.sessionId ?? "",
-              sh.statusName ?? "",
-              seg.segmentId ?? "",
-              seg.dayIndex ?? "",
-              fromStr,
-              toStr,
-              "",
-              "",
-              "",
-              "",
-              "",
-              "",
-              "",
-            ].map(escapeCsvField)
-          );
-        }
-      }
-      if (segs.length === 0) {
-        rows.push(
-          [
-            postingId,
-            postingTitle,
-            sh.userDisplayName ?? "",
-            sh.userId ?? "",
-            sh.sessionId ?? "",
-            sh.statusName ?? "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-          ].map(escapeCsvField)
-        );
       }
     }
 
@@ -189,11 +154,7 @@ export default function StudyDetail() {
       const postingId = sharesData.postingId ?? study?.postingId ?? studyId;
       const postingTitle =
         sharesData.postingTitle ?? study?.title ?? "Study";
-      const csv = buildSharesCsv(
-        postingId,
-        postingTitle,
-        sharesData.shares
-      );
+      const csv = buildSharesCsv(sharesData.shares);
 
       if (Platform.OS === "web") {
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -252,6 +213,40 @@ export default function StudyDetail() {
 
     // For integers or numbers with 1-2 decimal places, return as is
     return valueString;
+  }
+
+  /** Returns number of days the study has been open (at least 1), based on start date. */
+  function getStudyExpectedDays(study: StudyDetail | null): number | null {
+    if (!study) return null;
+
+    // Use applyOpenAt as the study start; fall back to createdOn
+    const startIso = study.applyOpenAt ?? study.createdOn;
+    if (!startIso) return null;
+
+    const start = new Date(startIso);
+    const now = new Date();
+    const msPerDay = 24 * 60 * 60 * 1000;
+
+    const diffDays = Math.floor((now.getTime() - start.getTime()) / msPerDay);
+    return Math.max(1, diffDays + 1);
+  }
+
+  /** Each segment is assumed to represent one full day of data. */
+  function getShareCompletedDays(share: any): number {
+    return Array.isArray(share?.segments) ? share.segments.length : 0;
+  }
+
+  /** Aggregates progress info per participant share. */
+  function getShareProgress(study: StudyDetail | null, share: any) {
+    const expected = getStudyExpectedDays(study);
+    if (expected == null) return null;
+
+    const completed = getShareCompletedDays(share);
+    return {
+      completed,
+      expected,
+      onTrack: completed >= expected,
+    };
   }
 
   /** Returns a "nice" Y-axis ceiling (1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, …). */
@@ -943,6 +938,10 @@ export default function StudyDetail() {
                   const participantId = sh.participantId ?? sh.userId ?? "-";
                   const metaParts = [raceName, sexName, heightStr, weightStr].filter(Boolean);
                   const metaLine = metaParts.length > 0 ? metaParts.join(" · ") : null;
+
+                  // Calculate progress
+                  const progress = getShareProgress(study, sh);
+
                   return (
                   <View
                     key={(sh.participantId ?? sh.userId ?? sh.sessionId ?? i) + "-" + i}
@@ -953,9 +952,38 @@ export default function StudyDetail() {
                       style={styles.shareHeader}
                     >
                       <View>
-                        <Text style={styles.shareTitle}>
-                          User — {participantId}
-                        </Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
+                          <Text style={styles.shareTitle}>
+                            User — {participantId}
+                          </Text>
+                          {progress && (
+                            <View
+                              style={[
+                                styles.badgeContainer,
+                                progress.onTrack ? styles.badgeSuccess : styles.badgeWarning,
+                              ]}
+                            >
+                              <View
+                                style={[
+                                  styles.badgeDot,
+                                  progress.onTrack
+                                    ? styles.badgeSuccessDot
+                                    : styles.badgeWarningDot,
+                                ]}
+                              />
+                              <Text
+                                style={[
+                                  styles.badgeText,
+                                  progress.onTrack
+                                    ? styles.badgeSuccessText
+                                    : styles.badgeWarningText,
+                                ]}
+                              >
+                                {progress.completed}/{progress.expected} days submitted
+                              </Text>
+                            </View>
+                          )}
+                        </View>
                         <Text style={styles.shareSubtitle}>
                           Session: {sh.sessionNumber ?? sh.sessionId ?? "-"} · {sh.statusName ?? ""}
                         </Text>
@@ -1717,4 +1745,30 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: palette.light.text.muted,
   },
+  
+  /* Progress Badges */
+  badgeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  badgeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  badgeWarning: { backgroundColor: "#FEF3C7" },
+  badgeWarningDot: { backgroundColor: "#F59E0B" },
+  badgeWarningText: { color: "#92400E" },
+  badgeSuccess: { backgroundColor: "#DCFCE7" },
+  badgeSuccessDot: { backgroundColor: "#16A34A" },
+  badgeSuccessText: { color: "#166534" },
 });
