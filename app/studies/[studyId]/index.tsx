@@ -66,110 +66,75 @@ export default function StudyDetail() {
     return s;
   }
 
-  /** Build CSV string from shares data (one row per metric, flattened). */
-  function buildSharesCsv(
-    postingId: number | string,
-    postingTitle: string,
-    shares: any[]
-  ): string {
+  /**
+   * Build CSV string from raw bucket data.
+   * One row per bucket across all participants/segments/metrics.
+   * Columns: participant_id,start_time,end_time,metric_name,data
+   */
+  function buildSharesCsv(shares: any[]): string {
     const headers = [
-      "Study ID",
-      "Study Title",
-      "User",
-      "User ID",
-      "Session ID",
-      "Status",
-      "Segment ID",
-      "Day",
-      "Segment From",
-      "Segment To",
-      "Metric",
-      "Unit",
-      "Avg",
-      "Min",
-      "Max",
-      "Total",
-      "Samples",
+      "participant_id",
+      "start_time",
+      "end_time",
+      "metric_name",
+      "data",
     ];
     const rows: string[][] = [headers.map(escapeCsvField)];
 
-    for (const sh of shares) {
+    for (const sh of shares ?? []) {
+      const participantId =
+        sh.participantId ??
+        sh.participant_id ??
+        sh.userId ??
+        sh.user_id ??
+        sh.userDisplayName ??
+        sh.user_display_name ??
+        "";
+
       const segs = sh.segments ?? [];
       for (const seg of segs) {
         const metrics = seg.metrics ?? [];
-        const fromStr = seg.fromUtc
-          ? formatUtcToLocal(seg.fromUtc)
-          : "";
-        const toStr = seg.toUtc ? formatUtcToLocal(seg.toUtc) : "";
         for (const m of metrics) {
-          rows.push(
-            [
-              postingId,
-              postingTitle,
-              sh.userDisplayName ?? "",
-              sh.userId ?? "",
-              sh.sessionId ?? "",
-              sh.statusName ?? "",
-              seg.segmentId ?? "",
-              seg.dayIndex ?? "",
-              fromStr,
-              toStr,
-              m.metricName ?? "",
-              m.unitCode ?? "",
-              formatMetricValue(m.avgValue),
-              formatMetricValue(m.minValue),
-              formatMetricValue(m.maxValue),
-              formatMetricValue(m.totalValue),
-              m.samplesCount ?? "",
-            ].map(escapeCsvField)
-          );
+          const metricName =
+            m.metricName ??
+            m.metric_name ??
+            `Metric ${m.metricId ?? m.metric_id ?? ""}`;
+
+          const buckets =
+            m.computedJson?.buckets ?? m.computed_json?.buckets ?? null;
+          if (!Array.isArray(buckets) || buckets.length === 0) continue;
+
+          for (const b of buckets) {
+            const start =
+              b.start ??
+              b.startUtc ??
+              b.start_utc ??
+              b.from ??
+              b.fromUtc ??
+              b.from_utc ??
+              "";
+            const end =
+              b.end ??
+              b.endUtc ??
+              b.end_utc ??
+              b.to ??
+              b.toUtc ??
+              b.to_utc ??
+              "";
+            const value =
+              b.value ?? b.val ?? b.data ?? "";
+
+            rows.push(
+              [
+                participantId,
+                start,
+                end,
+                metricName,
+                value,
+              ].map(escapeCsvField)
+            );
+          }
         }
-        if (metrics.length === 0) {
-          rows.push(
-            [
-              postingId,
-              postingTitle,
-              sh.userDisplayName ?? "",
-              sh.userId ?? "",
-              sh.sessionId ?? "",
-              sh.statusName ?? "",
-              seg.segmentId ?? "",
-              seg.dayIndex ?? "",
-              fromStr,
-              toStr,
-              "",
-              "",
-              "",
-              "",
-              "",
-              "",
-              "",
-            ].map(escapeCsvField)
-          );
-        }
-      }
-      if (segs.length === 0) {
-        rows.push(
-          [
-            postingId,
-            postingTitle,
-            sh.userDisplayName ?? "",
-            sh.userId ?? "",
-            sh.sessionId ?? "",
-            sh.statusName ?? "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-          ].map(escapeCsvField)
-        );
       }
     }
 
@@ -189,11 +154,7 @@ export default function StudyDetail() {
       const postingId = sharesData.postingId ?? study?.postingId ?? studyId;
       const postingTitle =
         sharesData.postingTitle ?? study?.title ?? "Study";
-      const csv = buildSharesCsv(
-        postingId,
-        postingTitle,
-        sharesData.shares
-      );
+      const csv = buildSharesCsv(sharesData.shares);
 
       if (Platform.OS === "web") {
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
