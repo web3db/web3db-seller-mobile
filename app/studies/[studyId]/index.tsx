@@ -291,6 +291,7 @@ export default function StudyDetail() {
     chartWidth: number;
     chartHeight?: number;
   }) {
+    const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
     const padding = { left: 44, right: 12, top: 8, bottom: 28 };
     const plotWidth = chartWidth - padding.left - padding.right;
     const plotHeight = chartHeight - padding.top - padding.bottom;
@@ -385,20 +386,48 @@ export default function StudyDetail() {
               />
             );
           })}
-          {/* Dots at each point */}
-          {points.map((p, idx) => (
-            <View
-              key={idx}
-              style={[
-                styles.bucketsChartDot,
-                {
-                  position: "absolute",
-                  left: toX(p.t) - 4,
-                  top: toY(p.v) - 4,
-                },
-              ]}
-            />
-          ))}
+          {/* Dots at each point - value label on hover/press */}
+          {points.map((p, idx) => {
+            const x = toX(p.t);
+            const y = toY(p.v);
+            const isActive = activePointIndex === idx;
+            const valueStr =
+              Number.isInteger(p.v) ? String(p.v) : p.v.toFixed(2);
+            return (
+              <Pressable
+                key={idx}
+                style={[
+                  styles.bucketsChartDot,
+                  {
+                    position: "absolute",
+                    left: x - 6,
+                    top: y - 6,
+                  },
+                ]}
+                onPressIn={() => setActivePointIndex(idx)}
+                onPressOut={() => setActivePointIndex(null)}
+                onHoverIn={() => setActivePointIndex(idx)}
+                onHoverOut={() => setActivePointIndex(null)}
+              >
+                {isActive && (
+                  <Text
+                    style={[
+                      styles.bucketsChartDotLabel,
+                      {
+                        position: "absolute",
+                        left: 6,
+                        bottom: 16,
+                        transform: [{ translateX: -20 }],
+                      },
+                    ]}
+                  >
+                    {valueStr}
+                    {unitCode ? ` ${unitCode}` : ""}
+                  </Text>
+                )}
+              </Pressable>
+            );
+          })}
           {/* X-axis labels */}
           {points.length > 0 && (
             <>
@@ -1735,10 +1764,20 @@ const styles = StyleSheet.create({
     backgroundColor: palette.light.primary,
   },
   bucketsChartDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: palette.light.primary,
+  },
+  bucketsChartDotLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: Colors.light.text,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    textAlign: "center",
   },
   bucketsChartXLabel: {
     position: "absolute",
