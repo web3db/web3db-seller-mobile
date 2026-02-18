@@ -706,7 +706,7 @@ export default function StudyDetail() {
               <Text style={styles.sectionTitle}>Eligibility</Text>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Min Age</Text>
-                <Text style={styles.infoValue}>{study.minAge}</Text>
+                <Text style={styles.infoValue}>{study.minAge ?? "-"}</Text>
               </View>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Data Coverage Days Required</Text>
@@ -786,6 +786,21 @@ export default function StudyDetail() {
             </View>
 
             <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Tags</Text>
+              <View style={styles.tagList}>
+                {!study.tags || study.tags.length === 0 ? (
+                  <Text style={styles.muted}>No tags</Text>
+                ) : (
+                  study.tags.map((tag, i) => (
+                    <View key={(tag ?? "") + "-" + i} style={styles.tagPill}>
+                      <Text style={styles.tagPillText}>{tag}</Text>
+                    </View>
+                  ))
+                )}
+              </View>
+            </View>
+
+            <View style={styles.detailSection}>
               <Text style={styles.sectionTitle}>Study Info</Text>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Buyer</Text>
@@ -799,19 +814,6 @@ export default function StudyDetail() {
 
             {/* <Text style={styles.label}>Created On</Text>
             <Text style={styles.value}>{study.createdOn ?? "-"}</Text> */}
-
-            {/* <Text style={[styles.label, { marginTop: 12 }]}>Tags</Text>
-            <View style={styles.participantsList}>
-              {(!study.tags || study.tags.length === 0) ? (
-                <Text style={styles.muted}>No tags</Text>
-              ) : (
-                study.tags.map((tag, i) => (
-                  <View key={tag + i} style={styles.participantRow}>
-                    <Text>{tag}</Text>
-                  </View>
-                ))
-              )}
-            </View> */}
 
             <View style={styles.detailSection}>
               <Text style={styles.sectionTitle}>Metric Trends</Text>

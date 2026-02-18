@@ -51,6 +51,7 @@ export default function ManageStudy(): React.ReactElement {
   const [summary, setSummary] = useState("");
   const [description, setDescription] = useState("");
   const [length, setLength] = useState("");
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // --- Date Picker State ---
   const [applyOpenAt, setApplyOpenAt] = useState<Date | null>(null);
@@ -276,6 +277,21 @@ export default function ManageStudy(): React.ReactElement {
   }
 
   async function handlePublish() {
+    const errors: Record<string, string> = {};
+    if (!title.trim()) errors.title = "Title is required";
+    if (!summary.trim()) errors.summary = "Summary is required";
+    if (!length.trim()) errors.length = "Length is required";
+    if (!applyOpenAt) errors.applyOpenAt = "Start date is required";
+    if (selectedMetricIds.length === 0) errors.metrics = "At least one metric is required";
+    if (selectedHealthConditionIds.length === 0) errors.healthConditions = "At least one health condition is required";
+    if (!rewardValue.trim()) errors.rewardValue = "Reward value is required";
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
+
     try {
       const payload: any = {
         title,
@@ -317,11 +333,13 @@ export default function ManageStudy(): React.ReactElement {
           <View style={[styles.card, isNarrow ? styles.fullWidth : styles.leftColumn]}>
             <Text style={styles.heading}>Create A New Study</Text>
 
-            <Text style={styles.label}>Title</Text>
+            <Text style={styles.label}>Title <Text style={styles.required}>*</Text></Text>
             <TextInput value={title} onChangeText={setTitle} style={styles.input} />
+            {formErrors.title ? <Text style={styles.errorText}>{formErrors.title}</Text> : null}
 
-            <Text style={styles.label}>Summary</Text>
+            <Text style={styles.label}>Summary <Text style={styles.required}>*</Text></Text>
             <TextInput value={summary} onChangeText={setSummary} style={styles.input} />
+            {formErrors.summary ? <Text style={styles.errorText}>{formErrors.summary}</Text> : null}
 
             <Text style={styles.label}>Description</Text>
             <TextInput
@@ -331,16 +349,17 @@ export default function ManageStudy(): React.ReactElement {
               multiline
             />
 
-            <Text style={styles.label}>Length (days)</Text>
+            <Text style={styles.label}>Length (days) <Text style={styles.required}>*</Text></Text>
             <TextInput
               value={length}
               onChangeText={(t) => setLength(t.replace(/[^0-9]/g, ""))}
               style={styles.input}
               keyboardType="numeric"
             />
+            {formErrors.length ? <Text style={styles.errorText}>{formErrors.length}</Text> : null}
 
             {/* Date Pickers */}
-            <Text style={styles.label}>Apply Open Date</Text>
+            <Text style={styles.label}>Apply Open Date <Text style={styles.required}>*</Text></Text>
             {Platform.OS === 'web' ? (
               <input
                 type="date"
@@ -360,6 +379,7 @@ export default function ManageStudy(): React.ReactElement {
                 <Text>{applyOpenAt ? formatDateForDisplay(applyOpenAt) : 'Select date...'}</Text>
               </TouchableOpacity>
             )}
+            {formErrors.applyOpenAt ? <Text style={styles.errorText}>{formErrors.applyOpenAt}</Text> : null}
 
             <Text style={styles.label}>Apply Close Date</Text>
             {Platform.OS === 'web' ? (
@@ -401,7 +421,8 @@ export default function ManageStudy(): React.ReactElement {
               />
             )}
 
-            <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
+            <Text style={[styles.label, { marginTop: 12 }]}>Metrics <Text style={styles.required}>*</Text></Text>
+            {formErrors.metrics ? <Text style={styles.errorText}>{formErrors.metrics}</Text> : null}
 
             <View>
               <TouchableOpacity
@@ -449,7 +470,8 @@ export default function ManageStudy(): React.ReactElement {
                 </View>
               )}
 
-              <Text style={[styles.label, { marginTop: 12 }]}>Health Conditions</Text>
+              <Text style={[styles.label, { marginTop: 12 }]}>Health Conditions <Text style={styles.required}>*</Text></Text>
+              {formErrors.healthConditions ? <Text style={styles.errorText}>{formErrors.healthConditions}</Text> : null}
 
               <View>
                 <TouchableOpacity
@@ -515,13 +537,14 @@ export default function ManageStudy(): React.ReactElement {
                   />
                 )}
 
-                <Text style={styles.label}>Reward Value</Text>
+                <Text style={styles.label}>Reward Value <Text style={styles.required}>*</Text></Text>
                 <TextInput
                   value={rewardValue}
                   onChangeText={(t) => setRewardValue(t.replace(/[^0-9]/g, ""))}
                   style={styles.input}
                   keyboardType="numeric"
                 />
+                {formErrors.rewardValue ? <Text style={styles.errorText}>{formErrors.rewardValue}</Text> : null}
 
                 <View style={styles.formActions}>
                   <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={handlePublish}>
@@ -704,4 +727,7 @@ const styles = StyleSheet.create({
   helpText: { color: Colors.light.text },
 
   muted: { color: palette.light.text.muted },
+
+  required: { color: "red", marginLeft: 4 },
+  errorText: { color: "red", fontSize: 12, marginTop: 4 },
 });
