@@ -25,7 +25,7 @@ export const LandingNavbar: React.FC = () => {
               About Us
             </span>
             <span style={webStyles.navLink} onClick={() => router.push('/services')}>
-              Services
+              How It Works
             </span>
             {isSignedIn ? (
               <>
@@ -72,7 +72,7 @@ export const LandingNavbar: React.FC = () => {
             <Text style={styles.navLink}>About Us</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/services')}>
-            <Text style={styles.navLink}>Services</Text>
+            <Text style={styles.navLink}>How It Works</Text>
           </TouchableOpacity>
           {isSignedIn ? (
             <>

@@ -8,7 +8,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { palette } from '@/constants/theme';
 import React, { useEffect } from 'react';
 
-import Navbar from './NavBar'; // Import the Navbar
+import LandingNavbar from './LandingNavBar';
 
 import { AuthProvider } from '@/hooks/AuthContext';
 
@@ -64,16 +64,20 @@ function AppContent() {
     throw new Error('Missing Clerk Publishable Key in .env file.');
   }
 
-  // Hide navbar on landing page (root route)
+  // Show navbar on all pages except landing (has its own) and verify (mid-flow)
   const isLandingPage = !first;
+  const isVerifyPage = first === 'verify';
+  const showNavbar = !isLandingPage && !isVerifyPage;
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <SafeAreaView style={styles.container}>
         <StatusBar style="auto" />
         <View style={{ flex: 1 }}>
-          {!isLandingPage && <Navbar />}
-          <Stack screenOptions={{ headerShown: false }} />
+          {showNavbar && <LandingNavbar />}
+          <View style={{ flex: 1, paddingTop: showNavbar ? 70 : 0 }}>
+            <Stack screenOptions={{ headerShown: false }} />
+          </View>
         </View>
       </SafeAreaView>
     </ThemeProvider>
