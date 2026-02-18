@@ -21,6 +21,7 @@ import {
   listHealthConditions,
   listRewardTypes,
   listPostingStatuses,
+  getPostingShares,
 } from "../../services/postings/api";
 import type {
   Metric,
@@ -46,6 +47,7 @@ const ManageStudy: React.FC = () => {
   const [rewardValue, setRewardValue] = useState(""); // Added rewardValue state
   const [postingId, setPostingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasParticipants, setHasParticipants] = useState(false);
 
   // --- Date Picker State ---
   const [applyOpenAt, setApplyOpenAt] = useState<Date | null>(null);
@@ -111,7 +113,16 @@ const ManageStudy: React.FC = () => {
         const { getTrnPostingDetail } = await import(
           "../../services/postings/api"
         );
-        const detail: StudyDetail = await getTrnPostingDetail(buyerId, studyId);
+        const [detail, sharesData] = await Promise.all([
+          getTrnPostingDetail(buyerId, studyId),
+          getPostingShares(studyId)
+        ]);
+
+        if (sharesData && sharesData.shares && sharesData.shares.length > 0) {
+          setHasParticipants(true);
+        } else {
+          setHasParticipants(false);
+        }
 
         if (detail) {
           setPostingId(Number(detail.postingId));
@@ -509,12 +520,19 @@ const ManageStudy: React.FC = () => {
             />
 
             <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
+            {hasParticipants && (
+              <Text style={styles.warningText}>
+                Metrics cannot be edited because this study has user data.
+              </Text>
+            )}
             <TouchableOpacity
               style={[
                 styles.dropdownToggle,
                 metricsDropdownOpen && styles.dropdownOpen,
+                hasParticipants && styles.disabled,
               ]}
-              onPress={() => setMetricsDropdownOpen((v) => !v)}
+              onPress={() => !hasParticipants && setMetricsDropdownOpen((v) => !v)}
+              disabled={hasParticipants}
             >
               <Text style={styles.dropdownText} numberOfLines={1}>
                 {selectedMetricIds.length > 0
@@ -778,6 +796,8 @@ const styles = StyleSheet.create({
     borderColor: palette.light.border,
   },
   btnGhostText: { color: Colors.light.text, fontWeight: "600" },
+  disabled: { opacity: 0.5, backgroundColor: "#f5f5f5" },
+  warningText: { color: "red", fontSize: 12, marginBottom: 4 },
 });
 
 export default ManageStudy;
