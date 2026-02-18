@@ -215,15 +215,21 @@ export default function StudyDetail() {
     return valueString;
   }
 
-  /** Returns number of days the study has been open (at least 1), based on start date. */
-  function getStudyExpectedDays(study: StudyDetail | null): number | null {
-    if (!study) return null;
-
-    // Use applyOpenAt as the study start; fall back to createdOn
-    const startIso = study.applyOpenAt ?? study.createdOn;
+  /** Returns number of days since this participant joined (at least 1). */
+  function getShareExpectedDays(
+    study: StudyDetail | null,
+    share: any
+  ): number | null {
+    const startIso =
+      share?.joinTimeLocal ??
+      share?.join_time_local ??
+      study?.applyOpenAt ??
+      study?.createdOn;
     if (!startIso) return null;
 
     const start = new Date(startIso);
+    if (Number.isNaN(start.getTime())) return null;
+
     const now = new Date();
     const msPerDay = 24 * 60 * 60 * 1000;
 
@@ -238,7 +244,7 @@ export default function StudyDetail() {
 
   /** Aggregates progress info per participant share. */
   function getShareProgress(study: StudyDetail | null, share: any) {
-    const expected = getStudyExpectedDays(study);
+    const expected = getShareExpectedDays(study, share);
     if (expected == null) return null;
 
     const completed = getShareCompletedDays(share);
