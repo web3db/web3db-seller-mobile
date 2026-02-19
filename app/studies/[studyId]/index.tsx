@@ -67,38 +67,82 @@ export default function StudyDetail() {
   }
 
   /**
-   * Build CSV string from raw bucket data.
-   * One row per bucket across all participants/segments/metrics.
-   * Columns: participant_id,start_time,end_time,metric_name,data
+   * Build user.csv: one row per participant.
+   * Columns: user_id, clerkId, birthyear, race, sex, height, weight
    */
-  function buildSharesCsv(shares: any[]): string {
+  function buildUserCsv(shares: any[]): string {
     const headers = [
-      "participant_id",
-      "start_time",
-      "end_time",
-      "metric_name",
-      "data",
+      "user_id",
+      "birthyear",
+      "race",
+      "sex",
+      "height",
+      "weight",
     ];
     const rows: string[][] = [headers.map(escapeCsvField)];
 
     for (const sh of shares ?? []) {
-      const participantId =
+      const userId =
         sh.participantId ??
         sh.participant_id ??
         sh.userId ??
         sh.user_id ??
-        sh.userDisplayName ??
-        sh.user_display_name ??
+        "";
+      const meta = sh.participantMeta ?? sh.participant_meta ?? {};
+      const birthyear = meta.birthYear ?? meta.birth_year ?? "";
+      const race = typeof meta.race === "object"
+        ? (meta.race?.name ?? meta.race?.displayName ?? meta.race?.code ?? "")
+        : String(meta.race ?? "");
+      const sex = typeof meta.sex === "object"
+        ? (meta.sex?.name ?? meta.sex?.displayName ?? meta.sex?.code ?? "")
+        : String(meta.sex ?? "");
+      const heightObj = meta.height;
+      const height = heightObj != null && typeof heightObj === "object"
+        ? String(heightObj.value ?? "") + (heightObj.unitCode ? ` ${heightObj.unitCode}` : "")
+        : String(meta.height ?? "");
+      const weightObj = meta.weight;
+      const weight = weightObj != null && typeof weightObj === "object"
+        ? String(weightObj.value ?? "") + (weightObj.unitCode ? ` ${weightObj.unitCode}` : "")
+        : String(meta.weight ?? "");
+
+      rows.push(
+        [userId, birthyear, race, sex, height, weight].map(
+          escapeCsvField
+        )
+      );
+    }
+
+    return rows.map((r) => r.join(",")).join("\r\n");
+  }
+
+  /**
+   * Build user_data.csv: one row per bucket.
+   * Columns: user_id, start time, end time, data, units
+   */
+  function buildUserDataCsv(shares: any[]): string {
+    const headers = [
+      "user_id",
+      "start time",
+      "end time",
+      "data",
+      "units",
+    ];
+    const rows: string[][] = [headers.map(escapeCsvField)];
+
+    for (const sh of shares ?? []) {
+      const userId =
+        sh.participantId ??
+        sh.participant_id ??
+        sh.userId ??
+        sh.user_id ??
         "";
 
       const segs = sh.segments ?? [];
       for (const seg of segs) {
         const metrics = seg.metrics ?? [];
         for (const m of metrics) {
-          const metricName =
-            m.metricName ??
-            m.metric_name ??
-            `Metric ${m.metricId ?? m.metric_id ?? ""}`;
+          const unitCode =
+            m.unitCode ?? m.unit_code ?? "";
 
           const buckets =
             m.computedJson?.buckets ?? m.computed_json?.buckets ?? null;
@@ -121,17 +165,10 @@ export default function StudyDetail() {
               b.toUtc ??
               b.to_utc ??
               "";
-            const value =
-              b.value ?? b.val ?? b.data ?? "";
+            const value = b.value ?? b.val ?? b.data ?? "";
 
             rows.push(
-              [
-                participantId,
-                start,
-                end,
-                metricName,
-                value,
-              ].map(escapeCsvField)
+              [userId, start, end, value, unitCode].map(escapeCsvField)
             );
           }
         }
@@ -152,22 +189,31 @@ export default function StudyDetail() {
     setCsvDownloading(true);
     try {
       const postingId = sharesData.postingId ?? study?.postingId ?? studyId;
-      const postingTitle =
-        sharesData.postingTitle ?? study?.title ?? "Study";
-      const csv = buildSharesCsv(sharesData.shares);
+      const userCsv = buildUserCsv(sharesData.shares);
+      const userDataCsv = buildUserDataCsv(sharesData.shares);
 
       if (Platform.OS === "web") {
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `study-${postingId}-data.csv`;
-        link.click();
-        URL.revokeObjectURL(url);
+        const download = (content: string, filename: string) => {
+          const blob = new Blob([content], {
+            type: "text/csv;charset=utf-8;",
+          });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          link.click();
+          URL.revokeObjectURL(url);
+        };
+        download(userCsv, `study-${postingId}-user.csv`);
+        download(userDataCsv, `study-${postingId}-user_data.csv`);
       } else {
         await Share.share({
-          message: csv,
-          title: "Study Data",
+          message: userCsv,
+          title: "Study Users (user.csv)",
+        });
+        await Share.share({
+          message: userDataCsv,
+          title: "Study User Data (user_data.csv)",
         });
       }
     } catch (err: any) {
