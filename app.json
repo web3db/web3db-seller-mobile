@@ -2,7 +2,7 @@
   "expo": {
     "name": "web3health-seller",
     "slug": "web3health-seller",
-    "version": "1.1.0",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "web3healthseller",
