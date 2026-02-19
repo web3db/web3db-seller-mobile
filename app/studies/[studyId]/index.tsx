@@ -191,29 +191,22 @@ export default function StudyDetail() {
       const postingId = sharesData.postingId ?? study?.postingId ?? studyId;
       const userCsv = buildUserCsv(sharesData.shares);
       const userDataCsv = buildUserDataCsv(sharesData.shares);
+      const combinedCsv = userCsv + "\r\n" + userDataCsv;
 
       if (Platform.OS === "web") {
-        const download = (content: string, filename: string) => {
-          const blob = new Blob([content], {
-            type: "text/csv;charset=utf-8;",
-          });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = filename;
-          link.click();
-          URL.revokeObjectURL(url);
-        };
-        download(userCsv, `study-${postingId}-user.csv`);
-        download(userDataCsv, `study-${postingId}-user_data.csv`);
+        const blob = new Blob([combinedCsv], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `study-${postingId}-data.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
       } else {
         await Share.share({
-          message: userCsv,
-          title: "Study Users (user.csv)",
-        });
-        await Share.share({
-          message: userDataCsv,
-          title: "Study User Data (user_data.csv)",
+          message: combinedCsv,
+          title: "Study Data",
         });
       }
     } catch (err: any) {
