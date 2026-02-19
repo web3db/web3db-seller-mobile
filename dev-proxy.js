@@ -7,7 +7,8 @@ const fetch = require('node-fetch')
 const app = express()
 const PORT = process.env.PORT || 8787
 
-const TARGET_BASE = process.env.TARGET_BASE || 'https://jkyctppxygjhsqwmbyvb.supabase.co/functions/v1'
+// const TARGET_BASE = process.env.TARGET_BASE || 'https://jkyctppxygjhsqwmbyvb.supabase.co/functions/v1'
+const TARGET_BASE = process.env.TARGET_BASE || 'https://eihzyqrlaowayqoijxpk.supabase.co/functions/v1/'
 
 // --- CORS allowedOrigins whitelist ---
 const allowedOrigins = [

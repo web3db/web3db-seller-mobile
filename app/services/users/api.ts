@@ -112,7 +112,8 @@ export const FUNCTIONS_BASE = (() => {
   if (typeof process !== 'undefined' && process.env && process.env.DEV_PROXY)
     return process.env.DEV_PROXY;
 
-  return 'https://jkyctppxygjhsqwmbyvb.supabase.co/functions/v1';
+  // return 'https://jkyctppxygjhsqwmbyvb.supabase.co/functions/v1';
+  return 'https://eihzyqrlaowayqoijxpk.supabase.co/functions/v1/';
 })();
 
 // Global flag assumed to be set in your build system
