@@ -13,27 +13,20 @@ import {
   Platform,
 } from "react-native";
 import "react-native-reanimated";
-
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { palette } from "@/constants/theme";
 import React, { useEffect } from "react";
-
-import Navbar from "./NavBar"; // Import the Navbar
-
+import Navbar from "./NavBar";
 import { AuthProvider } from "@/hooks/AuthContext";
 
-// 🔑 CLERK IMPORTS
 import { ClerkProvider, useAuth, useSession } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 
-// ⚠️ IMPORTANT: Get your Clerk Publishable Key from your .env file
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
-console.log("Clerk Publishable Key:", CLERK_PUBLISHABLE_KEY); // Debugging line
+// console.log("Clerk Publishable Key:", CLERK_PUBLISHABLE_KEY); // Debugging line
 
 export default function RootLayout() {
   return (
-    // 🔑 CLERKProvider WRAPPER
-    // This is now the top-level component and will not re-render.
     <ClerkProvider
       publishableKey={CLERK_PUBLISHABLE_KEY!}
       tokenCache={Platform.OS !== "web" ? tokenCache : undefined}
