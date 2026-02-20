@@ -10,8 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-
-import { useAuth, useSignIn } from "@clerk/clerk-expo";
+import { useAuth, useSignIn, useSession } from "@clerk/clerk-expo";
 import * as WebBrowser from "expo-web-browser";
 
 import { useAuth as localAuth } from "@/hooks/AuthContext";
@@ -24,19 +23,45 @@ const LoginScreen: React.FC = () => {
 
   // 🔑 Clerk Hooks Initialization
   const { isLoaded: authLoaded, isSignedIn, setActive } = useAuth(); // For checking current auth state
-  const {
+   const {
     signIn,
     setActive: setSignInActive,
     isLoaded: signInLoaded,
   } = useSignIn(); // For email/password flow
 
+  const { isLoaded: sessionLoaded, session } = useSession();
+
+  // Post-auth gate: after session activation, we check session.currentTask before proceeding.
+  const [postAuthPending, setPostAuthPending] = useState(false);
+  const [postAuthEmail, setPostAuthEmail] = useState<string | null>(null);
+
+  const isResetPasswordTask = React.useCallback((s: any) => {
+    const task = s?.currentTask;
+    const key = task?.key ?? task?.name ?? task;
+    return key === "reset-password";
+  }, []);
+
   const { login } = localAuth();
 
+
   useEffect(() => {
-    if (!authLoaded) return;
-    if (isSignedIn) router.replace("/studies");
+    if (!authLoaded || !sessionLoaded) return;
+
+    // If signed in AND reset-password task exists, force reset screen.
+    if (isSignedIn && session && isResetPasswordTask(session)) {
+      router.replace("/reset-required");
+      return;
+    }
+
+    // Normal signed-in flow.
+    if (isSignedIn) {
+      router.replace("/studies");
+      return;
+    }
+
     console.log("[LOGIN] authLoaded =", authLoaded, "isSignedIn =", isSignedIn);
-  }, [authLoaded, isSignedIn, router]);
+  }, [authLoaded, sessionLoaded, isSignedIn, session, router, isResetPasswordTask]);
+
 
   const [email, setEmail] = useState("");
 
@@ -51,16 +76,30 @@ const LoginScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const finalizeSignedInSession = async (createdSessionId: string) => {
-    // Clerk session must be active before local hydration
+    // Save email and mark post-auth pending so session effect can decide next route.
+    const normEmail = email.trim().toLowerCase();
+    setPostAuthEmail(normEmail);
+    setPostAuthPending(true);
+
+    // Activate Clerk session first
     await setSignInActive({ session: createdSessionId });
-    await login(email);
-    router.replace("/studies");
+
+    // Do NOT call login() or navigate here. The session effect below will route:
+    // - /reset-required if reset-password task exists
+    // - otherwise run login() and route /studies
   };
+
 
   // Handle Sign In with Email/Password
   const handleLogin = async () => {
-    setError("");
+      setError("");
     setLoading(true);
+
+    if (postAuthPending) {
+      setLoading(false);
+      return;
+    }
+
 
     if (!signInLoaded) {
       setError("Still initializing... Please try again in a moment.");
@@ -139,8 +178,14 @@ const LoginScreen: React.FC = () => {
   };
 
   const handleVerifyOtp = async () => {
-    setError("");
+     setError("");
     setLoading(true);
+
+    if (postAuthPending) {
+      setLoading(false);
+      return;
+    }
+
 
     if (!signInLoaded) {
       setError("Still initializing... Please try again in a moment.");
@@ -180,7 +225,45 @@ const LoginScreen: React.FC = () => {
     }
   };
 
+  // Post-auth decision: once session is active, either force reset-required or proceed normally.
+  useEffect(() => {
+    if (!authLoaded || !sessionLoaded) return;
+    if (!postAuthPending) return;
+    if (!session) return;
+
+    const emailForHydration = postAuthEmail;
+    if (!emailForHydration) {
+      setPostAuthPending(false);
+      return;
+    }
+
+    if (isResetPasswordTask(session)) {
+      setPostAuthPending(false);
+      router.replace("/reset-required");
+      return;
+    }
+
+    (async () => {
+      try {
+        await login(emailForHydration);
+        router.replace("/studies");
+      } finally {
+        setPostAuthPending(false);
+      }
+    })();
+  }, [
+    authLoaded,
+    sessionLoaded,
+    session,
+    postAuthPending,
+    postAuthEmail,
+    router,
+    login,
+    isResetPasswordTask,
+  ]);
+
   // If Clerk is still loading, show a loading indicator
+
 
   if (!authLoaded) {
     return (
@@ -232,7 +315,7 @@ const LoginScreen: React.FC = () => {
               />
               <TouchableOpacity
                 onPress={() => setShowPassword((v) => !v)}
-                disabled={loading}
+                disabled={loading || postAuthPending}
                 style={styles.toggleBtn}
                 activeOpacity={0.7}
               >
@@ -251,7 +334,7 @@ const LoginScreen: React.FC = () => {
                   );
                   router.push("/forgot-password");
                 }}
-                disabled={loading}
+                disabled={loading || postAuthPending}
                 activeOpacity={0.7}
               >
                 <Text style={styles.forgotLink}>Forgot password?</Text>
@@ -262,7 +345,7 @@ const LoginScreen: React.FC = () => {
               <TouchableOpacity
                 style={[styles.btn, styles.btnPrimary]}
                 onPress={handleLogin}
-                disabled={loading}
+                disabled={loading || postAuthPending}
                 activeOpacity={0.8}
               >
                 {loading ? (
@@ -298,7 +381,7 @@ const LoginScreen: React.FC = () => {
               <TouchableOpacity
                 style={[styles.btn, styles.btnPrimary]}
                 onPress={handleVerifyOtp}
-                disabled={loading}
+                disabled={loading || postAuthPending}
                 activeOpacity={0.8}
               >
                 {loading ? (
@@ -314,7 +397,7 @@ const LoginScreen: React.FC = () => {
                   setOtpCode("");
                   setError("");
                 }}
-                disabled={loading}
+                disabled={loading || postAuthPending}
               >
                 <Text style={styles.link}>Back</Text>
               </TouchableOpacity>
