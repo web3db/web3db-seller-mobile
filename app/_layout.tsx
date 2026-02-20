@@ -16,7 +16,7 @@ import "react-native-reanimated";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { palette } from "@/constants/theme";
 import React, { useEffect } from "react";
-import Navbar from "./NavBar";
+import LandingNavbar from "./LandingNavBar";
 import { AuthProvider } from "@/hooks/AuthContext";
 
 import { ClerkProvider, useAuth, useSession } from "@clerk/clerk-expo";
@@ -62,7 +62,10 @@ function AppContent() {
     first === "register" ||
     first === "verify" ||
     first === "forgot-password" ||
-    first === "reset-required";
+    first === "reset-required" ||
+    first === "about" ||
+    first === "services" ||
+    first === "privacy-policy";
 
   // If not signed in, only allow public landing + auth-related routes.
   // Use Redirect (safe during render) instead of router.replace.
@@ -97,7 +100,7 @@ function AppContent() {
       <SafeAreaView style={styles.container}>
         <StatusBar style="auto" />
         <View style={{ flex: 1 }}>
-          <Navbar />
+          <LandingNavbar />
           <Stack screenOptions={{ headerShown: false }} />
         </View>
       </SafeAreaView>
