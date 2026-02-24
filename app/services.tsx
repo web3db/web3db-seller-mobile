@@ -98,7 +98,7 @@ const webStyles: Record<string, React.CSSProperties> = {
   heroSection: {
     paddingLeft: 80,
     paddingRight: 80,
-    paddingTop: 60,
+    paddingTop: 100,
     paddingBottom: 48,
     backgroundColor: '#F9F9FB',
     borderBottom: '1px solid #E6E6E6',
@@ -724,7 +724,7 @@ export default function HowItWorks() {
               padding-right: 16px !important;
             }
             .hiw-hero {
-              padding-top: 40px !important;
+              padding-top: 100px !important;
               padding-bottom: 32px !important;
             }
             .hiw-tab-row {
