@@ -900,11 +900,19 @@ export default function StudyDetail() {
                 {!study.tags || study.tags.length === 0 ? (
                   <Text style={styles.muted}>No tags</Text>
                 ) : (
-                  study.tags.map((tag, i) => (
-                    <View key={(tag ?? "") + "-" + i} style={styles.tagPill}>
-                      <Text style={styles.tagPillText}>{tag}</Text>
-                    </View>
-                  ))
+                  study.tags
+                    .map((tag: any) =>
+                      typeof tag === "string" ? tag : tag?.displayName,
+                    )
+                    .filter(
+                      (name: any) =>
+                        typeof name === "string" && name.trim().length > 0,
+                    )
+                    .map((name: string, i: number) => (
+                      <View key={`${name}-${i}`} style={styles.tagPill}>
+                        <Text style={styles.tagPillText}>{name}</Text>
+                      </View>
+                    ))
                 )}
               </View>
             </View>
