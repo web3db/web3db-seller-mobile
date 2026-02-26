@@ -53,9 +53,11 @@ const StudyCard: React.FC<StudyCardProps> = ({ study, statusLabel, onPress }) =>
         <Text style={styles.metaText}>
           Organizer: <Text style={styles.boldText}>{study.organizer}</Text>
         </Text>
+        {/*
         <Text style={styles.metaText}>
           Spots: <Text style={styles.boldText}>{study.spots}</Text>
         </Text>
+        */}
       </View>
 
       <View style={styles.actionsContainer}>
