@@ -65,7 +65,8 @@ function AppContent() {
     first === "reset-required" ||
     first === "about" ||
     first === "services" ||
-    first === "privacy-policy";
+    first === "privacy-policy" ||
+    first === "terms-of-service";
 
   // If not signed in, only allow public landing + auth-related routes.
   // Use Redirect (safe during render) instead of router.replace.
