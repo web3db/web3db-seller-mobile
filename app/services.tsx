@@ -98,7 +98,7 @@ const webStyles: Record<string, React.CSSProperties> = {
   heroSection: {
     paddingLeft: 80,
     paddingRight: 80,
-    paddingTop: 60,
+    paddingTop: 100,
     paddingBottom: 48,
     backgroundColor: '#F9F9FB',
     borderBottom: '1px solid #E6E6E6',
@@ -628,7 +628,7 @@ function Footer() {
         <div className="hiw-footer-legal" style={webStyles.footerLegal}>
           <span style={webStyles.footerLegalTitle}>Legal</span>
           <span className="footer-link" style={webStyles.footerLegalLink} onClick={() => router.push('/privacy-policy' as any)}>Privacy Policy</span>
-          <span className="footer-link" style={webStyles.footerLegalLink}>Terms of Service</span>
+          <span className="footer-link" style={webStyles.footerLegalLink} onClick={() => router.push('/terms-of-service' as any)}>Terms of Service</span>
         </div>
       </div>
 
@@ -724,7 +724,7 @@ export default function HowItWorks() {
               padding-right: 16px !important;
             }
             .hiw-hero {
-              padding-top: 40px !important;
+              padding-top: 100px !important;
               padding-bottom: 32px !important;
             }
             .hiw-tab-row {
@@ -808,16 +808,28 @@ export default function HowItWorks() {
                 <span style={webStyles.ctaCardBody}>
                   Web3Health is a mobile app for iOS and Android. Download it to connect your health data, browse active studies, and participate entirely on your own terms.
                 </span>
-                <a
-                  className="hiw-cta-btn-primary"
-                  style={{ ...webStyles.ctaButtonPrimary, display: 'inline-flex', alignItems: 'center', gap: 8 }}
-                  href="https://apps.apple.com/us/app/web3health-sensorweb/id6756590982"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Ionicons name="logo-apple" size={18} color="#FFFFFF" />
-                  Download on the App Store
-                </a>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <a
+                    className="hiw-cta-btn-primary"
+                    style={{ ...webStyles.ctaButtonPrimary, display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                    href="https://apps.apple.com/us/app/web3health-sensorweb/id6756590982"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Ionicons name="logo-apple" size={18} color="#FFFFFF" />
+                    Download on the App Store
+                  </a>
+                  <a
+                    className="hiw-cta-btn-primary"
+                    style={{ ...webStyles.ctaButtonPrimary, display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                    href="https://play.google.com/store/apps/details?id=org.sensorweb.Web3Health"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Ionicons name="logo-google-playstore" size={18} color="#FFFFFF" />
+                    Get it on Google Play
+                  </a>
+                </div>
               </div>
 
               {/* Institution CTA */}

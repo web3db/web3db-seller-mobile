@@ -88,6 +88,17 @@ const ProfileScreen: React.FC = () => {
             No profile data found in the database for your account.
           </Text>
         )}
+
+        {/* Legal footer */}
+        <View style={styles.legalFooter}>
+          <TouchableOpacity onPress={() => router.push('/terms-of-service')}>
+            <Text style={styles.legalLink}>Terms of Service</Text>
+          </TouchableOpacity>
+          <Text style={styles.legalSep}>·</Text>
+          <TouchableOpacity onPress={() => router.push('/privacy-policy')}>
+            <Text style={styles.legalLink}>Privacy Policy</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -140,6 +151,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: palette.light.danger,
     fontWeight: "bold",
+  },
+  legalFooter: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 32,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: palette.light.muted,
+    gap: 8,
+  },
+  legalLink: {
+    fontSize: 13,
+    color: palette.light.text.secondary,
+    fontWeight: "500",
+  },
+  legalSep: {
+    fontSize: 13,
+    color: palette.light.text.muted,
   },
 });
 

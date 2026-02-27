@@ -6,6 +6,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Platform,
 } from "react-native";
 // Assuming these context and navigation hooks exist:
 import { useAuth } from "@clerk/clerk-expo";
@@ -150,7 +151,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
   },
   homeRoot: {
-    paddingVertical: 32,
+    paddingTop: Platform.OS === "web" ? 80 : 32,
+    paddingBottom: 32,
   },
   listContainer: {
     paddingHorizontal: 16,

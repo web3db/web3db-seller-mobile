@@ -10,6 +10,7 @@ const webStyles: Record<string, React.CSSProperties> = {
     backgroundColor: '#FFFFFF',
     overflowX: 'hidden',
     overflowY: 'auto',
+    paddingTop: 80,
   },
   heroSection: {
     paddingLeft: 80,
@@ -272,7 +273,7 @@ function Footer() {
           <span className="pp-footer-link" style={{ ...webStyles.footerLegalLink, color: 'rgba(178, 34, 34, 0.8)' }}>
             Privacy Policy
           </span>
-          <span className="pp-footer-link" style={webStyles.footerLegalLink}>Terms of Service</span>
+          <span className="pp-footer-link" style={webStyles.footerLegalLink} onClick={() => router.push('/terms-of-service' as any)}>Terms of Service</span>
         </div>
       </div>
 

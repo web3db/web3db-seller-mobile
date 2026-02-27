@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Platform, ScrollView, Image, TouchableOpacity } from 'react-native';
+import { StyleSheet, Platform, View, Image, TouchableOpacity, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter} from 'expo-router';
-
-const router = useRouter();
+import { useRouter } from 'expo-router';
 
 // Web-specific styles
 const webStyles: Record<string, React.CSSProperties> = {
@@ -1056,6 +1054,7 @@ function FeaturedStudy() {
 }
 
 function Footer() {
+  const router = useRouter();
   return (
     <footer className="landing-footer" style={webStyles.footer}>
       <style>{`
@@ -1099,7 +1098,7 @@ function Footer() {
         <div className="landing-footer-legal" style={webStyles.footerLegal}>
           <span style={webStyles.footerLegalTitle}>Legal</span>
           <span className="footer-link" style={webStyles.footerLegalLink} onClick={() => router.push('/privacy-policy' as any)}>Privacy Policy</span>
-          <span className="footer-link" style={webStyles.footerLegalLink}>Terms of Service</span>
+          <span className="footer-link" style={webStyles.footerLegalLink} onClick={() => router.push('/terms-of-service' as any)}>Terms of Service</span>
         </div>
       </div>
 
@@ -1118,6 +1117,7 @@ function Footer() {
 }
 
 function Landing() {
+  const router = useRouter();
   if (Platform.OS === 'web') {
     return (
       <div style={webStyles.pageContainer}>
@@ -1338,8 +1338,25 @@ function Landing() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-    </ScrollView>
+    <View style={styles.nativeContainer}>
+      <Image
+        source={require('../assets/images/Web3Health.png')}
+        style={styles.nativeLogo}
+        resizeMode="contain"
+      />
+      <Text style={styles.nativeTitle}>
+        <Text style={styles.nativeTitleRed}>Web3</Text>Health
+      </Text>
+      <Text style={styles.nativeSubtitle}>
+        Accelerating health research with consented activity data
+      </Text>
+      <TouchableOpacity onPress={() => router.push('/login')} style={styles.getStartedBtn}>
+        <Text style={styles.getStartedText}>Get Started</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => router.push('/about')} style={styles.learnMoreBtn}>
+        <Text style={styles.learnMoreText}>Learn More</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -1348,9 +1365,62 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingTop: 70,
+  nativeContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nativeLogo: {
+    width: 72,
+    height: 72,
+    marginBottom: 16,
+  },
+  nativeTitle: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 12,
+  },
+  nativeTitleRed: {
+    color: '#B22222',
+  },
+  nativeSubtitle: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#666666',
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    lineHeight: 22,
+    marginBottom: 40,
+  },
+  getStartedBtn: {
+    backgroundColor: '#B22222',
+    paddingHorizontal: 40,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+    width: 240,
+    alignItems: 'center',
+  },
+  getStartedText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 18,
+  },
+  learnMoreBtn: {
+    paddingHorizontal: 40,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E6E6E6',
+    width: 240,
+    alignItems: 'center',
+  },
+  learnMoreText: {
+    color: '#1a1a1a',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
 

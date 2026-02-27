@@ -111,7 +111,7 @@ const webStyles: Record<string, React.CSSProperties> = {
   heroSection: {
     paddingLeft: 80,
     paddingRight: 80,
-    paddingTop: 60,
+    paddingTop: 100,
     paddingBottom: 48,
     backgroundColor: '#F9F9FB',
     borderBottom: '1px solid #E6E6E6',
@@ -953,7 +953,7 @@ function Footer() {
         <div className="about-footer-legal" style={webStyles.footerLegal}>
           <span style={webStyles.footerLegalTitle}>Legal</span>
           <span className="footer-link" style={webStyles.footerLegalLink} onClick={() => router.push('/privacy-policy' as any)}>Privacy Policy</span>
-          <span className="footer-link" style={webStyles.footerLegalLink}>Terms of Service</span>
+          <span className="footer-link" style={webStyles.footerLegalLink} onClick={() => router.push('/terms-of-service' as any)}>Terms of Service</span>
         </div>
       </div>
 
@@ -1044,7 +1044,7 @@ export default function About() {
               padding-right: 16px !important;
             }
             .about-hero {
-              padding-top: 40px !important;
+              padding-top: 100px !important;
               padding-bottom: 32px !important;
             }
             .about-faculty-grid {
