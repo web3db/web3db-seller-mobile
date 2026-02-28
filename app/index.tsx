@@ -1098,7 +1098,7 @@ function Footer() {
         <div className="landing-footer-legal" style={webStyles.footerLegal}>
           <span style={webStyles.footerLegalTitle}>Legal</span>
           <span className="footer-link" style={webStyles.footerLegalLink} onClick={() => router.push('/privacy-policy' as any)}>Privacy Policy</span>
-          <span className="footer-link" style={webStyles.footerLegalLink} onClick={() => router.push('/terms-of-service' as any)}>Terms of Service</span>
+          <span className="footer-link" style={webStyles.footerLegalLink}>Terms of Service</span>
         </div>
       </div>
 
