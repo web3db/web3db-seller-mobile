@@ -19,376 +19,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { getPostingShares } from "../../services/postings/api";
 import { useAuth } from "@/hooks/AuthContext";
 import type { StudyDetail } from "../../services/postings/types";
-import { surveyListByPosting } from "../../services/surveys/api";
-import type { Survey } from "../../services/surveys/types";
-
-// ---------------------------------------------------------------------------
-// Survey stat card (used in SurveysTabContent)
-// ---------------------------------------------------------------------------
-
-function SurveyStatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <View style={surveyStyles.statCard}>
-      <Text style={surveyStyles.statCardValue}>{value}</Text>
-      <Text style={surveyStyles.statCardLabel}>{label}</Text>
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Surveys Tab Content (renders inside the Surveys tab of StudyDetail)
-// ---------------------------------------------------------------------------
-
-function SurveysTabContent({
-  studyId,
-  isNarrow,
-}: {
-  studyId: string;
-  isNarrow: boolean;
-}) {
-  const router = useRouter();
-  const [surveys, setSurveys] = useState<Survey[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await surveyListByPosting(studyId, {
-          include_stats: true,
-          page: 1,
-          page_size: 5,
-        });
-        if (!cancelled) {
-          setSurveys(res.surveys);
-          setTotal(res.total);
-        }
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? "Failed to load surveys");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [studyId, retryCount]);
-
-  const activeSurveys = surveys.filter((s) => s.is_active).length;
-  const recipientsTotal = surveys.reduce(
-    (sum, s) => sum + (s.stats?.recipients_total ?? 0),
-    0
-  );
-  const openedTotal = surveys.reduce(
-    (sum, s) => sum + (s.stats?.opened_total ?? 0),
-    0
-  );
-
-  return (
-    <View style={surveyStyles.container}>
-      {/* Header */}
-      <View style={surveyStyles.header}>
-        <Text style={surveyStyles.headerTitle}>Surveys</Text>
-        <Text style={surveyStyles.headerSubtitle}>
-          Send Google Form surveys to enrolled participants via email
-        </Text>
-      </View>
-
-      {/* Summary Stats Strip */}
-      <View style={surveyStyles.statStrip}>
-        <SurveyStatCard label="Total" value={total} />
-        <SurveyStatCard label="Active" value={activeSurveys} />
-        {recipientsTotal > 0 && (
-          <SurveyStatCard label="Recipients" value={recipientsTotal} />
-        )}
-        {openedTotal > 0 && (
-          <SurveyStatCard label="Opened" value={openedTotal} />
-        )}
-      </View>
-
-      {/* Error Banner */}
-      {error && (
-        <View style={surveyStyles.errorBanner}>
-          <Text style={surveyStyles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={() => setRetryCount((c) => c + 1)}>
-            <Text style={surveyStyles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Loading */}
-      {loading && (
-        <ActivityIndicator
-          color={palette.light.primary}
-          style={{ marginTop: 24, marginBottom: 8 }}
-        />
-      )}
-
-      {/* Empty State */}
-      {!loading && !error && surveys.length === 0 && (
-        <View style={surveyStyles.emptyState}>
-          <Text style={surveyStyles.emptyTitle}>No surveys yet</Text>
-          <Text style={surveyStyles.emptySubtitle}>
-            Create a Google Form survey to send to participants via email.
-          </Text>
-          <TouchableOpacity
-            style={surveyStyles.actionBtnPrimary}
-            onPress={() => router.push(`/studies/${studyId}/surveys/create`)}
-          >
-            <Text style={surveyStyles.actionBtnPrimaryText}>Create Survey</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Recent Surveys List */}
-      {!loading && surveys.length > 0 && (
-        <View style={surveyStyles.surveyList}>
-          {surveys.map((survey) => (
-            <TouchableOpacity
-              key={survey.survey_id}
-              style={surveyStyles.surveyRow}
-              onPress={() =>
-                router.push(
-                  `/studies/${studyId}/surveys/${survey.survey_id}`
-                )
-              }
-            >
-              <View style={surveyStyles.surveyRowLeft}>
-                <Text style={surveyStyles.surveyTitle} numberOfLines={1}>
-                  {survey.title}
-                </Text>
-                {survey.stats && (
-                  <Text style={surveyStyles.surveyMeta}>
-                    {survey.stats.recipients_total} recipients ·{" "}
-                    {survey.stats.opened_total} opened
-                  </Text>
-                )}
-                <Text style={surveyStyles.surveyDate}>
-                  Created {new Date(survey.created_on).toLocaleDateString()}
-                </Text>
-              </View>
-              <View
-                style={[
-                  surveyStyles.surveyBadge,
-                  survey.is_active
-                    ? surveyStyles.surveyBadgeActive
-                    : surveyStyles.surveyBadgeInactive,
-                ]}
-              >
-                <Text
-                  style={[
-                    surveyStyles.surveyBadgeText,
-                    survey.is_active
-                      ? surveyStyles.surveyBadgeActiveText
-                      : surveyStyles.surveyBadgeInactiveText,
-                  ]}
-                >
-                  {survey.is_active ? "Active" : "Inactive"}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-          {total > 5 && (
-            <Text style={surveyStyles.moreText}>
-              +{total - 5} more · tap "View All Surveys" below
-            </Text>
-          )}
-        </View>
-      )}
-
-      {/* Action Buttons */}
-      <View
-        style={[
-          surveyStyles.actions,
-          isNarrow ? surveyStyles.actionsColumn : surveyStyles.actionsRow,
-        ]}
-      >
-        <TouchableOpacity
-          style={[surveyStyles.actionBtnPrimary, isNarrow && { flex: 1 }]}
-          onPress={() => router.push(`/studies/${studyId}/surveys`)}
-        >
-          <Text style={surveyStyles.actionBtnPrimaryText}>
-            View All Surveys
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[surveyStyles.actionBtnSecondary, isNarrow && { flex: 1 }]}
-          onPress={() => router.push(`/studies/${studyId}/surveys/create`)}
-        >
-          <Text style={surveyStyles.actionBtnSecondaryText}>Create Survey</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[surveyStyles.actionBtnSecondary, isNarrow && { flex: 1 }]}
-          onPress={() => router.push(`/studies/${studyId}/surveys/dispatch`)}
-        >
-          <Text style={surveyStyles.actionBtnSecondaryText}>
-            Dispatch Center
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// surveyStyles — module-level so SurveysTabContent can reference them
-// ---------------------------------------------------------------------------
-
-const surveyStyles = StyleSheet.create({
-  container: {
-    backgroundColor: Colors.light.background,
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: palette.light.border,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 16,
-      },
-      android: { elevation: 4 },
-      default: { boxShadow: "0 4px 20px rgba(0,0,0,0.06)" } as any,
-    }),
-  },
-  header: { marginBottom: 20 },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: Colors.light.text,
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: palette.light.text.muted,
-  },
-  statStrip: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 20,
-    flexWrap: "wrap",
-  },
-  statCard: {
-    flex: 1,
-    minWidth: 70,
-    backgroundColor: palette.light.surface,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: palette.light.border,
-  },
-  statCardValue: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: palette.light.primary,
-  },
-  statCardLabel: {
-    fontSize: 12,
-    color: palette.light.text.muted,
-    marginTop: 4,
-    textAlign: "center",
-  },
-  surveyList: { gap: 8, marginBottom: 20 },
-  surveyRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 14,
-    backgroundColor: palette.light.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: palette.light.border,
-  },
-  surveyRowLeft: { flex: 1, marginRight: 12 },
-  surveyTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: Colors.light.text,
-    marginBottom: 2,
-  },
-  surveyMeta: { fontSize: 12, color: palette.light.text.muted, marginTop: 2 },
-  surveyDate: { fontSize: 12, color: palette.light.text.muted, marginTop: 2 },
-  surveyBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  surveyBadgeActive: { backgroundColor: "#DCFCE7" },
-  surveyBadgeActiveText: { color: "#166534" },
-  surveyBadgeInactive: { backgroundColor: palette.light.muted },
-  surveyBadgeInactiveText: { color: palette.light.text.secondary },
-  surveyBadgeText: { fontSize: 12, fontWeight: "600" },
-  moreText: {
-    fontSize: 13,
-    color: palette.light.text.muted,
-    textAlign: "center",
-    marginTop: 4,
-  },
-  actions: { gap: 10, marginTop: 4 },
-  actionsRow: { flexDirection: "row", flexWrap: "wrap" },
-  actionsColumn: { flexDirection: "column" },
-  actionBtnPrimary: {
-    backgroundColor: palette.light.primary,
-    paddingVertical: 11,
-    paddingHorizontal: 18,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  actionBtnPrimaryText: { color: "#fff", fontWeight: "700", fontSize: 14 },
-  actionBtnSecondary: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: palette.light.primary,
-    paddingVertical: 11,
-    paddingHorizontal: 18,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  actionBtnSecondaryText: {
-    color: palette.light.primary,
-    fontWeight: "700",
-    fontSize: 14,
-  },
-  emptyState: { alignItems: "center", paddingVertical: 32 },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: Colors.light.text,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: palette.light.text.muted,
-    textAlign: "center",
-    marginBottom: 20,
-    paddingHorizontal: 16,
-  },
-  errorBanner: {
-    backgroundColor: "#FEF2F2",
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  errorText: { color: "#DC2626", flex: 1 },
-  retryText: { color: palette.light.primary, fontWeight: "600", marginLeft: 12 },
-});
-
-// ---------------------------------------------------------------------------
-// Main StudyDetail component
-// ---------------------------------------------------------------------------
 
 export default function StudyDetail() {
   const { studyId, saved } = useLocalSearchParams() as {
@@ -406,11 +36,6 @@ export default function StudyDetail() {
   const [study, setStudy] = useState<StudyDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Tab state
-  const [activeTab, setActiveTab] = useState<
-    "overview" | "participants" | "surveys"
-  >("overview");
 
   // Shares (participant/session) UI
   const [sharesData, setSharesData] = useState<any | null>(null);
@@ -1085,258 +710,150 @@ export default function StudyDetail() {
           </Animated.View>
         )}
 
-        {/* ── Tab Bar ── */}
-        <View style={styles.tabBar}>
-          <TouchableOpacity
-            style={[styles.tabBtn, activeTab === "overview" && styles.tabBtnActive]}
-            onPress={() => setActiveTab("overview")}
-          >
-            <Text
-              style={[
-                styles.tabBtnText,
-                activeTab === "overview" && styles.tabBtnTextActive,
-              ]}
-            >
-              Overview
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.tabBtn,
-              activeTab === "participants" && styles.tabBtnActive,
-            ]}
-            onPress={() => setActiveTab("participants")}
-          >
-            <Text
-              style={[
-                styles.tabBtnText,
-                activeTab === "participants" && styles.tabBtnTextActive,
-              ]}
-            >
-              Participants
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabBtn, activeTab === "surveys" && styles.tabBtnActive]}
-            onPress={() => setActiveTab("surveys")}
-          >
-            <Text
-              style={[
-                styles.tabBtnText,
-                activeTab === "surveys" && styles.tabBtnTextActive,
-              ]}
-            >
-              Surveys
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Overview Tab ── */}
-        {activeTab === "overview" && (
+        <View
+          style={[
+            styles.contentRow,
+            isNarrow ? styles.columnLayout : styles.rowLayout,
+          ]}
+        >
+          {/* LEFT: Read-only Info Card */}
           <View
             style={[
-              styles.contentRow,
-              isNarrow ? styles.columnLayout : styles.rowLayout,
+              styles.card,
+              isNarrow ? styles.fullWidth : styles.leftColumn,
             ]}
           >
-            {/* LEFT: Read-only Info Card */}
-            <View
-              style={[
-                styles.card,
-                isNarrow ? styles.fullWidth : styles.leftColumn,
-              ]}
-            >
-              <View style={styles.detailHero}>
-                <Text style={styles.detailHeroLabel}>Study Details</Text>
-                <Text style={styles.detailHeroTitle}>{study.title}</Text>
-                <View style={styles.statusBadge}>
-                  <Text style={styles.statusBadgeText}>
-                    {study.postingStatusDisplayName}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.detailSection}>
-                <Text style={styles.sectionTitle}>Overview</Text>
-                <Text style={styles.detailSummary}>{study.summary}</Text>
-                <Text style={[styles.detailDescription, styles.multilineValue]}>
-                  {study.description}
+            <View style={styles.detailHero}>
+              <Text style={styles.detailHeroLabel}>Study Details</Text>
+              <Text style={styles.detailHeroTitle}>{study.title}</Text>
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusBadgeText}>
+                  {study.postingStatusDisplayName}
                 </Text>
               </View>
+            </View>
 
-              <View style={styles.detailSection}>
-                <Text style={styles.sectionTitle}>Eligibility</Text>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Min Age</Text>
-                  <Text style={styles.infoValue}>{study.minAge ?? "-"}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Data Coverage Days Required</Text>
-                  <Text style={styles.infoValue}>
-                    {study.dataCoverageDaysRequired ?? "-"}
-                  </Text>
-                </View>
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Overview</Text>
+              <Text style={styles.detailSummary}>{study.summary}</Text>
+              <Text style={[styles.detailDescription, styles.multilineValue]}>
+                {study.description}
+              </Text>
+            </View>
+
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Eligibility</Text>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Min Age</Text>
+                <Text style={styles.infoValue}>{study.minAge ?? "-"}</Text>
               </View>
-
-              <View style={styles.detailSection}>
-                <Text style={styles.sectionTitle}>Application Window</Text>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Apply Open At</Text>
-                  <Text style={styles.infoValue}>
-                    {study.applyOpenAt ? formatUtcToLocal(study.applyOpenAt) : "-"}
-                  </Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Apply Close At</Text>
-                  <Text style={styles.infoValue}>
-                    {study.applyCloseAt
-                      ? formatUtcToLocal(study.applyCloseAt)
-                      : "-"}
-                  </Text>
-                </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Data Coverage Days Required</Text>
+                <Text style={styles.infoValue}>
+                  {study.dataCoverageDaysRequired ?? "-"}
+                </Text>
               </View>
+            </View>
 
-              <View style={styles.detailSection}>
-                <Text style={styles.sectionTitle}>Reward</Text>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Type</Text>
-                  <Text style={styles.infoValue}>
-                    {study.rewardTypeDisplayName ?? "-"}
-                  </Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Value</Text>
-                  <Text style={styles.infoValue}>
-                    {study.rewardValue !== null ? study.rewardValue : "-"}
-                  </Text>
-                </View>
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Application Window</Text>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Apply Open At</Text>
+                <Text style={styles.infoValue}>
+                  {study.applyOpenAt ? formatUtcToLocal(study.applyOpenAt) : "-"}
+                </Text>
               </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Apply Close At</Text>
+                <Text style={styles.infoValue}>
+                  {study.applyCloseAt
+                    ? formatUtcToLocal(study.applyCloseAt)
+                    : "-"}
+                </Text>
+              </View>
+            </View>
 
-              <View style={styles.detailSection}>
-                <Text style={styles.sectionTitle}>Metrics</Text>
-                <View style={styles.tagList}>
-                {!study.metricDisplayName ||
-                study.metricDisplayName.length === 0 ? (
-                  <Text style={styles.muted}>No metrics</Text>
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Reward</Text>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Type</Text>
+                <Text style={styles.infoValue}>
+                  {study.rewardTypeDisplayName ?? "-"}
+                </Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Value</Text>
+                <Text style={styles.infoValue}>
+                  {study.rewardValue !== null ? study.rewardValue : "-"}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Metrics</Text>
+              <View style={styles.tagList}>
+              {!study.metricDisplayName ||
+              study.metricDisplayName.length === 0 ? (
+                <Text style={styles.muted}>No metrics</Text>
+              ) : (
+                study.metricDisplayName.map((m, i) => (
+                  <View
+                    key={study.metricId![i] + "-" + i}
+                    style={styles.tagPill}
+                  >
+                    <Text style={styles.tagPillText}>{m}</Text>
+                  </View>
+                ))
+              )}
+              </View>
+            </View>
+
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Health Conditions</Text>
+              <View style={styles.tagList}>
+                {!study.healthConditions ||
+                study.healthConditions.length === 0 ? (
+                  <Text style={styles.muted}>No conditions</Text>
                 ) : (
-                  study.metricDisplayName.map((m, i) => (
-                    <View
-                      key={study.metricId![i] + "-" + i}
-                      style={styles.tagPill}
-                    >
-                      <Text style={styles.tagPillText}>{m}</Text>
+                  study.healthConditions.map((c, i) => (
+                    <View key={c.id + "-" + i} style={styles.tagPill}>
+                      <Text style={styles.tagPillText}>{c.displayName}</Text>
                     </View>
                   ))
                 )}
-                </View>
-              </View>
-
-              <View style={styles.detailSection}>
-                <Text style={styles.sectionTitle}>Health Conditions</Text>
-                <View style={styles.tagList}>
-                  {!study.healthConditions ||
-                  study.healthConditions.length === 0 ? (
-                    <Text style={styles.muted}>No conditions</Text>
-                  ) : (
-                    study.healthConditions.map((c, i) => (
-                      <View key={c.id + "-" + i} style={styles.tagPill}>
-                        <Text style={styles.tagPillText}>{c.displayName}</Text>
-                      </View>
-                    ))
-                  )}
-                </View>
-              </View>
-
-              <View style={styles.detailSection}>
-                <Text style={styles.sectionTitle}>Tags</Text>
-                <View style={styles.tagList}>
-                  {!study.tags || study.tags.length === 0 ? (
-                    <Text style={styles.muted}>No tags</Text>
-                  ) : (
-                    study.tags.map((tag, i) => (
-                      <View key={(tag ?? "") + "-" + i} style={styles.tagPill}>
-                        <Text style={styles.tagPillText}>{tag}</Text>
-                      </View>
-                    ))
-                  )}
-                </View>
-              </View>
-
-              <View style={styles.detailSection}>
-                <Text style={styles.sectionTitle}>Study Info</Text>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Buyer</Text>
-                  <Text style={styles.infoValue}>{study.buyerDisplayName}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Modified On</Text>
-                  <Text style={styles.infoValue}>{study.modifiedOn ?? "-"}</Text>
-                </View>
-              </View>
-
-              {/* {<Text style={styles.label}>Created On</Text>
-              <Text style={styles.value}>{study.createdOn ?? "-"}</Text>} */}
-
-              <View style={styles.formActions}>
-                <TouchableOpacity
-                  style={[styles.btn, styles.btnPrimary]}
-                  onPress={() =>
-                    router.push(`/studies/${study.postingId}/manage`)
-                  }
-                >
-                  <Text style={styles.btnPrimaryText}>Manage Study</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.btn, styles.btnGhost]}
-                  onPress={() => router.back()}
-                >
-                  <Text style={styles.btnGhostText}>Back</Text>
-                </TouchableOpacity>
               </View>
             </View>
 
-            {/* RIGHT: Stats Card */}
-            <View
-              style={[
-                styles.card,
-                isNarrow ? styles.fullWidth : styles.rightColumn,
-              ]}
-            >
-              <Text style={styles.statHeading}>Study Statistics</Text>
-
-              <View style={styles.statRow}>
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>
-                    {study.metricId?.length ?? 0}
-                  </Text>
-                  <Text style={styles.statLabel}>Metrics</Text>
-                </View>
-
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>
-                    {study.healthConditions?.length ?? 0}
-                  </Text>
-                  <Text style={styles.statLabel}>Health Conditions</Text>
-                </View>
-
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>{study.tags?.length ?? 0}</Text>
-                  <Text style={styles.statLabel}>Tags</Text>
-                </View>
-              </View>
-
-              <View style={styles.metaBlock}>
-                <Text style={styles.metaLabel}>Buyer</Text>
-                <Text style={styles.metaValue}>{study.buyerDisplayName}</Text>
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Tags</Text>
+              <View style={styles.tagList}>
+                {!study.tags || study.tags.length === 0 ? (
+                  <Text style={styles.muted}>No tags</Text>
+                ) : (
+                  study.tags.map((tag, i) => (
+                    <View key={(tag ?? "") + "-" + i} style={styles.tagPill}>
+                      <Text style={styles.tagPillText}>{tag}</Text>
+                    </View>
+                  ))
+                )}
               </View>
             </View>
-          </View>
-        )}
 
-        {/* ── Participants Tab ── */}
-        {activeTab === "participants" && (
-          <View style={[styles.card, styles.fullWidth]}>
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionTitle}>Study Info</Text>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Buyer</Text>
+                <Text style={styles.infoValue}>{study.buyerDisplayName}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Modified On</Text>
+                <Text style={styles.infoValue}>{study.modifiedOn ?? "-"}</Text>
+              </View>
+            </View>
+
+            {/* <Text style={styles.label}>Created On</Text>
+            <Text style={styles.value}>{study.createdOn ?? "-"}</Text> */}
+
             <View style={styles.detailSection}>
               <Text style={styles.sectionTitle}>Metric Trends</Text>
             {metricCharts.length === 0 && !sharesLoading && sharesData?.shares?.length > 0 ? (
@@ -1753,6 +1270,15 @@ export default function StudyDetail() {
 
             <View style={styles.formActions}>
               <TouchableOpacity
+                style={[styles.btn, styles.btnPrimary]}
+                onPress={() =>
+                  router.push(`/studies/${study.postingId}/manage`)
+                }
+              >
+                <Text style={styles.btnPrimaryText}>Manage Study</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 style={[styles.btn, styles.btnSecondary]}
                 onPress={handleDownloadCsv}
                 disabled={csvDownloading}
@@ -1774,12 +1300,43 @@ export default function StudyDetail() {
               </TouchableOpacity>
             </View>
           </View>
-        )}
 
-        {/* ── Surveys Tab ── */}
-        {activeTab === "surveys" && (
-          <SurveysTabContent studyId={String(studyId)} isNarrow={isNarrow} />
-        )}
+          {/* RIGHT: Stats Card */}
+          <View
+            style={[
+              styles.card,
+              isNarrow ? styles.fullWidth : styles.rightColumn,
+            ]}
+          >
+            <Text style={styles.statHeading}>Study Statistics</Text>
+
+            <View style={styles.statRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statNumber}>
+                  {study.metricId?.length ?? 0}
+                </Text>
+                <Text style={styles.statLabel}>Metrics</Text>
+              </View>
+
+              <View style={styles.statBox}>
+                <Text style={styles.statNumber}>
+                  {study.healthConditions?.length ?? 0}
+                </Text>
+                <Text style={styles.statLabel}>Health Conditions</Text>
+              </View>
+
+              <View style={styles.statBox}>
+                <Text style={styles.statNumber}>{study.tags?.length ?? 0}</Text>
+                <Text style={styles.statLabel}>Tags</Text>
+              </View>
+            </View>
+
+            <View style={styles.metaBlock}>
+              <Text style={styles.metaLabel}>Buyer</Text>
+              <Text style={styles.metaValue}>{study.buyerDisplayName}</Text>
+            </View>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -1790,7 +1347,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.light.background },
   scrollContainer: {
     padding: 20,
-    paddingTop: Platform.OS === "web" ? 80 : 20,
     paddingBottom: 48,
     backgroundColor: palette.light.surface,
   },
@@ -2275,7 +1831,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: palette.light.text.muted,
   },
-
+  
   /* Progress Badges */
   badgeContainer: {
     flexDirection: "row",
@@ -2301,34 +1857,4 @@ const styles = StyleSheet.create({
   badgeSuccess: { backgroundColor: "#DCFCE7" },
   badgeSuccessDot: { backgroundColor: "#16A34A" },
   badgeSuccessText: { color: "#166534" },
-
-  /* Tab Bar */
-  tabBar: {
-    flexDirection: "row",
-    backgroundColor: Colors.light.background,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: palette.light.border,
-    marginBottom: 16,
-    overflow: "hidden",
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    alignItems: "center",
-    borderBottomWidth: 3,
-    borderBottomColor: "transparent",
-  },
-  tabBtnActive: {
-    borderBottomColor: palette.light.primary,
-    backgroundColor: "rgba(186,12,47,0.04)",
-  },
-  tabBtnText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: palette.light.text.muted,
-  },
-  tabBtnTextActive: {
-    color: palette.light.primary,
-  },
 });

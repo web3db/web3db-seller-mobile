@@ -10,7 +10,6 @@ const webStyles: Record<string, React.CSSProperties> = {
     backgroundColor: '#FFFFFF',
     overflowX: 'hidden',
     overflowY: 'auto',
-    paddingTop: 80,
   },
   heroSection: {
     paddingLeft: 80,
@@ -284,7 +283,7 @@ function Footer() {
           &copy; {new Date().getFullYear()} Web3Health. All rights reserved.
         </span>
         <span style={webStyles.footerMaintained}>
-          Website maintained by Web3 development team
+          Website Maintained by UGA CCPS development team
         </span>
       </div>
     </footer>

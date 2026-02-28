@@ -1109,7 +1109,7 @@ function Footer() {
           &copy; {new Date().getFullYear()} Web3Health. All rights reserved.
         </span>
         <span style={webStyles.footerMaintained}>
-          Website maintained by Web3 development team
+          Website Maintained by UGA CCPS development team
         </span>
       </div>
     </footer>
