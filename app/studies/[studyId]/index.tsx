@@ -30,7 +30,7 @@ export default function StudyDetail() {
   const isNarrow = width < 720;
 
   const [showSaved, setShowSaved] = useState<boolean>(
-    saved === "1" || saved === "true",
+    saved === "1" || saved === "true"
   );
   const [bannerOpacity] = useState(new Animated.Value(showSaved ? 1 : 0));
   const [study, setStudy] = useState<StudyDetail | null>(null);
@@ -42,17 +42,12 @@ export default function StudyDetail() {
   const [sharesLoading, setSharesLoading] = useState(false);
   const [sharesError, setSharesError] = useState<string | null>(null);
   const [expandedShares, setExpandedShares] = useState<Record<number, boolean>>(
-    {},
+    {}
   );
-  const [csvDownloading, setCsvDownloading] = useState(false);
+  const [xlsxDownloading, setXlsxDownloading] = useState(false);
   /** Per-metric chart data: dates (X) and average value per date (Y). */
   const [metricCharts, setMetricCharts] = useState<
-    {
-      metricId: number;
-      metricName: string;
-      dates: string[];
-      averages: number[];
-    }[]
+    { metricId: number; metricName: string; dates: string[]; averages: number[] }[]
   >([]);
   /** Active bar for hover/press: show value and expand. */
   const [activeBar, setActiveBar] = useState<{
@@ -62,35 +57,48 @@ export default function StudyDetail() {
 
   const { user } = useAuth();
 
-  /** Escape a CSV field (quote if contains comma, newline, or quote). */
-  function escapeCsvField(value: string | number | null | undefined): string {
-    const s = value === null || value === undefined ? "" : String(value);
-    if (/[",\r\n]/.test(s)) {
-      return `"${s.replace(/"/g, '""')}"`;
-    }
-    return s;
-  }
-
   /**
-   * Build user.csv: one row per participant.
-   * Columns: user_id, clerkId, birthyear, race, sex, height, weight
+   * Build rows for the "Contributor Demographics" sheet: one row per contributor.
+   * Columns: Contributor ID, Age, Gender, Height, Weight, Health Conditions
    */
-  function buildUserCsv(shares: any[]): string {
-    const headers = ["user_id", "birthyear", "race", "sex", "height", "weight"];
-    const rows: string[][] = [headers.map(escapeCsvField)];
+  function buildUserSheetRows(
+    shares: any[]
+  ): (string | number | null | undefined)[][] {
+    const rows: (string | number | null | undefined)[][] = [
+      [
+        "Contributor ID",
+        "Age",
+        "Gender",
+        "Height",
+        "Weight",
+        "Health Conditions",
+      ],
+    ];
 
     for (const sh of shares ?? []) {
       const userId =
-        sh.participantId ?? sh.participant_id ?? sh.userId ?? sh.user_id ?? "";
+        sh.participantId ??
+        sh.participant_id ??
+        sh.userId ??
+        sh.user_id ??
+        "";
       const meta = sh.participantMeta ?? sh.participant_meta ?? {};
-      const birthyear = meta.birthYear ?? meta.birth_year ?? "";
-      const race =
-        typeof meta.race === "object"
-          ? (meta.race?.name ?? meta.race?.displayName ?? meta.race?.code ?? "")
-          : String(meta.race ?? "");
+      const birthyear = meta.birthYear ?? meta.birth_year;
+      const birthYearNum =
+        typeof birthyear === "number"
+          ? birthyear
+          : birthyear != null && !Number.isNaN(Number(birthyear))
+          ? Number(birthyear)
+          : null;
+      const currentYear = new Date().getFullYear();
+      const age =
+        birthYearNum != null && birthYearNum > 0 && birthYearNum <= currentYear
+          ? currentYear - birthYearNum
+          : "";
+
       const sex =
         typeof meta.sex === "object"
-          ? (meta.sex?.name ?? meta.sex?.displayName ?? meta.sex?.code ?? "")
+          ? meta.sex?.name ?? meta.sex?.displayName ?? meta.sex?.code ?? ""
           : String(meta.sex ?? "");
       const heightObj = meta.height;
       const height =
@@ -104,32 +112,70 @@ export default function StudyDetail() {
           ? String(weightObj.value ?? "") +
             (weightObj.unitCode ? ` ${weightObj.unitCode}` : "")
           : String(meta.weight ?? "");
+      const rawHealthConditions =
+        meta.healthConditions ?? meta.health_conditions ?? null;
+      let healthConditions = "";
+      if (Array.isArray(rawHealthConditions)) {
+        healthConditions = rawHealthConditions
+          .map((hc: any) => {
+            if (hc == null) return "";
+            if (typeof hc === "string") return hc;
+            return (
+              hc.displayName ??
+              hc.display_name ??
+              hc.name ??
+              hc.code ??
+              ""
+            );
+          })
+          .filter(Boolean)
+          .join("; ");
+      } else if (typeof rawHealthConditions === "string") {
+        healthConditions = rawHealthConditions;
+      }
 
-      rows.push(
-        [userId, birthyear, race, sex, height, weight].map(escapeCsvField),
-      );
+      rows.push([userId, age, sex, height, weight, healthConditions]);
     }
 
-    return rows.map((r) => r.join(",")).join("\r\n");
+    return rows;
   }
 
   /**
-   * Build user_data.csv: one row per bucket.
-   * Columns: user_id, start time, end time, data, units
+   * Build rows for the "Metrics Data" sheet: one row per contributor per time interval.
+   * Columns: Contributor ID, Metric Name, Date, Time Granularity, Metric Value, Units
    */
-  function buildUserDataCsv(shares: any[]): string {
-    const headers = ["user_id", "start time", "end time", "data", "units"];
-    const rows: string[][] = [headers.map(escapeCsvField)];
+  function buildUserDataSheetRows(
+    shares: any[]
+  ): (string | number | null | undefined)[][] {
+    const rows: (string | number | null | undefined)[][] = [
+      [
+        "Contributor ID",
+        "Metric Name",
+        "Date",
+        "Time Granularity",
+        "Metric Value",
+        "Units",
+      ],
+    ];
 
     for (const sh of shares ?? []) {
       const userId =
-        sh.participantId ?? sh.participant_id ?? sh.userId ?? sh.user_id ?? "";
+        sh.participantId ??
+        sh.participant_id ??
+        sh.userId ??
+        sh.user_id ??
+        "";
 
       const segs = sh.segments ?? [];
       for (const seg of segs) {
         const metrics = seg.metrics ?? [];
         for (const m of metrics) {
-          const unitCode = m.unitCode ?? m.unit_code ?? "";
+          const metricName =
+            m.metricName ??
+            m.metric_name ??
+            (m.metricId != null ? `Metric ${m.metricId}` : "");
+          const unitCode =
+            m.unitCode ?? m.unit_code ?? "";
 
           const buckets =
             m.computedJson?.buckets ?? m.computed_json?.buckets ?? null;
@@ -153,53 +199,93 @@ export default function StudyDetail() {
               b.to_utc ??
               "";
             const value = b.value ?? b.val ?? b.data ?? "";
+            let date = "";
+            let granularity: string | "" = "";
+            if (start) {
+              const startDate = new Date(start);
+              if (!Number.isNaN(startDate.getTime())) {
+                date = startDate.toISOString().slice(0, 10);
+                if (end) {
+                  const endDate = new Date(end);
+                  if (!Number.isNaN(endDate.getTime())) {
+                    const diffMs = endDate.getTime() - startDate.getTime();
+                    const hours = diffMs / (1000 * 60 * 60);
+                    if (hours >= 20) granularity = "Daily";
+                    else if (hours > 0) granularity = "Hourly";
+                  }
+                }
+              }
+            }
 
-            rows.push(
-              [userId, start, end, value, unitCode].map(escapeCsvField),
-            );
+            rows.push([
+              userId,
+              metricName,
+              date,
+              granularity,
+              value,
+              unitCode,
+            ]);
           }
         }
       }
     }
 
-    return rows.map((r) => r.join(",")).join("\r\n");
+    return rows;
   }
 
-  async function handleDownloadCsv() {
+  async function handleDownloadXlsx() {
     if (!sharesData?.shares || sharesData.shares.length === 0) {
       Alert.alert(
         "No data",
-        "There is no share data available to download for this study.",
+        "There is no share data available to download for this study."
       );
       return;
     }
-    setCsvDownloading(true);
+    setXlsxDownloading(true);
     try {
-      const postingId = sharesData.postingId ?? study?.postingId ?? studyId;
-      const userCsv = buildUserCsv(sharesData.shares);
-      const userDataCsv = buildUserDataCsv(sharesData.shares);
-      const combinedCsv = userCsv + "\r\n" + userDataCsv;
-
-      if (Platform.OS === "web") {
-        const blob = new Blob([combinedCsv], {
-          type: "text/csv;charset=utf-8;",
-        });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `study-${postingId}-data.csv`;
-        link.click();
-        URL.revokeObjectURL(url);
-      } else {
-        await Share.share({
-          message: combinedCsv,
-          title: "Study Data",
-        });
+      if (Platform.OS !== "web") {
+        Alert.alert(
+          "Download not available",
+          "Downloading the Excel file is only supported on web right now."
+        );
+        return;
       }
+
+      const XLSXMod = await import("xlsx");
+      const XLSX: any = (XLSXMod as any).default ?? XLSXMod;
+
+      const postingId = sharesData.postingId ?? study?.postingId ?? studyId;
+      const userRows = buildUserSheetRows(sharesData.shares);
+      const userDataRows = buildUserDataSheetRows(sharesData.shares);
+
+      const wb = XLSX.utils.book_new();
+      const usersSheet = XLSX.utils.aoa_to_sheet(userRows);
+      XLSX.utils.book_append_sheet(
+        wb,
+        usersSheet,
+        "Contributor Demographics"
+      );
+
+      const userDataSheet = XLSX.utils.aoa_to_sheet(userDataRows);
+      XLSX.utils.book_append_sheet(wb, userDataSheet, "Metrics Data");
+
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([wbout], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `study-${postingId}-data.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
     } catch (err: any) {
-      Alert.alert("Download failed", err?.message ?? "Could not download CSV");
+      Alert.alert(
+        "Download failed",
+        err?.message ?? "Could not download Excel file"
+      );
     } finally {
-      setCsvDownloading(false);
+      setXlsxDownloading(false);
     }
   }
 
@@ -241,7 +327,7 @@ export default function StudyDetail() {
   /** Returns number of days since this participant joined (at least 1). */
   function getShareExpectedDays(
     study: StudyDetail | null,
-    share: any,
+    share: any
   ): number | null {
     const startIso =
       share?.joinTimeLocal ??
@@ -320,9 +406,7 @@ export default function StudyDetail() {
     chartWidth: number;
     chartHeight?: number;
   }) {
-    const [activePointIndex, setActivePointIndex] = useState<number | null>(
-      null,
-    );
+    const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
     const padding = { left: 44, right: 12, top: 8, bottom: 28 };
     const plotWidth = chartWidth - padding.left - padding.right;
     const plotHeight = chartHeight - padding.top - padding.bottom;
@@ -341,7 +425,8 @@ export default function StudyDetail() {
     }, [buckets]);
 
     const { tMin, tMax, vMin, vMax } = React.useMemo(() => {
-      if (points.length === 0) return { tMin: 0, tMax: 1, vMin: 0, vMax: 1 };
+      if (points.length === 0)
+        return { tMin: 0, tMax: 1, vMin: 0, vMax: 1 };
       const ts = points.map((p) => p.t);
       const vs = points.map((p) => p.v);
       return {
@@ -355,7 +440,8 @@ export default function StudyDetail() {
     const tRange = tMax - tMin || 1;
     const vRange = vMax - vMin || 1;
 
-    const toX = (t: number) => padding.left + ((t - tMin) / tRange) * plotWidth;
+    const toX = (t: number) =>
+      padding.left + ((t - tMin) / tRange) * plotWidth;
     const toY = (v: number) =>
       padding.top + (1 - (v - vMin) / vRange) * plotHeight;
 
@@ -375,12 +461,7 @@ export default function StudyDetail() {
           {metricName}
           {unitCode ? ` (${unitCode})` : ""} — over time
         </Text>
-        <View
-          style={[
-            styles.bucketsChartPlot,
-            { width: chartWidth, height: chartHeight },
-          ]}
-        >
+        <View style={[styles.bucketsChartPlot, { width: chartWidth, height: chartHeight }]}>
           {/* Y-axis labels */}
           <View
             style={[
@@ -389,21 +470,10 @@ export default function StudyDetail() {
             ]}
           >
             <Text style={styles.bucketsChartAxisLabel} numberOfLines={1}>
-              {vMax === vMin
-                ? String(vMax)
-                : Number.isInteger(vMax)
-                  ? String(vMax)
-                  : vMax.toFixed(1)}
+              {vMax === vMin ? String(vMax) : Number.isInteger(vMax) ? String(vMax) : vMax.toFixed(1)}
             </Text>
-            <Text
-              style={[styles.bucketsChartAxisLabel, { marginTop: "auto" }]}
-              numberOfLines={1}
-            >
-              {vMax === vMin
-                ? String(vMin)
-                : Number.isInteger(vMin)
-                  ? String(vMin)
-                  : vMin.toFixed(1)}
+            <Text style={[styles.bucketsChartAxisLabel, { marginTop: "auto" }]} numberOfLines={1}>
+              {vMax === vMin ? String(vMin) : Number.isInteger(vMin) ? String(vMin) : vMin.toFixed(1)}
             </Text>
           </View>
           {/* Line segments */}
@@ -436,9 +506,8 @@ export default function StudyDetail() {
             const x = toX(p.t);
             const y = toY(p.v);
             const isActive = activePointIndex === idx;
-            const valueStr = Number.isInteger(p.v)
-              ? String(p.v)
-              : p.v.toFixed(2);
+            const valueStr =
+              Number.isInteger(p.v) ? String(p.v) : p.v.toFixed(2);
             return (
               <Pressable
                 key={idx}
@@ -510,7 +579,7 @@ export default function StudyDetail() {
    */
   function groupMetricDataByDate(
     shares: any[],
-    metric: number | string,
+    metric: number | string
   ): Record<string, any[]> {
     const byDate: Record<string, any[]> = {};
     const matchByMetricId = typeof metric === "number";
@@ -522,10 +591,10 @@ export default function StudyDetail() {
           : `day-${seg.dayIndex ?? "?"}`;
         const metrics = seg.metrics ?? [];
         for (const m of metrics) {
-          const matches = matchByMetricId
-            ? (m.metricId ?? m.metric_id) === metric
-            : (m.metricName ?? m.metric_name ?? "").toString() ===
-              String(metric);
+          const matches =
+            matchByMetricId
+              ? (m.metricId ?? m.metric_id) === metric
+              : (m.metricName ?? m.metric_name ?? "").toString() === String(metric);
           if (!matches) continue;
           if (!byDate[dateKey]) byDate[dateKey] = [];
           byDate[dateKey].push({
@@ -555,8 +624,9 @@ export default function StudyDetail() {
       setError(null);
       try {
         // Use the centralized API function which includes data normalization
-        const { getTrnPostingDetail } =
-          await import("../../services/postings/api");
+        const { getTrnPostingDetail } = await import(
+          "../../services/postings/api"
+        );
         const buyerId = user?.id ? Number(user.id) : -1;
         // console.log("[StudyDetail] auth user (used as buyerId):", { user, buyerId });
         const detail = await getTrnPostingDetail(buyerId, studyId);
@@ -640,12 +710,7 @@ export default function StudyDetail() {
         }
       }
     }
-    const charts: {
-      metricId: number;
-      metricName: string;
-      dates: string[];
-      averages: number[];
-    }[] = [];
+    const charts: { metricId: number; metricName: string; dates: string[]; averages: number[] }[] = [];
     for (const [metricId, metricName] of metricsSeen) {
       const byDate = groupMetricDataByDate(shares, metricId);
       const dates = Object.keys(byDate).sort();
@@ -654,15 +719,15 @@ export default function StudyDetail() {
         const arr = byDate[date] ?? [];
         data[date] = arr.map((d: any) => {
           const total = d.totalValue ?? d.total ?? d.total_value;
-          if (total != null && !Number.isNaN(Number(total)))
-            return Number(total);
+          if (total != null && !Number.isNaN(Number(total))) return Number(total);
           const avg = d.avgValue ?? d.avg_value;
-          return avg != null && !Number.isNaN(Number(avg)) ? Number(avg) : 0;
+          return (avg != null && !Number.isNaN(Number(avg))) ? Number(avg) : 0;
         });
       }
       console.log(`[Metric ${metricId}] ${metricName}:`, { dates, data });
       const averages = dates.map(
-        (d) => data[d].reduce((a, b) => a + b, 0) / (data[d].length || 1),
+        (d) =>
+          (data[d].reduce((a, b) => a + b, 0) / (data[d].length || 1))
       );
       charts.push({ metricId, metricName, dates, averages });
     }
@@ -753,9 +818,7 @@ export default function StudyDetail() {
                 <Text style={styles.infoValue}>{study.minAge ?? "-"}</Text>
               </View>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>
-                  Data Coverage Days Required
-                </Text>
+                <Text style={styles.infoLabel}>Data Coverage Days Required</Text>
                 <Text style={styles.infoValue}>
                   {study.dataCoverageDaysRequired ?? "-"}
                 </Text>
@@ -767,9 +830,7 @@ export default function StudyDetail() {
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Apply Open At</Text>
                 <Text style={styles.infoValue}>
-                  {study.applyOpenAt
-                    ? formatUtcToLocal(study.applyOpenAt)
-                    : "-"}
+                  {study.applyOpenAt ? formatUtcToLocal(study.applyOpenAt) : "-"}
                 </Text>
               </View>
               <View style={styles.infoRow}>
@@ -801,19 +862,19 @@ export default function StudyDetail() {
             <View style={styles.detailSection}>
               <Text style={styles.sectionTitle}>Metrics</Text>
               <View style={styles.tagList}>
-                {!study.metricDisplayName ||
-                study.metricDisplayName.length === 0 ? (
-                  <Text style={styles.muted}>No metrics</Text>
-                ) : (
-                  study.metricDisplayName.map((m, i) => (
-                    <View
-                      key={study.metricId![i] + "-" + i}
-                      style={styles.tagPill}
-                    >
-                      <Text style={styles.tagPillText}>{m}</Text>
-                    </View>
-                  ))
-                )}
+              {!study.metricDisplayName ||
+              study.metricDisplayName.length === 0 ? (
+                <Text style={styles.muted}>No metrics</Text>
+              ) : (
+                study.metricDisplayName.map((m, i) => (
+                  <View
+                    key={study.metricId![i] + "-" + i}
+                    style={styles.tagPill}
+                  >
+                    <Text style={styles.tagPillText}>{m}</Text>
+                  </View>
+                ))
+              )}
               </View>
             </View>
 
@@ -873,456 +934,416 @@ export default function StudyDetail() {
 
             <View style={styles.detailSection}>
               <Text style={styles.sectionTitle}>Metric Trends</Text>
-              {metricCharts.length === 0 &&
-              !sharesLoading &&
-              sharesData?.shares?.length > 0 ? (
-                <Text style={styles.muted}>No metric data to chart</Text>
-              ) : (
-                <View style={styles.chartsContainer}>
-                  {metricCharts.map((chart) => {
-                    const maxAvg = Math.max(...chart.averages, 0) || 1;
-                    const yMax = niceYCeiling(maxAvg);
-                    const chartHeight = 200;
-                    const yTicks = [
-                      yMax,
-                      (3 * yMax) / 4,
-                      yMax / 2,
-                      yMax / 4,
-                      0,
-                    ];
-                    return (
-                      <View key={chart.metricId} style={styles.chartCard}>
-                        <Text style={styles.chartTitle}>
-                          {chart.metricName}
-                        </Text>
-                        <View
-                          style={[
-                            styles.chartRow,
-                            { height: chartHeight + 28 },
-                          ]}
-                        >
-                          <View
-                            style={[styles.chartYAxis, { height: chartHeight }]}
-                          >
-                            {yTicks.map((tick, ti) => (
-                              <View
-                                key={ti}
-                                style={[
-                                  styles.chartYAxisTick,
-                                  ti === 0 && styles.chartYAxisTickFirst,
-                                  ti === 4 && styles.chartYAxisTickLast,
-                                ]}
+            {metricCharts.length === 0 && !sharesLoading && sharesData?.shares?.length > 0 ? (
+              <Text style={styles.muted}>No metric data to chart</Text>
+            ) : (
+              <View style={styles.chartsContainer}>
+                {metricCharts.map((chart) => {
+                  const maxAvg =
+                    Math.max(...chart.averages, 0) || 1;
+                  const yMax = niceYCeiling(maxAvg);
+                  const chartHeight = 200;
+                  const yTicks = [
+                    yMax,
+                    (3 * yMax) / 4,
+                    yMax / 2,
+                    yMax / 4,
+                    0,
+                  ];
+                  return (
+                    <View
+                      key={chart.metricId}
+                      style={styles.chartCard}
+                    >
+                      <Text style={styles.chartTitle}>
+                        {chart.metricName}
+                      </Text>
+                      <View style={[styles.chartRow, { height: chartHeight + 28 }]}>
+                        <View style={[styles.chartYAxis, { height: chartHeight }]}>
+                          {yTicks.map((tick, ti) => (
+                            <View
+                              key={ti}
+                              style={[
+                                styles.chartYAxisTick,
+                                ti === 0 && styles.chartYAxisTickFirst,
+                                ti === 4 && styles.chartYAxisTickLast,
+                              ]}
+                            >
+                              <Text style={styles.chartYAxisLabel}>
+                                {Number.isInteger(tick)
+                                  ? String(tick)
+                                  : tick.toFixed(1)}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                        <View style={styles.chartBars}>
+                          {chart.dates.map((date, i) => {
+                            const avg = chart.averages[i] ?? 0;
+                            const barHeight =
+                              yMax > 0
+                                ? (avg / yMax) * chartHeight
+                                : 0;
+                            const isActive =
+                              activeBar?.metricId === chart.metricId &&
+                              activeBar?.date === date;
+                            const barScale = isActive ? 1.1 : 1;
+                            return (
+                              <Pressable
+                                key={date}
+                                style={styles.chartBarWrapper}
+                                onPressIn={() =>
+                                  setActiveBar({
+                                    metricId: chart.metricId,
+                                    date,
+                                  })
+                                }
+                                onPressOut={() => setActiveBar(null)}
+                                {...(Platform.OS === "web"
+                                  ? ({
+                                      onMouseEnter: () =>
+                                        setActiveBar({
+                                          metricId: chart.metricId,
+                                          date,
+                                        }),
+                                      onMouseLeave: () =>
+                                        setActiveBar(null),
+                                    } as any)
+                                  : {})}
                               >
-                                <Text style={styles.chartYAxisLabel}>
-                                  {Number.isInteger(tick)
-                                    ? String(tick)
-                                    : tick.toFixed(1)}
-                                </Text>
-                              </View>
-                            ))}
-                          </View>
-                          <View style={styles.chartBars}>
-                            {chart.dates.map((date, i) => {
-                              const avg = chart.averages[i] ?? 0;
-                              const barHeight =
-                                yMax > 0 ? (avg / yMax) * chartHeight : 0;
-                              const isActive =
-                                activeBar?.metricId === chart.metricId &&
-                                activeBar?.date === date;
-                              const barScale = isActive ? 1.1 : 1;
-                              return (
-                                <Pressable
-                                  key={date}
-                                  style={styles.chartBarWrapper}
-                                  onPressIn={() =>
-                                    setActiveBar({
-                                      metricId: chart.metricId,
-                                      date,
-                                    })
-                                  }
-                                  onPressOut={() => setActiveBar(null)}
-                                  {...(Platform.OS === "web"
-                                    ? ({
-                                        onMouseEnter: () =>
-                                          setActiveBar({
-                                            metricId: chart.metricId,
-                                            date,
-                                          }),
-                                        onMouseLeave: () => setActiveBar(null),
-                                      } as any)
-                                    : {})}
+                                <View
+                                  style={[
+                                    styles.chartBar,
+                                    { height: chartHeight },
+                                  ]}
                                 >
+                                  <View style={styles.chartBarValueSlot}>
+                                    {isActive && (
+                                      <Text
+                                        style={styles.chartBarValue}
+                                        numberOfLines={1}
+                                      >
+                                        {Number.isInteger(avg)
+                                          ? String(avg)
+                                          : avg.toFixed(1)}
+                                      </Text>
+                                    )}
+                                  </View>
+                                  <View style={{ flex: 1 }} />
                                   <View
                                     style={[
-                                      styles.chartBar,
-                                      { height: chartHeight },
+                                      styles.chartBarFill,
+                                      {
+                                        height: Math.max(
+                                          barHeight,
+                                          avg > 0 ? 4 : 0
+                                        ),
+                                        transform: [
+                                          { scaleX: barScale },
+                                          { scaleY: barScale },
+                                        ],
+                                      },
                                     ]}
-                                  >
-                                    <View style={styles.chartBarValueSlot}>
-                                      {isActive && (
-                                        <Text
-                                          style={styles.chartBarValue}
-                                          numberOfLines={1}
-                                        >
-                                          {Number.isInteger(avg)
-                                            ? String(avg)
-                                            : avg.toFixed(1)}
-                                        </Text>
-                                      )}
-                                    </View>
-                                    <View style={{ flex: 1 }} />
-                                    <View
-                                      style={[
-                                        styles.chartBarFill,
-                                        {
-                                          height: Math.max(
-                                            barHeight,
-                                            avg > 0 ? 4 : 0,
-                                          ),
-                                          transform: [
-                                            { scaleX: barScale },
-                                            { scaleY: barScale },
-                                          ],
-                                        },
-                                      ]}
-                                    />
-                                  </View>
-                                  <Text
-                                    style={styles.chartBarLabel}
-                                    numberOfLines={1}
-                                  >
-                                    {date}
-                                  </Text>
-                                </Pressable>
-                              );
-                            })}
-                          </View>
+                                  />
+                                </View>
+                                <Text
+                                  style={styles.chartBarLabel}
+                                  numberOfLines={1}
+                                >
+                                  {date}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
                         </View>
                       </View>
-                    );
-                  })}
-                </View>
-              )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
             </View>
 
             <View style={styles.detailSection}>
               <Text style={styles.sectionTitle}>Participant Shares</Text>
 
-              {sharesLoading ? (
-                <ActivityIndicator />
-              ) : sharesError ? (
-                <Text style={{ color: "red" }}>{sharesError}</Text>
-              ) : !sharesData?.shares || sharesData.shares.length === 0 ? (
-                <Text style={styles.muted}>No shares available</Text>
-              ) : (
-                <View style={{ marginTop: 8 }}>
-                  {sharesData.shares.map((sh: any, i: number) => {
-                    const meta = sh.participantMeta ?? {};
-                    const raceName = meta.race?.name ?? "";
-                    const sexName = meta.sex?.name ?? "";
-                    const heightVal = meta.height;
-                    const heightStr =
-                      heightVal != null && heightVal.value != null
-                        ? `${heightVal.value} ${heightVal.displayName ?? ""}`.trim()
-                        : "";
-                    const weightVal = meta.weight;
-                    const weightStr =
-                      weightVal != null && weightVal.value != null
-                        ? `${weightVal.value} ${weightVal.displayName ?? ""}`.trim()
-                        : "";
-                    const participantId = sh.participantId ?? sh.userId ?? "-";
-                    const metaParts = [
-                      raceName,
-                      sexName,
-                      heightStr,
-                      weightStr,
-                    ].filter(Boolean);
-                    const metaLine =
-                      metaParts.length > 0 ? metaParts.join(" · ") : null;
+            {sharesLoading ? (
+              <ActivityIndicator />
+            ) : sharesError ? (
+              <Text style={{ color: "red" }}>{sharesError}</Text>
+            ) : !sharesData?.shares || sharesData.shares.length === 0 ? (
+              <Text style={styles.muted}>No shares available</Text>
+            ) : (
+              <View style={{ marginTop: 8 }}>
+                {sharesData.shares.map((sh: any, i: number) => {
+                  const meta = sh.participantMeta ?? {};
+                  const raceName = meta.race?.name ?? "";
+                  const sexName = meta.sex?.name ?? "";
+                  const heightVal = meta.height;
+                  const heightStr =
+                    heightVal != null && heightVal.value != null
+                      ? `${heightVal.value} ${heightVal.displayName ?? ""}`.trim()
+                      : "";
+                  const weightVal = meta.weight;
+                  const weightStr =
+                    weightVal != null && weightVal.value != null
+                      ? `${weightVal.value} ${weightVal.displayName ?? ""}`.trim()
+                      : "";
+                  const participantId = sh.participantId ?? sh.userId ?? "-";
+                  const metaParts = [raceName, sexName, heightStr, weightStr].filter(Boolean);
+                  const metaLine = metaParts.length > 0 ? metaParts.join(" · ") : null;
 
-                    // Calculate progress
-                    const progress = getShareProgress(study, sh);
+                  // Calculate progress
+                  const progress = getShareProgress(study, sh);
 
-                    return (
-                      <View
-                        key={
-                          (sh.participantId ?? sh.userId ?? sh.sessionId ?? i) +
-                          "-" +
-                          i
-                        }
-                        style={styles.shareBox}
-                      >
-                        <TouchableOpacity
-                          onPress={() => toggleShareExpand(i)}
-                          style={styles.shareHeader}
-                        >
-                          <View>
-                            <View
-                              style={{
-                                flexDirection: "row",
-                                alignItems: "center",
-                                flexWrap: "wrap",
-                              }}
-                            >
-                              <Text style={styles.shareTitle}>
-                                User — {participantId}
-                              </Text>
-                              {progress && (
-                                <View
-                                  style={[
-                                    styles.badgeContainer,
-                                    progress.onTrack
-                                      ? styles.badgeSuccess
-                                      : styles.badgeWarning,
-                                  ]}
-                                >
-                                  <View
-                                    style={[
-                                      styles.badgeDot,
-                                      progress.onTrack
-                                        ? styles.badgeSuccessDot
-                                        : styles.badgeWarningDot,
-                                    ]}
-                                  />
-                                  <Text
-                                    style={[
-                                      styles.badgeText,
-                                      progress.onTrack
-                                        ? styles.badgeSuccessText
-                                        : styles.badgeWarningText,
-                                    ]}
-                                  >
-                                    {progress.completed}/{progress.expected}{" "}
-                                    days submitted
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
-                            <Text style={styles.shareSubtitle}>
-                              Session: {sh.sessionNumber ?? sh.sessionId ?? "-"}{" "}
-                              · {sh.statusName ?? ""}
-                            </Text>
-                            {metaLine ? (
-                              <Text style={styles.shareSubtitle}>
-                                {metaLine}
-                              </Text>
-                            ) : null}
-                          </View>
-                          <Text style={styles.shareChevron}>
-                            {expandedShares[i] ? "▴" : "▾"}
+                  return (
+                  <View
+                    key={(sh.participantId ?? sh.userId ?? sh.sessionId ?? i) + "-" + i}
+                    style={styles.shareBox}
+                  >
+                    <TouchableOpacity
+                      onPress={() => toggleShareExpand(i)}
+                      style={styles.shareHeader}
+                    >
+                      <View>
+                        <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
+                          <Text style={styles.shareTitle}>
+                            User — {participantId}
                           </Text>
-                        </TouchableOpacity>
+                          {progress && (
+                            <View
+                              style={[
+                                styles.badgeContainer,
+                                progress.onTrack ? styles.badgeSuccess : styles.badgeWarning,
+                              ]}
+                            >
+                              <View
+                                style={[
+                                  styles.badgeDot,
+                                  progress.onTrack
+                                    ? styles.badgeSuccessDot
+                                    : styles.badgeWarningDot,
+                                ]}
+                              />
+                              <Text
+                                style={[
+                                  styles.badgeText,
+                                  progress.onTrack
+                                    ? styles.badgeSuccessText
+                                    : styles.badgeWarningText,
+                                ]}
+                              >
+                                {progress.completed}/{progress.expected} days submitted
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.shareSubtitle}>
+                          Session: {sh.sessionNumber ?? sh.sessionId ?? "-"} · {sh.statusName ?? ""}
+                        </Text>
+                        {metaLine ? (
+                          <Text style={styles.shareSubtitle}>
+                            {metaLine}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Text style={styles.shareChevron}>
+                        {expandedShares[i] ? "▴" : "▾"}
+                      </Text>
+                    </TouchableOpacity>
 
-                        {expandedShares[i] && (
-                          <View style={styles.shareDetails}>
-                            {!sh.segments || sh.segments.length === 0 ? (
-                              <Text style={styles.muted}>No segments</Text>
-                            ) : (
-                              sh.segments.map((seg: any, si: number) => (
-                                <View
-                                  key={(seg.segmentId ?? si) + "-" + si}
-                                  style={styles.segmentBox}
+                    {expandedShares[i] && (
+                      <View style={styles.shareDetails}>
+                        {!sh.segments || sh.segments.length === 0 ? (
+                          <Text style={styles.muted}>No segments</Text>
+                        ) : (
+                          sh.segments.map((seg: any, si: number) => (
+                            <View
+                              key={(seg.segmentId ?? si) + "-" + si}
+                              style={styles.segmentBox}
+                            >
+                              <Text style={styles.segmentHeader}>
+                                Segment {seg.segmentNumber ?? seg.segmentId ?? si} — Day{" "}
+                                {seg.dayNumber ?? seg.dayIndex ?? "-"}
+                              </Text>
+                              <Text style={styles.segmentSubheader}>
+                                From: {formatUtcToLocal(seg.fromUtc)} · To:{" "}
+                                {formatUtcToLocal(seg.toUtc)}
+                              </Text>
+
+                              {!seg.metrics || seg.metrics.length === 0 ? (
+                                <Text
+                                  style={[styles.muted, { paddingVertical: 8 }]}
                                 >
-                                  <Text style={styles.segmentHeader}>
-                                    Segment{" "}
-                                    {seg.segmentNumber ?? seg.segmentId ?? si} —
-                                    Day {seg.dayNumber ?? seg.dayIndex ?? "-"}
-                                  </Text>
-                                  <Text style={styles.segmentSubheader}>
-                                    From: {formatUtcToLocal(seg.fromUtc)} · To:{" "}
-                                    {formatUtcToLocal(seg.toUtc)}
-                                  </Text>
-
-                                  {!seg.metrics || seg.metrics.length === 0 ? (
+                                  No metrics
+                                </Text>
+                              ) : (
+                                <View style={styles.tableContainer}>
+                                  {/* Table Header */}
+                                  <View style={styles.tableHeaderRow}>
                                     <Text
                                       style={[
-                                        styles.muted,
-                                        { paddingVertical: 8 },
+                                        styles.tableHeaderCell,
+                                        { flex: 1.5 },
                                       ]}
                                     >
-                                      No metrics
+                                      Metric
                                     </Text>
-                                  ) : (
-                                    <View style={styles.tableContainer}>
-                                      {/* Table Header */}
-                                      <View style={styles.tableHeaderRow}>
-                                        <Text
-                                          style={[
-                                            styles.tableHeaderCell,
-                                            { flex: 1.5 },
-                                          ]}
-                                        >
-                                          Metric
-                                        </Text>
-                                        <Text
-                                          style={[
-                                            styles.tableHeaderCell,
-                                            { flex: 0.7, textAlign: "right" },
-                                          ]}
-                                        >
-                                          Unit
-                                        </Text>
-                                        <Text
-                                          style={[
-                                            styles.tableHeaderCell,
-                                            { flex: 0.8, textAlign: "right" },
-                                          ]}
-                                        >
-                                          Avg
-                                        </Text>
-                                        <Text
-                                          style={[
-                                            styles.tableHeaderCell,
-                                            { flex: 0.8, textAlign: "right" },
-                                          ]}
-                                        >
-                                          Min
-                                        </Text>
-                                        <Text
-                                          style={[
-                                            styles.tableHeaderCell,
-                                            { flex: 0.8, textAlign: "right" },
-                                          ]}
-                                        >
-                                          Max
-                                        </Text>
-                                        <Text
-                                          style={[
-                                            styles.tableHeaderCell,
-                                            { flex: 1, textAlign: "right" },
-                                          ]}
-                                        >
-                                          Total
-                                        </Text>
-                                        <Text
-                                          style={[
-                                            styles.tableHeaderCell,
-                                            { flex: 1, textAlign: "right" },
-                                          ]}
-                                        >
-                                          Samples
-                                        </Text>
-                                      </View>
-                                      {/* Table Body */}
-                                      {seg.metrics.map((m: any, mi: number) => (
-                                        <View
-                                          key={(m.metricId ?? mi) + "-" + mi}
-                                          style={[
-                                            styles.tableRow,
-                                            mi === seg.metrics.length - 1 &&
-                                              styles.tableRowLast,
-                                          ]}
-                                        >
-                                          <Text
-                                            style={[
-                                              styles.tableCell,
-                                              { flex: 1.5 },
-                                            ]}
-                                          >
-                                            {m.metricName ??
-                                              `Metric ${m.metricId}`}
-                                          </Text>
-                                          <Text
-                                            style={[
-                                              styles.tableCell,
-                                              { flex: 0.7, textAlign: "right" },
-                                            ]}
-                                          >
-                                            {m.unitCode ?? "-"}
-                                          </Text>
-                                          <Text
-                                            style={[
-                                              styles.tableCell,
-                                              { flex: 0.8, textAlign: "right" },
-                                            ]}
-                                          >
-                                            {formatMetricValue(m.avgValue)}
-                                          </Text>
-                                          <Text
-                                            style={[
-                                              styles.tableCell,
-                                              { flex: 0.8, textAlign: "right" },
-                                            ]}
-                                          >
-                                            {formatMetricValue(m.minValue)}
-                                          </Text>
-                                          <Text
-                                            style={[
-                                              styles.tableCell,
-                                              { flex: 0.8, textAlign: "right" },
-                                            ]}
-                                          >
-                                            {formatMetricValue(m.maxValue)}
-                                          </Text>
-                                          <Text
-                                            style={[
-                                              styles.tableCell,
-                                              { flex: 1, textAlign: "right" },
-                                            ]}
-                                          >
-                                            {formatMetricValue(m.totalValue)}
-                                          </Text>
-                                          <Text
-                                            style={[
-                                              styles.tableCell,
-                                              { flex: 1, textAlign: "right" },
-                                            ]}
-                                          >
-                                            {m.samplesCount ?? "-"}
-                                          </Text>
-                                        </View>
-                                      ))}
-                                    </View>
-                                  )}
-                                  {seg.metrics?.map((m: any, mi: number) => {
-                                    const buckets = m.computedJson?.buckets;
-                                    if (
-                                      !Array.isArray(buckets) ||
-                                      buckets.length === 0
-                                    )
-                                      return null;
-                                    const minWidthPerPoint = 12;
-                                    const widthFromPoints =
-                                      buckets.length * minWidthPerPoint;
-                                    const chartWidth = Math.max(
-                                      Math.max(320, Math.min(width - 48, 900)),
-                                      widthFromPoints,
-                                    );
-                                    return (
-                                      <ScrollView
-                                        key={
-                                          (m.metricId ?? mi) + "-buckets-scroll"
-                                        }
-                                        horizontal
-                                        showsHorizontalScrollIndicator
-                                        style={styles.bucketsChartScroll}
-                                        contentContainerStyle={
-                                          styles.bucketsChartScrollContent
-                                        }
+                                    <Text
+                                      style={[
+                                        styles.tableHeaderCell,
+                                        { flex: 0.7, textAlign: "right" },
+                                      ]}
+                                    >
+                                      Unit
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.tableHeaderCell,
+                                        { flex: 0.8, textAlign: "right" },
+                                      ]}
+                                    >
+                                      Avg
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.tableHeaderCell,
+                                        { flex: 0.8, textAlign: "right" },
+                                      ]}
+                                    >
+                                      Min
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.tableHeaderCell,
+                                        { flex: 0.8, textAlign: "right" },
+                                      ]}
+                                    >
+                                      Max
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.tableHeaderCell,
+                                        { flex: 1, textAlign: "right" },
+                                      ]}
+                                    >
+                                      Total
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.tableHeaderCell,
+                                        { flex: 1, textAlign: "right" },
+                                      ]}
+                                    >
+                                      Samples
+                                    </Text>
+                                  </View>
+                                  {/* Table Body */}
+                                  {seg.metrics.map((m: any, mi: number) => (
+                                    <View
+                                      key={(m.metricId ?? mi) + "-" + mi}
+                                      style={[
+                                        styles.tableRow,
+                                        mi === seg.metrics.length - 1 &&
+                                          styles.tableRowLast,
+                                      ]}
+                                    >
+                                      <Text
+                                        style={[
+                                          styles.tableCell,
+                                          { flex: 1.5 },
+                                        ]}
                                       >
-                                        <BucketsLineChart
-                                          key={(m.metricId ?? mi) + "-buckets"}
-                                          buckets={buckets}
-                                          metricName={
-                                            m.metricName ??
-                                            `Metric ${m.metricId}`
-                                          }
-                                          unitCode={m.unitCode}
-                                          chartWidth={chartWidth}
-                                        />
-                                      </ScrollView>
-                                    );
-                                  })}
+                                        {m.metricName ?? `Metric ${m.metricId}`}
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.tableCell,
+                                          { flex: 0.7, textAlign: "right" },
+                                        ]}
+                                      >
+                                        {m.unitCode ?? "-"}
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.tableCell,
+                                          { flex: 0.8, textAlign: "right" },
+                                        ]}
+                                      >
+                                        {formatMetricValue(m.avgValue)}
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.tableCell,
+                                          { flex: 0.8, textAlign: "right" },
+                                        ]}
+                                      >
+                                        {formatMetricValue(m.minValue)}
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.tableCell,
+                                          { flex: 0.8, textAlign: "right" },
+                                        ]}
+                                      >
+                                        {formatMetricValue(m.maxValue)}
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.tableCell,
+                                          { flex: 1, textAlign: "right" },
+                                        ]}
+                                      >
+                                        {formatMetricValue(m.totalValue)}
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.tableCell,
+                                          { flex: 1, textAlign: "right" },
+                                        ]}
+                                      >
+                                        {m.samplesCount ?? "-"}
+                                      </Text>
+                                    </View>
+                                  ))}
                                 </View>
-                              ))
-                            )}
-                          </View>
+                              )}
+                              {seg.metrics?.map((m: any, mi: number) => {
+                                const buckets = m.computedJson?.buckets;
+                                if (!Array.isArray(buckets) || buckets.length === 0) return null;
+                                const minWidthPerPoint = 12;
+                                const widthFromPoints = buckets.length * minWidthPerPoint;
+                                const chartWidth = Math.max(
+                                  Math.max(320, Math.min(width - 48, 900)),
+                                  widthFromPoints
+                                );
+                                return (
+                                  <ScrollView
+                                    key={(m.metricId ?? mi) + "-buckets-scroll"}
+                                    horizontal
+                                    showsHorizontalScrollIndicator
+                                    style={styles.bucketsChartScroll}
+                                    contentContainerStyle={styles.bucketsChartScrollContent}
+                                  >
+                                    <BucketsLineChart
+                                      key={(m.metricId ?? mi) + "-buckets"}
+                                      buckets={buckets}
+                                      metricName={m.metricName ?? `Metric ${m.metricId}`}
+                                      unitCode={m.unitCode}
+                                      chartWidth={chartWidth}
+                                    />
+                                  </ScrollView>
+                                );
+                              })}
+                            </View>
+                          ))
                         )}
                       </View>
-                    );
-                  })}
-                </View>
-              )}
+                    )}
+                  </View>
+                ); })}
+              </View>
+            )}
             </View>
 
             <View style={styles.formActions}>
@@ -1337,14 +1358,14 @@ export default function StudyDetail() {
 
               <TouchableOpacity
                 style={[styles.btn, styles.btnSecondary]}
-                onPress={handleDownloadCsv}
-                disabled={csvDownloading}
+                onPress={handleDownloadXlsx}
+                disabled={xlsxDownloading}
               >
-                {csvDownloading ? (
+                {xlsxDownloading ? (
                   <ActivityIndicator size="small" color={Colors.light.tint} />
                 ) : (
                   <Text style={styles.btnSecondaryText}>
-                    Download Data as CSV
+                    Download Data as Excel (.xlsx)
                   </Text>
                 )}
               </TouchableOpacity>
@@ -1888,7 +1909,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: palette.light.text.muted,
   },
-
+  
   /* Progress Badges */
   badgeContainer: {
     flexDirection: "row",
