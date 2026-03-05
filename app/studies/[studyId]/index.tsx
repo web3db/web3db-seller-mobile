@@ -933,7 +933,7 @@ export default function StudyDetail() {
             <View style={styles.detailSection}>
               <Text style={styles.sectionTitle}>Study Info</Text>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Buyer</Text>
+                <Text style={styles.infoLabel}>Institutional Partner</Text>
                 <Text style={styles.infoValue}>{study.buyerDisplayName}</Text>
               </View>
               <View style={styles.infoRow}>
@@ -1423,7 +1423,7 @@ export default function StudyDetail() {
             </View>
 
             <View style={styles.metaBlock}>
-              <Text style={styles.metaLabel}>Buyer</Text>
+              <Text style={styles.metaLabel}>Institutional Partner</Text>
               <Text style={styles.metaValue}>{study.buyerDisplayName}</Text>
             </View>
           </View>

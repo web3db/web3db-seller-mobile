@@ -597,11 +597,11 @@ const ManageStudy: React.FC = () => {
             items={[
               {
                 id: "buyer-only",
-                displayName: "Buyer only (sponsor only)",
+                displayName: "Institutional Partner only (sponsor only)",
               },
               {
                 id: "buyer-and-contributors-aggregated",
-                displayName: "Buyer + contributors (aggregated)",
+                displayName: "Institutional Partner + contributors (aggregated)",
               },
               {
                 id: "public-aggregated",

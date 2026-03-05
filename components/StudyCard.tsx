@@ -46,7 +46,7 @@ const StudyCard: React.FC<StudyCardProps> = ({ study, statusLabel, onPress }) =>
 
       <Text style={styles.secureMuted}>
         Data shared will be de-identified and transferred over secure channels;
-        participants must consent.
+        contributors must consent.
       </Text>
 
       <View style={styles.metaContainer}>
