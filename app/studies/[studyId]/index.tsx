@@ -938,7 +938,9 @@ export default function StudyDetail() {
               </View>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Modified On</Text>
-                <Text style={styles.infoValue}>{study.modifiedOn ?? "-"}</Text>
+                <Text style={styles.infoValue}>
+                  {study.modifiedOn ? formatUtcToLocal(study.modifiedOn) : "-"}
+                </Text>
               </View>
             </View>
 
