@@ -44,7 +44,7 @@ export default function StudyDetail() {
   const [expandedShares, setExpandedShares] = useState<Record<number, boolean>>(
     {}
   );
-  const [csvDownloading, setCsvDownloading] = useState(false);
+  const [xlsxDownloading, setXlsxDownloading] = useState(false);
   /** Per-metric chart data: dates (X) and average value per date (Y). */
   const [metricCharts, setMetricCharts] = useState<
     { metricId: number; metricName: string; dates: string[]; averages: number[] }[]
@@ -57,29 +57,23 @@ export default function StudyDetail() {
 
   const { user } = useAuth();
 
-  /** Escape a CSV field (quote if contains comma, newline, or quote). */
-  function escapeCsvField(value: string | number | null | undefined): string {
-    const s = value === null || value === undefined ? "" : String(value);
-    if (/[",\r\n]/.test(s)) {
-      return `"${s.replace(/"/g, '""')}"`;
-    }
-    return s;
-  }
-
   /**
-   * Build user.csv: one row per participant.
-   * Columns: user_id, clerkId, birthyear, race, sex, height, weight
+   * Build rows for the "Contributor Demographics" sheet: one row per contributor.
+   * Columns: Contributor ID, Age, Gender, Height, Weight, Health Conditions
    */
-  function buildUserCsv(shares: any[]): string {
-    const headers = [
-      "user_id",
-      "birthyear",
-      "race",
-      "sex",
-      "height",
-      "weight",
+  function buildUserSheetRows(
+    shares: any[]
+  ): (string | number | null | undefined)[][] {
+    const rows: (string | number | null | undefined)[][] = [
+      [
+        "Contributor ID",
+        "Age",
+        "Gender",
+        "Height",
+        "Weight",
+        "Health Conditions",
+      ],
     ];
-    const rows: string[][] = [headers.map(escapeCsvField)];
 
     for (const sh of shares ?? []) {
       const userId =
@@ -89,45 +83,80 @@ export default function StudyDetail() {
         sh.user_id ??
         "";
       const meta = sh.participantMeta ?? sh.participant_meta ?? {};
-      const birthyear = meta.birthYear ?? meta.birth_year ?? "";
-      const race = typeof meta.race === "object"
-        ? (meta.race?.name ?? meta.race?.displayName ?? meta.race?.code ?? "")
-        : String(meta.race ?? "");
-      const sex = typeof meta.sex === "object"
-        ? (meta.sex?.name ?? meta.sex?.displayName ?? meta.sex?.code ?? "")
-        : String(meta.sex ?? "");
-      const heightObj = meta.height;
-      const height = heightObj != null && typeof heightObj === "object"
-        ? String(heightObj.value ?? "") + (heightObj.unitCode ? ` ${heightObj.unitCode}` : "")
-        : String(meta.height ?? "");
-      const weightObj = meta.weight;
-      const weight = weightObj != null && typeof weightObj === "object"
-        ? String(weightObj.value ?? "") + (weightObj.unitCode ? ` ${weightObj.unitCode}` : "")
-        : String(meta.weight ?? "");
+      const birthyear = meta.birthYear ?? meta.birth_year;
+      const birthYearNum =
+        typeof birthyear === "number"
+          ? birthyear
+          : birthyear != null && !Number.isNaN(Number(birthyear))
+          ? Number(birthyear)
+          : null;
+      const currentYear = new Date().getFullYear();
+      const age =
+        birthYearNum != null && birthYearNum > 0 && birthYearNum <= currentYear
+          ? currentYear - birthYearNum
+          : "";
 
-      rows.push(
-        [userId, birthyear, race, sex, height, weight].map(
-          escapeCsvField
-        )
-      );
+      const sex =
+        typeof meta.sex === "object"
+          ? meta.sex?.name ?? meta.sex?.displayName ?? meta.sex?.code ?? ""
+          : String(meta.sex ?? "");
+      const heightObj = meta.height;
+      const height =
+        heightObj != null && typeof heightObj === "object"
+          ? String(heightObj.value ?? "") +
+            (heightObj.unitCode ? ` ${heightObj.unitCode}` : "")
+          : String(meta.height ?? "");
+      const weightObj = meta.weight;
+      const weight =
+        weightObj != null && typeof weightObj === "object"
+          ? String(weightObj.value ?? "") +
+            (weightObj.unitCode ? ` ${weightObj.unitCode}` : "")
+          : String(meta.weight ?? "");
+      const rawHealthConditions =
+        meta.healthConditions ?? meta.health_conditions ?? null;
+      let healthConditions = "";
+      if (Array.isArray(rawHealthConditions)) {
+        healthConditions = rawHealthConditions
+          .map((hc: any) => {
+            if (hc == null) return "";
+            if (typeof hc === "string") return hc;
+            return (
+              hc.displayName ??
+              hc.display_name ??
+              hc.name ??
+              hc.code ??
+              ""
+            );
+          })
+          .filter(Boolean)
+          .join("; ");
+      } else if (typeof rawHealthConditions === "string") {
+        healthConditions = rawHealthConditions;
+      }
+
+      rows.push([userId, age, sex, height, weight, healthConditions]);
     }
 
-    return rows.map((r) => r.join(",")).join("\r\n");
+    return rows;
   }
 
   /**
-   * Build user_data.csv: one row per bucket.
-   * Columns: user_id, start time, end time, data, units
+   * Build rows for the "Metrics Data" sheet: one row per contributor per time interval.
+   * Columns: Contributor ID, Metric Name, Date, Time Granularity, Metric Value, Units
    */
-  function buildUserDataCsv(shares: any[]): string {
-    const headers = [
-      "user_id",
-      "start time",
-      "end time",
-      "data",
-      "units",
+  function buildUserDataSheetRows(
+    shares: any[]
+  ): (string | number | null | undefined)[][] {
+    const rows: (string | number | null | undefined)[][] = [
+      [
+        "Contributor ID",
+        "Metric Name",
+        "Date",
+        "Time Granularity",
+        "Metric Value",
+        "Units",
+      ],
     ];
-    const rows: string[][] = [headers.map(escapeCsvField)];
 
     for (const sh of shares ?? []) {
       const userId =
@@ -141,6 +170,10 @@ export default function StudyDetail() {
       for (const seg of segs) {
         const metrics = seg.metrics ?? [];
         for (const m of metrics) {
+          const metricName =
+            m.metricName ??
+            m.metric_name ??
+            (m.metricId != null ? `Metric ${m.metricId}` : "");
           const unitCode =
             m.unitCode ?? m.unit_code ?? "";
 
@@ -166,19 +199,41 @@ export default function StudyDetail() {
               b.to_utc ??
               "";
             const value = b.value ?? b.val ?? b.data ?? "";
+            let date = "";
+            let granularity: string | "" = "";
+            if (start) {
+              const startDate = new Date(start);
+              if (!Number.isNaN(startDate.getTime())) {
+                date = startDate.toISOString().slice(0, 10);
+                if (end) {
+                  const endDate = new Date(end);
+                  if (!Number.isNaN(endDate.getTime())) {
+                    const diffMs = endDate.getTime() - startDate.getTime();
+                    const hours = diffMs / (1000 * 60 * 60);
+                    if (hours >= 20) granularity = "Daily";
+                    else if (hours > 0) granularity = "Hourly";
+                  }
+                }
+              }
+            }
 
-            rows.push(
-              [userId, start, end, value, unitCode].map(escapeCsvField)
-            );
+            rows.push([
+              userId,
+              metricName,
+              date,
+              granularity,
+              value,
+              unitCode,
+            ]);
           }
         }
       }
     }
 
-    return rows.map((r) => r.join(",")).join("\r\n");
+    return rows;
   }
 
-  async function handleDownloadCsv() {
+  async function handleDownloadXlsx() {
     if (!sharesData?.shares || sharesData.shares.length === 0) {
       Alert.alert(
         "No data",
@@ -186,36 +241,51 @@ export default function StudyDetail() {
       );
       return;
     }
-    setCsvDownloading(true);
+    setXlsxDownloading(true);
     try {
-      const postingId = sharesData.postingId ?? study?.postingId ?? studyId;
-      const userCsv = buildUserCsv(sharesData.shares);
-      const userDataCsv = buildUserDataCsv(sharesData.shares);
-      const combinedCsv = userCsv + "\r\n" + userDataCsv;
-
-      if (Platform.OS === "web") {
-        const blob = new Blob([combinedCsv], {
-          type: "text/csv;charset=utf-8;",
-        });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `study-${postingId}-data.csv`;
-        link.click();
-        URL.revokeObjectURL(url);
-      } else {
-        await Share.share({
-          message: combinedCsv,
-          title: "Study Data",
-        });
+      if (Platform.OS !== "web") {
+        Alert.alert(
+          "Download not available",
+          "Downloading the Excel file is only supported on web right now."
+        );
+        return;
       }
+
+      const XLSXMod = await import("xlsx");
+      const XLSX: any = (XLSXMod as any).default ?? XLSXMod;
+
+      const postingId = sharesData.postingId ?? study?.postingId ?? studyId;
+      const userRows = buildUserSheetRows(sharesData.shares);
+      const userDataRows = buildUserDataSheetRows(sharesData.shares);
+
+      const wb = XLSX.utils.book_new();
+      const usersSheet = XLSX.utils.aoa_to_sheet(userRows);
+      XLSX.utils.book_append_sheet(
+        wb,
+        usersSheet,
+        "Contributor Demographics"
+      );
+
+      const userDataSheet = XLSX.utils.aoa_to_sheet(userDataRows);
+      XLSX.utils.book_append_sheet(wb, userDataSheet, "Metrics Data");
+
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([wbout], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `study-${postingId}-data.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
     } catch (err: any) {
       Alert.alert(
         "Download failed",
-        err?.message ?? "Could not download CSV"
+        err?.message ?? "Could not download Excel file"
       );
     } finally {
-      setCsvDownloading(false);
+      setXlsxDownloading(false);
     }
   }
 
@@ -830,11 +900,19 @@ export default function StudyDetail() {
                 {!study.tags || study.tags.length === 0 ? (
                   <Text style={styles.muted}>No tags</Text>
                 ) : (
-                  study.tags.map((tag, i) => (
-                    <View key={(tag ?? "") + "-" + i} style={styles.tagPill}>
-                      <Text style={styles.tagPillText}>{tag}</Text>
-                    </View>
-                  ))
+                  study.tags
+                    .map((tag: any) =>
+                      typeof tag === "string" ? tag : tag?.displayName,
+                    )
+                    .filter(
+                      (name: any) =>
+                        typeof name === "string" && name.trim().length > 0,
+                    )
+                    .map((name: string, i: number) => (
+                      <View key={`${name}-${i}`} style={styles.tagPill}>
+                        <Text style={styles.tagPillText}>{name}</Text>
+                      </View>
+                    ))
                 )}
               </View>
             </View>
@@ -1280,14 +1358,14 @@ export default function StudyDetail() {
 
               <TouchableOpacity
                 style={[styles.btn, styles.btnSecondary]}
-                onPress={handleDownloadCsv}
-                disabled={csvDownloading}
+                onPress={handleDownloadXlsx}
+                disabled={xlsxDownloading}
               >
-                {csvDownloading ? (
+                {xlsxDownloading ? (
                   <ActivityIndicator size="small" color={Colors.light.tint} />
                 ) : (
                   <Text style={styles.btnSecondaryText}>
-                    Download Data as CSV
+                    Download Data as Excel (.xlsx)
                   </Text>
                 )}
               </TouchableOpacity>

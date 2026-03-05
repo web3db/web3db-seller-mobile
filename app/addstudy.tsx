@@ -51,6 +51,8 @@ export default function ManageStudy(): React.ReactElement {
   const [summary, setSummary] = useState("");
   const [description, setDescription] = useState("");
   const [length, setLength] = useState("");
+  const [minAge, setMinAge] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // --- Date Picker State ---
@@ -60,7 +62,9 @@ export default function ManageStudy(): React.ReactElement {
   const [closeDateString, setCloseDateString] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerField, setDatePickerField] = useState<'open' | 'close' | null>(null);
-  const [active, setActive] = useState(true);
+  const [selectedViewPolicy, setSelectedViewPolicy] = useState<string | null>(
+    null
+  );
 
   // metrics state
   const [metrics, setMetrics] = useState<Metric[]>([]);
@@ -281,10 +285,15 @@ export default function ManageStudy(): React.ReactElement {
     if (!title.trim()) errors.title = "Title is required";
     if (!summary.trim()) errors.summary = "Summary is required";
     if (!length.trim()) errors.length = "Length is required";
+    if (!minAge.trim()) {
+      errors.minAge = "Minimum age is required";
+    } else if (Number(minAge) <= 0) {
+      errors.minAge = "Minimum age must be greater than 0";
+    }
     if (!applyOpenAt) errors.applyOpenAt = "Start date is required";
     if (selectedMetricIds.length === 0) errors.metrics = "At least one metric is required";
-    if (selectedHealthConditionIds.length === 0) errors.healthConditions = "At least one health condition is required";
     if (!rewardValue.trim()) errors.rewardValue = "Reward value is required";
+    if (!selectedViewPolicy) errors.viewPolicy = "View policy is required";
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -293,12 +302,18 @@ export default function ManageStudy(): React.ReactElement {
     setFormErrors({});
 
     try {
+      const tagsArray =
+        tagsInput
+          .split(",")
+          .map((t) => t.trim())
+          .filter((t) => t.length > 0) || [];
+
       const payload: any = {
         title,
         summary,
         description,
         dataCoverageDaysRequired: Number(length) || 1,
-        postingStatusId: active ? 1 : 0,
+        postingStatusId: selectedStatusId,
         // New DB column requires the buyer user id; include both common casings
         buyerId: buyerId,
         postingMetricIds: selectedMetricIds,
@@ -307,6 +322,9 @@ export default function ManageStudy(): React.ReactElement {
         healthConditionIds: selectedHealthConditionIds,
         applyOpenAt: applyOpenAt ? applyOpenAt.toISOString() : null,
         applyCloseAt: applyCloseAt ? applyCloseAt.toISOString() : null,
+        minAge: Number(minAge) || 0,
+        viewPolicies: selectedViewPolicy ? [selectedViewPolicy] : [],
+        tags: tagsArray,
       };
 
       console.log("Publishing payload:", payload);
@@ -357,6 +375,19 @@ export default function ManageStudy(): React.ReactElement {
               keyboardType="numeric"
             />
             {formErrors.length ? <Text style={styles.errorText}>{formErrors.length}</Text> : null}
+
+            <Text style={styles.label}>
+              Minimum Age (years) <Text style={styles.required}>*</Text>
+            </Text>
+            <TextInput
+              value={minAge}
+              onChangeText={(t) => setMinAge(t.replace(/[^0-9]/g, ""))}
+              style={styles.input}
+              keyboardType="numeric"
+            />
+            {formErrors.minAge ? (
+              <Text style={styles.errorText}>{formErrors.minAge}</Text>
+            ) : null}
 
             {/* Date Pickers */}
             <Text style={styles.label}>Apply Open Date <Text style={styles.required}>*</Text></Text>
@@ -470,8 +501,7 @@ export default function ManageStudy(): React.ReactElement {
                 </View>
               )}
 
-              <Text style={[styles.label, { marginTop: 12 }]}>Health Conditions <Text style={styles.required}>*</Text></Text>
-              {formErrors.healthConditions ? <Text style={styles.errorText}>{formErrors.healthConditions}</Text> : null}
+              <Text style={[styles.label, { marginTop: 12 }]}>Health Conditions</Text>
 
               <View>
                 <TouchableOpacity
@@ -522,6 +552,40 @@ export default function ManageStudy(): React.ReactElement {
                     )}
                   </View>
                 )}
+
+                <Text style={[styles.label, { marginTop: 12 }]}>
+                  View Policy <Text style={styles.required}>*</Text>
+                </Text>
+                {formErrors.viewPolicy ? (
+                  <Text style={styles.errorText}>{formErrors.viewPolicy}</Text>
+                ) : null}
+                <SingleSelectDropdown
+                  items={[
+                    {
+                      id: "buyer-only",
+                      displayName: "Buyer only (sponsor only)",
+                    },
+                    {
+                      id: "buyer-and-contributors-aggregated",
+                      displayName: "Buyer + contributors (aggregated)",
+                    },
+                    {
+                      id: "public-aggregated",
+                      displayName: "Public aggregated",
+                    },
+                  ]}
+                  selectedId={selectedViewPolicy}
+                  onSelect={(id) => setSelectedViewPolicy(String(id))}
+                  placeholder="Select view policy..."
+                />
+
+                <Text style={styles.label}>Tags (comma-separated)</Text>
+                <TextInput
+                  value={tagsInput}
+                  onChangeText={setTagsInput}
+                  style={styles.input}
+                  placeholder="e.g. Sleep, Wearables, Steps"
+                />
 
                 <Text style={styles.label}>Reward Type</Text>
                 {rewardTypesLoading ? (
