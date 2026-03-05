@@ -48,6 +48,7 @@ const ManageStudy: React.FC = () => {
   const [rewardValue, setRewardValue] = useState(""); // Added rewardValue state
   const [tagsInput, setTagsInput] = useState("");
   const [postingId, setPostingId] = useState<number | null>(null);
+  const [originalStatusId, setOriginalStatusId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasParticipants, setHasParticipants] = useState(false);
 
@@ -91,12 +92,22 @@ const ManageStudy: React.FC = () => {
   // --- Dropdown UI state ---
   const [metricsDropdownOpen, setMetricsDropdownOpen] = useState(false);
   const [healthDropdownOpen, setHealthDropdownOpen] = useState(false);
+  const [openStatusId, setOpenStatusId] = useState<number | null>(null);
 
   const { user } = useAuth();
 
   useEffect(() => {
     listPostingStatuses()
-      .then(setStatuses)
+      .then((items) => {
+        setStatuses(items);
+        const open =
+          items.find(
+            (s) =>
+              s.code?.toLowerCase() === "open" ||
+              s.displayName?.toLowerCase().includes("open")
+          ) ?? null;
+        setOpenStatusId(open ? open.postingStatusId : null);
+      })
       .finally(() => setStatusesLoading(false));
     listRewardTypes()
       .then(setRewardTypes)
@@ -178,6 +189,7 @@ const ManageStudy: React.FC = () => {
           }
 
           setSelectedStatusId(detail.postingStatusId ?? null);
+          setOriginalStatusId(detail.postingStatusId ?? null);
           setSelectedRewardTypeId(detail.rewardTypeId ?? null);
           // The detail API returns an array of objects: { metricId: number, ... }
           // We need to map this to an array of just the IDs.
@@ -321,45 +333,63 @@ const ManageStudy: React.FC = () => {
 
   async function handleSave() {
     if (!postingId) return alert("No study loaded");
-    const tagsArray =
-      tagsInput
-        .split(",")
-        .map((t) => t.trim())
-        .filter((t) => t.length > 0) || [];
-    const payload = {
-      title,
-      summary,
-      description,
-      dataCoverageDaysRequired: dataCoverageDaysRequired
-        ? Number(dataCoverageDaysRequired)
-        : null,
-      minAge: minAge ? Number(minAge) : null,
-      // posting status id (number or null)
-      postingStatusId: selectedStatusId ? Number(selectedStatusId) : null,
-      // reward type id
-      rewardTypeId: selectedRewardTypeId,
-      // The create/update functions expect `postingMetricsIds` (not `metrics`)
-      rewardValue: Number(rewardValue) || 0, // Include rewardValue in payload
-      metrics: selectedMetricIds,
-      // The create/update functions expect `healthConditionIds`
-      healthConditionIds: selectedHealthConditionIds,
-      // dates (ISO strings or null)
-      applyOpenAt: applyOpenAt ? applyOpenAt.toISOString() : null,
-      applyCloseAt: applyCloseAt ? applyCloseAt.toISOString() : null,
-      viewPolicies: selectedViewPolicy ? [selectedViewPolicy] : [],
-      tags: tagsArray,
+
+    const doSave = async () => {
+      const tagsArray =
+        tagsInput
+          .split(",")
+          .map((t) => t.trim())
+          .filter((t) => t.length > 0) || [];
+      const payload = {
+        title,
+        summary,
+        description,
+        dataCoverageDaysRequired: dataCoverageDaysRequired
+          ? Number(dataCoverageDaysRequired)
+          : null,
+        minAge: minAge ? Number(minAge) : null,
+        // posting status id (number or null)
+        postingStatusId: selectedStatusId ? Number(selectedStatusId) : null,
+        // reward type id
+        rewardTypeId: selectedRewardTypeId,
+        // The create/update functions expect `postingMetricsIds` (not `metrics`)
+        rewardValue: Number(rewardValue) || 0, // Include rewardValue in payload
+        metrics: selectedMetricIds,
+        // The create/update functions expect `healthConditionIds`
+        healthConditionIds: selectedHealthConditionIds,
+        // dates (ISO strings or null)
+        applyOpenAt: applyOpenAt ? applyOpenAt.toISOString() : null,
+        applyCloseAt: applyCloseAt ? applyCloseAt.toISOString() : null,
+        viewPolicies: selectedViewPolicy ? [selectedViewPolicy] : [],
+        tags: tagsArray,
+      };
+      try {
+        const buyerId = user?.id ? Number(user.id) : -1;
+        const res = await updateTrnPosting(buyerId, postingId, payload as any);
+        console.log(res);
+        router.replace(`/studies/${postingId}?saved=1`);
+      } catch (err) {
+        alert(
+          "Failed to save changes: " +
+            (err instanceof Error ? err.message : String(err))
+        );
+      }
     };
-    try {
-      const buyerId = user?.id ? Number(user.id) : -1;
-      const res = await updateTrnPosting(buyerId, postingId, payload as any);
-      console.log(res);
-      router.replace(`/studies/${postingId}?saved=1`);
-    } catch (err) {
-      alert(
-        "Failed to save changes: " +
-          (err instanceof Error ? err.message : String(err))
-      );
+
+    const isPublishing =
+      openStatusId != null &&
+      selectedStatusId === openStatusId &&
+      originalStatusId !== openStatusId;
+
+    if (isPublishing) {
+      console.log("[ManageStudy] Publishing study (status changing to Open)", {
+        openStatusId,
+        selectedStatusId,
+        originalStatusId,
+      });
     }
+
+    await doSave();
   }
 
   function handleCancel() {
@@ -726,6 +756,15 @@ const ManageStudy: React.FC = () => {
               </View>
             )}
 
+            {openStatusId != null &&
+              selectedStatusId === openStatusId &&
+              originalStatusId !== openStatusId && (
+                <Text style={styles.warningText}>
+                  Once published and contributors have registered, this study cannot
+                  be modified. Please review carefully before proceeding.
+                </Text>
+              )}
+
             <View style={styles.formActions}>
               <TouchableOpacity
                 style={[styles.btn, styles.btnPrimary]}
@@ -869,7 +908,7 @@ const styles = StyleSheet.create({
   },
   btnGhostText: { color: Colors.light.text, fontWeight: "600" },
   disabled: { opacity: 0.5, backgroundColor: "#f5f5f5" },
-  warningText: { color: "red", fontSize: 12, marginBottom: 4 },
+  warningText: { color: "red", fontSize: 24, marginBottom: 4 },
 });
 
 export default ManageStudy;

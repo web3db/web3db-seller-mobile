@@ -21,16 +21,17 @@ import { useAuth } from "@/hooks/AuthContext";
 import type { StudyDetail } from "../../services/postings/types";
 
 export default function StudyDetail() {
-  const { studyId, saved } = useLocalSearchParams() as {
+  const { studyId, saved, draft } = useLocalSearchParams() as {
     studyId?: string;
     saved?: string;
+    draft?: string;
   };
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isNarrow = width < 720;
 
   const [showSaved, setShowSaved] = useState<boolean>(
-    saved === "1" || saved === "true"
+    saved === "1" || saved === "true" || draft === "1" || draft === "true"
   );
   const [bannerOpacity] = useState(new Animated.Value(showSaved ? 1 : 0));
   const [study, setStudy] = useState<StudyDetail | null>(null);
@@ -776,7 +777,11 @@ export default function StudyDetail() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {showSaved && (
           <Animated.View style={[styles.banner, { opacity: bannerOpacity }]}>
-            <Text style={styles.bannerText}>Changes saved successfully</Text>
+            <Text style={styles.bannerText}>
+              {draft === "1" || draft === "true"
+                ? "Study saved as draft. To publish, update the status to Open from the Manage Study page."
+                : "Changes saved successfully"}
+            </Text>
           </Animated.View>
         )}
 
@@ -901,12 +906,20 @@ export default function StudyDetail() {
                   <Text style={styles.muted}>No tags</Text>
                 ) : (
                   study.tags
-                    .map((tag: any) =>
-                      typeof tag === "string" ? tag : tag?.displayName,
-                    )
+                    .map((tag: any) => {
+                      if (typeof tag === "string") return tag;
+                      if (!tag) return "";
+                      return (
+                        tag.displayName ??
+                        tag.display_name ??
+                        tag.name ??
+                        tag.code ??
+                        ""
+                      );
+                    })
                     .filter(
                       (name: any) =>
-                        typeof name === "string" && name.trim().length > 0,
+                        typeof name === "string" && name.trim().length > 0
                     )
                     .map((name: string, i: number) => (
                       <View key={`${name}-${i}`} style={styles.tagPill}>
