@@ -44,7 +44,9 @@ const ManageStudy: React.FC = () => {
   const [summary, setSummary] = useState("");
   const [description, setDescription] = useState("");
   const [dataCoverageDaysRequired, setDataCoverageDaysRequired] = useState("");
+  const [minAge, setMinAge] = useState("");
   const [rewardValue, setRewardValue] = useState(""); // Added rewardValue state
+  const [tagsInput, setTagsInput] = useState("");
   const [postingId, setPostingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasParticipants, setHasParticipants] = useState(false);
@@ -82,6 +84,9 @@ const ManageStudy: React.FC = () => {
   const [selectedHealthConditionIds, setSelectedHealthConditionIds] = useState<
     number[]
   >([]);
+  const [selectedViewPolicy, setSelectedViewPolicy] = useState<string | null>(
+    null
+  );
 
   // --- Dropdown UI state ---
   const [metricsDropdownOpen, setMetricsDropdownOpen] = useState(false);
@@ -134,6 +139,11 @@ const ManageStudy: React.FC = () => {
               ? String(detail.dataCoverageDaysRequired)
               : ""
           );
+          setMinAge(
+            typeof detail.minAge === "number" && !Number.isNaN(detail.minAge)
+              ? String(detail.minAge)
+              : ""
+          );
           setRewardValue(
             detail.rewardValue !== null && detail.rewardValue !== undefined
               ? String(detail.rewardValue)
@@ -181,6 +191,21 @@ const ManageStudy: React.FC = () => {
               ? detail.healthConditions.map((h: any) => Number(h.id))
               : []
           ); // Use 'id' from normalized data
+          if (Array.isArray(detail.viewPolicies) && detail.viewPolicies.length) {
+            const first = detail.viewPolicies[0];
+            setSelectedViewPolicy(
+              typeof first === "string"
+                ? first
+                : first?.code ?? first?.id ?? null
+            );
+          } else {
+            setSelectedViewPolicy(null);
+          }
+          setTagsInput(
+            Array.isArray(detail.tags) && detail.tags.length
+              ? detail.tags.join(", ")
+              : ""
+          );
         }
       } catch (err) {
         console.error(err);
@@ -296,6 +321,11 @@ const ManageStudy: React.FC = () => {
 
   async function handleSave() {
     if (!postingId) return alert("No study loaded");
+    const tagsArray =
+      tagsInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0) || [];
     const payload = {
       title,
       summary,
@@ -303,6 +333,7 @@ const ManageStudy: React.FC = () => {
       dataCoverageDaysRequired: dataCoverageDaysRequired
         ? Number(dataCoverageDaysRequired)
         : null,
+      minAge: minAge ? Number(minAge) : null,
       // posting status id (number or null)
       postingStatusId: selectedStatusId ? Number(selectedStatusId) : null,
       // reward type id
@@ -315,6 +346,8 @@ const ManageStudy: React.FC = () => {
       // dates (ISO strings or null)
       applyOpenAt: applyOpenAt ? applyOpenAt.toISOString() : null,
       applyCloseAt: applyCloseAt ? applyCloseAt.toISOString() : null,
+      viewPolicies: selectedViewPolicy ? [selectedViewPolicy] : [],
+      tags: tagsArray,
     };
     try {
       const buyerId = user?.id ? Number(user.id) : -1;
@@ -401,6 +434,14 @@ const ManageStudy: React.FC = () => {
               style={styles.input}
               keyboardType="numeric"
             />
+
+          <Text style={styles.label}>Minimum Age (years)</Text>
+          <TextInput
+            value={minAge}
+            onChangeText={(t) => setMinAge(t.replace(/[^0-9]/g, ""))}
+            style={styles.input}
+            keyboardType="numeric"
+          />
 
             {/* Date Pickers */}
             <Text style={styles.label}>Apply Open Date</Text>
@@ -518,6 +559,37 @@ const ManageStudy: React.FC = () => {
               style={styles.input}
               keyboardType="numeric"
             />
+
+          <Text style={[styles.label, { marginTop: 12 }]}>
+            View Policy
+          </Text>
+          <SingleSelectDropdown
+            items={[
+              {
+                id: "buyer-only",
+                displayName: "Buyer only (sponsor only)",
+              },
+              {
+                id: "buyer-and-contributors-aggregated",
+                displayName: "Buyer + contributors (aggregated)",
+              },
+              {
+                id: "public-aggregated",
+                displayName: "Public aggregated",
+              },
+            ]}
+            selectedId={selectedViewPolicy}
+            onSelect={(id) => setSelectedViewPolicy(String(id))}
+            placeholder="Select view policy..."
+          />
+
+          <Text style={styles.label}>Tags (comma-separated)</Text>
+          <TextInput
+            value={tagsInput}
+            onChangeText={setTagsInput}
+            style={styles.input}
+            placeholder="e.g. Sleep, Wearables, Steps"
+          />
 
             <Text style={[styles.label, { marginTop: 12 }]}>Metrics</Text>
             {hasParticipants && (
