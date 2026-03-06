@@ -14,7 +14,7 @@ const webStyles: Record<string, React.CSSProperties> = {
   mainContent: {
     display: 'flex',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'flex-start',
     paddingLeft: 80,
     paddingRight: 80,
@@ -149,7 +149,7 @@ const webStyles: Record<string, React.CSSProperties> = {
   },
   // Partners Styles
   partnersSection: {
-    marginTop: 80,
+    marginTop: 40,
     width: '100%',
     maxWidth: 500,
   },
@@ -1264,7 +1264,7 @@ function Landing() {
             <p style={webStyles.heroSubtitle}>
               <span style={webStyles.heroSubtitleBold}>Web3Health</span> helps organizations recruit participants who already use <span style={webStyles.heroSubtitleBold}>activity trackers</span> and securely collect <span style={webStyles.heroSubtitleBold}>anonymized data</span> for reproducible science.
             </p>
-            <TouchableOpacity onPress={() => router.push('/login')}> 
+            <TouchableOpacity onPress={() => router.push('/services')}>
               <div style={webStyles.getStartedButton}> Get Started</div>
             </TouchableOpacity>
             <Partners />
@@ -1350,7 +1350,7 @@ function Landing() {
       <Text style={styles.nativeSubtitle}>
         Accelerating health research with consented activity data
       </Text>
-      <TouchableOpacity onPress={() => router.push('/login')} style={styles.getStartedBtn}>
+      <TouchableOpacity onPress={() => router.push('/services')} style={styles.getStartedBtn}>
         <Text style={styles.getStartedText}>Get Started</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={() => router.push('/about')} style={styles.learnMoreBtn}>

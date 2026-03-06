@@ -54,30 +54,36 @@ const contributorSteps: Step[] = [
 const institutionSteps: Step[] = [
   {
     id: 1,
+    icon: 'person-add-outline',
+    title: 'Create a User Account',
+    description: 'Start by registering an account on this web portal. Once approved, you will gain access to the institutional dashboard where you can create and manage research studies.',
+  },
+  {
+    id: 2,
     icon: 'create-outline',
     title: 'Create Structured Initiatives',
     description: 'Design and publish research studies with defined objectives, data scope, eligibility criteria, and duration through the institutional dashboard.',
   },
   {
-    id: 2,
+    id: 3,
     icon: 'funnel-outline',
     title: 'Define Data Scope',
     description: 'Specify required health metrics, minimum data coverage periods, and participant eligibility filters including age ranges and target health conditions.',
   },
   {
-    id: 3,
+    id: 4,
     icon: 'shield-checkmark-outline',
     title: 'Access Secure Dashboards',
     description: 'Monitor real-time enrollment progress, data collection status, and aggregate participant metrics within a secure, access-controlled research environment.',
   },
   {
-    id: 4,
+    id: 5,
     icon: 'bar-chart-outline',
     title: 'Review Participation Metrics',
     description: 'Track enrollment rates, retention, and data completeness across your cohort. Export structured datasets with full provenance metadata for reproducible analysis.',
   },
   {
-    id: 5,
+    id: 6,
     icon: 'document-text-outline',
     title: 'Governance & Compliance',
     description: 'All studies are governed by documented consent records, data use agreements, and audit trails. Compliance reporting tools ensure adherence to institutional and regulatory requirements.',
@@ -755,7 +761,7 @@ export default function HowItWorks() {
         <div className="hiw-hero" style={webStyles.heroSection}>
           <h1 style={webStyles.heroTitle}>How It Works</h1>
           <p style={webStyles.heroSubtitle}>
-            Web3Health connects contributors and research institutions through a transparent, consent-driven data platform. Select your role to explore the workflow.
+            Web3Health connects research participants and clinical researchers through a transparent, consent-driven platform. Select your role to explore the workflow.
           </p>
         </div>
 
@@ -771,7 +777,7 @@ export default function HowItWorks() {
               }}
               onClick={() => switchTab('contributors')}
             >
-              For Contributors
+              Research Participant
             </button>
             <button
               className="hiw-tab-button"
@@ -781,7 +787,7 @@ export default function HowItWorks() {
               }}
               onClick={() => switchTab('institutions')}
             >
-              For Institutional Partners
+              Clinical Researcher
             </button>
           </div>
         </div>
@@ -804,7 +810,7 @@ export default function HowItWorks() {
                 <div style={{ ...webStyles.ctaCardIcon, backgroundColor: 'rgba(178, 34, 34, 0.2)' }}>
                   <Ionicons name="phone-portrait-outline" size={26} color="#FF6B6B" />
                 </div>
-                <span style={webStyles.ctaCardTitle}>I'm a Contributor</span>
+                <span style={webStyles.ctaCardTitle}>I'm a Research Participant</span>
                 <span style={webStyles.ctaCardBody}>
                   Web3Health is a mobile app for iOS and Android. Download it to connect your health data, browse active studies, and participate entirely on your own terms.
                 </span>
@@ -825,7 +831,7 @@ export default function HowItWorks() {
                 <div style={{ ...webStyles.ctaCardIcon, backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
                   <Ionicons name="business-outline" size={26} color="rgba(255,255,255,0.8)" />
                 </div>
-                <span style={webStyles.ctaCardTitle}>I'm a Research Partner</span>
+                <span style={webStyles.ctaCardTitle}>I'm a Clinical Researcher</span>
                 <span style={webStyles.ctaCardBody}>
                   Create an institutional account, configure your first study, and start recruiting participants through the Web3Health dashboard.
                 </span>
@@ -855,7 +861,7 @@ export default function HowItWorks() {
         Web3Health connects contributors and research institutions through a transparent, consent-driven data platform.
       </Text>
 
-      <Text style={nativeStyles.sectionHeading}>For Contributors</Text>
+      <Text style={nativeStyles.sectionHeading}>Research Participant</Text>
       {contributorSteps.map((step) => (
         <View key={step.id} style={nativeStyles.card}>
           <View style={nativeStyles.cardHeader}>
@@ -868,7 +874,7 @@ export default function HowItWorks() {
         </View>
       ))}
 
-      <Text style={[nativeStyles.sectionHeading, { marginTop: 32 }]}>For Institutional Partners</Text>
+      <Text style={[nativeStyles.sectionHeading, { marginTop: 32 }]}>Clinical Researcher</Text>
       {institutionSteps.map((step) => (
         <View key={step.id} style={nativeStyles.card}>
           <View style={nativeStyles.cardHeader}>
