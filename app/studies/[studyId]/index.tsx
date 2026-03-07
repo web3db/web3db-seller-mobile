@@ -152,8 +152,8 @@ export default function StudyDetail() {
       [
         "Contributor ID",
         "Metric Name",
-        "Date",
-        "Time Granularity",
+        "Start Time",
+        "End Time",
         "Metric Value",
         "Units",
       ],
@@ -200,29 +200,12 @@ export default function StudyDetail() {
               b.to_utc ??
               "";
             const value = b.value ?? b.val ?? b.data ?? "";
-            let date = "";
-            let granularity: string | "" = "";
-            if (start) {
-              const startDate = new Date(start);
-              if (!Number.isNaN(startDate.getTime())) {
-                date = startDate.toISOString().slice(0, 10);
-                if (end) {
-                  const endDate = new Date(end);
-                  if (!Number.isNaN(endDate.getTime())) {
-                    const diffMs = endDate.getTime() - startDate.getTime();
-                    const hours = diffMs / (1000 * 60 * 60);
-                    if (hours >= 20) granularity = "Daily";
-                    else if (hours > 0) granularity = "Hourly";
-                  }
-                }
-              }
-            }
 
             rows.push([
               userId,
               metricName,
-              date,
-              granularity,
+              start,
+              end,
               value,
               unitCode,
             ]);
