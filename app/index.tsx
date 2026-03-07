@@ -603,33 +603,6 @@ const webStyles: Record<string, React.CSSProperties> = {
     fontSize: 20,
     fontWeight: '700',
     color: '#B22222',
-import {
-  SafeAreaView,
-  ScrollView,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from "react-native";
-import React from "react";
-import { Colors, palette } from "@/constants/theme";
-import { useRouter } from "expo-router";
-
-// Re-importing the simple FeatureCard and StudyCard components from earlier
-import FeatureCard from "../components/FeatureCard";
-import StudyCard from "../components/StudyCard";
-import type { StudySummary } from "@/app/services/postings/types";
-// --- Data ---
-const sampleStudies: StudySummary[] = [
-  {
-    id: 1,
-    title: "4-Week Physical Activity Study",
-    summary: "Study for steps walked in 3 days",
-    description:
-      "A four-week study collecting step counts and activity patterns from contributors who already use an activity tracker (phone or wearable).",
-    statusId: 2,
-    organizer: "Web3Health",
-    spots: 500,
   },
   footerBrandHealth: {
     fontFamily: 'Barlow, sans-serif',
@@ -852,11 +825,9 @@ const whyChooseUsData = [
   },
 ];
 
-const howItWorksSteps = [
-  "Organizations create a study and define eligibility criteria for contributors.",
-  "Contributors consent and securely share anonymized step/activity data from their devices.",
-  "Researchers analyze aggregated datasets with clear, verifiable data provenance.",
-];
+function WhyChooseUs() {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
