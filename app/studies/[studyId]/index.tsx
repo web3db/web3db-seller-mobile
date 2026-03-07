@@ -21,16 +21,17 @@ import { useAuth } from "@/hooks/AuthContext";
 import type { StudyDetail } from "../../services/postings/types";
 
 export default function StudyDetail() {
-  const { studyId, saved } = useLocalSearchParams() as {
+  const { studyId, saved, draft } = useLocalSearchParams() as {
     studyId?: string;
     saved?: string;
+    draft?: string;
   };
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isNarrow = width < 720;
 
   const [showSaved, setShowSaved] = useState<boolean>(
-    saved === "1" || saved === "true"
+    saved === "1" || saved === "true" || draft === "1" || draft === "true"
   );
   const [bannerOpacity] = useState(new Animated.Value(showSaved ? 1 : 0));
   const [study, setStudy] = useState<StudyDetail | null>(null);
@@ -776,7 +777,11 @@ export default function StudyDetail() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {showSaved && (
           <Animated.View style={[styles.banner, { opacity: bannerOpacity }]}>
-            <Text style={styles.bannerText}>Changes saved successfully</Text>
+            <Text style={styles.bannerText}>
+              {draft === "1" || draft === "true"
+                ? "Study saved as draft. To publish, update the status to Open from the Manage Study page."
+                : "Changes saved successfully"}
+            </Text>
           </Animated.View>
         )}
 
@@ -901,12 +906,20 @@ export default function StudyDetail() {
                   <Text style={styles.muted}>No tags</Text>
                 ) : (
                   study.tags
-                    .map((tag: any) =>
-                      typeof tag === "string" ? tag : tag?.displayName,
-                    )
+                    .map((tag: any) => {
+                      if (typeof tag === "string") return tag;
+                      if (!tag) return "";
+                      return (
+                        tag.displayName ??
+                        tag.display_name ??
+                        tag.name ??
+                        tag.code ??
+                        ""
+                      );
+                    })
                     .filter(
                       (name: any) =>
-                        typeof name === "string" && name.trim().length > 0,
+                        typeof name === "string" && name.trim().length > 0
                     )
                     .map((name: string, i: number) => (
                       <View key={`${name}-${i}`} style={styles.tagPill}>
@@ -920,149 +933,21 @@ export default function StudyDetail() {
             <View style={styles.detailSection}>
               <Text style={styles.sectionTitle}>Study Info</Text>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Buyer</Text>
+                <Text style={styles.infoLabel}>Institutional Partner</Text>
                 <Text style={styles.infoValue}>{study.buyerDisplayName}</Text>
               </View>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Modified On</Text>
-                <Text style={styles.infoValue}>{study.modifiedOn ?? "-"}</Text>
+                <Text style={styles.infoValue}>
+                  {study.modifiedOn ? formatUtcToLocal(study.modifiedOn) : "-"}
+                </Text>
               </View>
             </View>
 
             {/* <Text style={styles.label}>Created On</Text>
             <Text style={styles.value}>{study.createdOn ?? "-"}</Text> */}
 
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Metric Trends</Text>
-            {metricCharts.length === 0 && !sharesLoading && sharesData?.shares?.length > 0 ? (
-              <Text style={styles.muted}>No metric data to chart</Text>
-            ) : (
-              <View style={styles.chartsContainer}>
-                {metricCharts.map((chart) => {
-                  const maxAvg =
-                    Math.max(...chart.averages, 0) || 1;
-                  const yMax = niceYCeiling(maxAvg);
-                  const chartHeight = 200;
-                  const yTicks = [
-                    yMax,
-                    (3 * yMax) / 4,
-                    yMax / 2,
-                    yMax / 4,
-                    0,
-                  ];
-                  return (
-                    <View
-                      key={chart.metricId}
-                      style={styles.chartCard}
-                    >
-                      <Text style={styles.chartTitle}>
-                        {chart.metricName}
-                      </Text>
-                      <View style={[styles.chartRow, { height: chartHeight + 28 }]}>
-                        <View style={[styles.chartYAxis, { height: chartHeight }]}>
-                          {yTicks.map((tick, ti) => (
-                            <View
-                              key={ti}
-                              style={[
-                                styles.chartYAxisTick,
-                                ti === 0 && styles.chartYAxisTickFirst,
-                                ti === 4 && styles.chartYAxisTickLast,
-                              ]}
-                            >
-                              <Text style={styles.chartYAxisLabel}>
-                                {Number.isInteger(tick)
-                                  ? String(tick)
-                                  : tick.toFixed(1)}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                        <View style={styles.chartBars}>
-                          {chart.dates.map((date, i) => {
-                            const avg = chart.averages[i] ?? 0;
-                            const barHeight =
-                              yMax > 0
-                                ? (avg / yMax) * chartHeight
-                                : 0;
-                            const isActive =
-                              activeBar?.metricId === chart.metricId &&
-                              activeBar?.date === date;
-                            const barScale = isActive ? 1.1 : 1;
-                            return (
-                              <Pressable
-                                key={date}
-                                style={styles.chartBarWrapper}
-                                onPressIn={() =>
-                                  setActiveBar({
-                                    metricId: chart.metricId,
-                                    date,
-                                  })
-                                }
-                                onPressOut={() => setActiveBar(null)}
-                                {...(Platform.OS === "web"
-                                  ? ({
-                                      onMouseEnter: () =>
-                                        setActiveBar({
-                                          metricId: chart.metricId,
-                                          date,
-                                        }),
-                                      onMouseLeave: () =>
-                                        setActiveBar(null),
-                                    } as any)
-                                  : {})}
-                              >
-                                <View
-                                  style={[
-                                    styles.chartBar,
-                                    { height: chartHeight },
-                                  ]}
-                                >
-                                  <View style={styles.chartBarValueSlot}>
-                                    {isActive && (
-                                      <Text
-                                        style={styles.chartBarValue}
-                                        numberOfLines={1}
-                                      >
-                                        {Number.isInteger(avg)
-                                          ? String(avg)
-                                          : avg.toFixed(1)}
-                                      </Text>
-                                    )}
-                                  </View>
-                                  <View style={{ flex: 1 }} />
-                                  <View
-                                    style={[
-                                      styles.chartBarFill,
-                                      {
-                                        height: Math.max(
-                                          barHeight,
-                                          avg > 0 ? 4 : 0
-                                        ),
-                                        transform: [
-                                          { scaleX: barScale },
-                                          { scaleY: barScale },
-                                        ],
-                                      },
-                                    ]}
-                                  />
-                                </View>
-                                <Text
-                                  style={styles.chartBarLabel}
-                                  numberOfLines={1}
-                                >
-                                  {date}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-            </View>
+            {/* Metric Trends chart removed */}
 
             <View style={styles.detailSection}>
               <Text style={styles.sectionTitle}>Participant Shares</Text>
@@ -1410,7 +1295,7 @@ export default function StudyDetail() {
             </View>
 
             <View style={styles.metaBlock}>
-              <Text style={styles.metaLabel}>Buyer</Text>
+              <Text style={styles.metaLabel}>Institutional Partner</Text>
               <Text style={styles.metaValue}>{study.buyerDisplayName}</Text>
             </View>
           </View>

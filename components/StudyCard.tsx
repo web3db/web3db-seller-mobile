@@ -46,7 +46,7 @@ const StudyCard: React.FC<StudyCardProps> = ({ study, statusLabel, onPress }) =>
 
       <Text style={styles.secureMuted}>
         Data shared will be de-identified and transferred over secure channels;
-        participants must consent.
+        contributors must consent.
       </Text>
 
       <View style={styles.metaContainer}>
@@ -65,7 +65,11 @@ const StudyCard: React.FC<StudyCardProps> = ({ study, statusLabel, onPress }) =>
           style={[styles.btn, styles.btnGhost]}
           onPress={handleManagePress}
         >
-          <Text style={styles.btnTextGhost}>Manage</Text>
+          <Text style={styles.btnTextGhost}>
+            {(statusLabel ?? "").toLowerCase().includes("draft")
+              ? "Publish"
+              : "Manage Study"}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.btn, styles.btnPrimary]}

@@ -75,11 +75,11 @@ export default function ManageStudy(): React.ReactElement {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedMetricIds, setSelectedMetricIds] = useState<number[]>([]);
 
-  // statuses
+  // statuses (used only to determine default Draft status)
   const [statuses, setStatuses] = useState<PostingStatus[]>([]);
   const [statusesLoading, setStatusesLoading] = useState(false);
   const [statusesError, setStatusesError] = useState<string | null>(null);
-  const [selectedStatusId, setSelectedStatusId] = useState<number>(2);
+  const [draftStatusId, setDraftStatusId] = useState<number | null>(null);
 
   // reward types
   const [rewardTypes, setRewardTypes] = useState<RewardType[]>([]);
@@ -135,11 +135,14 @@ export default function ManageStudy(): React.ReactElement {
         const items = await listPostingStatuses();
         if (!mounted) return;
         setStatuses(items);
-        // if returned items don't include default 2, optionally set first active
-        if (!items.some((i) => i.postingStatusId === 2)) {
-          const first = items.find((i) => i.isActive);
-          if (first) setSelectedStatusId(first.postingStatusId);
-        }
+        // Prefer a status with code or name indicating Draft; fallback to first active.
+        const draft =
+          items.find(
+            (i) =>
+              i.code?.toLowerCase() === "draft" ||
+              i.displayName?.toLowerCase().includes("draft")
+          ) ?? items.find((i) => i.isActive) ?? items[0];
+        setDraftStatusId(draft ? draft.postingStatusId : null);
       } catch (err) {
         console.error("Failed to load statuses", err);
         if (mounted) setStatusesError(String(err ?? "Failed to load statuses"));
@@ -313,7 +316,7 @@ export default function ManageStudy(): React.ReactElement {
         summary,
         description,
         dataCoverageDaysRequired: Number(length) || 1,
-        postingStatusId: selectedStatusId,
+        postingStatusId: draftStatusId,
         // New DB column requires the buyer user id; include both common casings
         buyerId: buyerId,
         postingMetricIds: selectedMetricIds,
@@ -327,11 +330,11 @@ export default function ManageStudy(): React.ReactElement {
         tags: tagsArray,
       };
 
-      console.log("Publishing payload:", payload);
-      const response = await createTrnPosting(buyerId,payload as any);
+      console.log("Saving draft payload:", payload);
+      const response = await createTrnPosting(buyerId, payload as any);
 
-      // Navigate to created study detail
-      router.replace(`/studies/${response.id}`);
+      // Navigate to created study detail and show draft guidance
+      router.replace(`/studies/${response.id}?draft=1`);
     } catch (error) {
       console.error("Error saving study:", error);
       // show minimal feedback — you can replace with a toast
@@ -436,20 +439,6 @@ export default function ManageStudy(): React.ReactElement {
             {/* DateTimePicker Modal (for native only) */}
             {showDatePicker && Platform.OS !== 'web' && (
               <DateTimePicker value={datePickerField === 'open' ? (applyOpenAt || new Date()) : (applyCloseAt || new Date())} mode="date" display="default" onChange={onDateChange} />
-            )}
-
-            <Text style={styles.label}>Status</Text>
-            {statusesLoading ? (
-              <ActivityIndicator />
-            ) : statusesError ? (
-              <Text style={{ color: "red" }}>{statusesError}</Text>
-            ) : (
-              <SingleSelectDropdown
-                items={statuses.map((s) => ({ id: s.postingStatusId, displayName: s.displayName }))}
-                selectedId={selectedStatusId}
-                onSelect={(id) => setSelectedStatusId(Number(id))}
-                placeholder="Select status..."
-              />
             )}
 
             <Text style={[styles.label, { marginTop: 12 }]}>Metrics <Text style={styles.required}>*</Text></Text>
@@ -563,11 +552,11 @@ export default function ManageStudy(): React.ReactElement {
                   items={[
                     {
                       id: "buyer-only",
-                      displayName: "Buyer only (sponsor only)",
+                      displayName: "Institutional Partner only (sponsor only)",
                     },
                     {
                       id: "buyer-and-contributors-aggregated",
-                      displayName: "Buyer + contributors (aggregated)",
+                      displayName: "Institutional Partner + contributors (aggregated)",
                     },
                     {
                       id: "public-aggregated",
@@ -612,7 +601,7 @@ export default function ManageStudy(): React.ReactElement {
 
                 <View style={styles.formActions}>
                   <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={handlePublish}>
-                    <Text style={styles.btnPrimaryText}>Publish</Text>
+                    <Text style={styles.btnPrimaryText}>Save as Draft</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={handleCancel}>
                     <Text style={styles.btnGhostText}>Cancel</Text>
