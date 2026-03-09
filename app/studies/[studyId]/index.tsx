@@ -16,7 +16,7 @@ import {
   Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { getPostingShares } from "../../services/postings/api";
+import { getPostingShares, getTrnPostingDetail } from "../../services/postings/api";
 import { useAuth } from "@/hooks/AuthContext";
 import type { StudyDetail } from "../../services/postings/types";
 
@@ -608,9 +608,6 @@ export default function StudyDetail() {
       setError(null);
       try {
         // Use the centralized API function which includes data normalization
-        const { getTrnPostingDetail } = await import(
-          "../../services/postings/api"
-        );
         const buyerId = user?.id ? Number(user.id) : -1;
         // console.log("[StudyDetail] auth user (used as buyerId):", { user, buyerId });
         const detail = await getTrnPostingDetail(buyerId, studyId);
