@@ -316,26 +316,15 @@ export default function StudyDetail() {
     return valueString;
   }
 
-  /** Returns number of days since this participant joined (at least 1). */
+  /** Returns the study's configured duration in days (dataCoverageDaysRequired). */
   function getShareExpectedDays(
     study: StudyDetail | null,
-    share: any
+    _share: any
   ): number | null {
-    const startIso =
-      share?.joinTimeLocal ??
-      share?.join_time_local ??
-      study?.applyOpenAt ??
-      study?.createdOn;
-    if (!startIso) return null;
-
-    const start = new Date(startIso);
-    if (Number.isNaN(start.getTime())) return null;
-
-    const now = new Date();
-    const msPerDay = 24 * 60 * 60 * 1000;
-
-    const diffDays = Math.floor((now.getTime() - start.getTime()) / msPerDay);
-    return Math.max(1, diffDays + 1);
+    if (study?.dataCoverageDaysRequired != null && study.dataCoverageDaysRequired > 0) {
+      return study.dataCoverageDaysRequired;
+    }
+    return null;
   }
 
   /** Each segment is assumed to represent one full day of data. */
