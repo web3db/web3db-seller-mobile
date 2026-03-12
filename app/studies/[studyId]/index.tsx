@@ -145,38 +145,6 @@ export default function StudyDetail() {
    * Build rows for the "Metrics Data" sheet: one row per contributor per time interval.
    * Columns: Contributor ID, Metric Name, Date, Time Granularity, Metric Value, Units
    */
-  /**
-   * Normalize computedJson into a flat array of { ts, end, value } points.
-   * Handles both the legacy bucket format and the new raw_v1 format from
-   * the mobile app (introduced when HKSampleQuery replaced HKStatisticsCollectionQuery).
-   */
-  function normalizeMetricPoints(
-    computedJson: any
-  ): { ts: string; end: string; value: number }[] {
-    if (!computedJson) return [];
-    // New raw_v1 format: { format: "raw_v1", samples: [{ ts, value }] }
-    if (computedJson.format === "raw_v1" && Array.isArray(computedJson.samples)) {
-      return computedJson.samples.map((s: any) => ({
-        ts: s.ts ?? s.timestamp ?? "",
-        end: s.ts ?? s.timestamp ?? "",
-        value: Number(s.value ?? s.val ?? 0),
-      }));
-    }
-    // Legacy bucket format: { buckets: [{ start, end, value }] }
-    if (Array.isArray(computedJson.buckets)) {
-      return computedJson.buckets.map((b: any) => ({
-        ts:
-          b.start ?? b.startUtc ?? b.start_utc ??
-          b.from ?? b.fromUtc ?? b.from_utc ?? "",
-        end:
-          b.end ?? b.endUtc ?? b.end_utc ??
-          b.to ?? b.toUtc ?? b.to_utc ?? "",
-        value: Number(b.value ?? b.val ?? b.data ?? 0),
-      }));
-    }
-    return [];
-  }
-
   function buildUserDataSheetRows(
     shares: any[]
   ): (string | number | null | undefined)[][] {
@@ -210,13 +178,37 @@ export default function StudyDetail() {
           const unitCode =
             m.unitCode ?? m.unit_code ?? "";
 
-          const points = normalizeMetricPoints(
-            m.computedJson ?? m.computed_json
-          );
-          if (points.length === 0) continue;
+          const buckets =
+            m.computedJson?.buckets ?? m.computed_json?.buckets ?? null;
+          if (!Array.isArray(buckets) || buckets.length === 0) continue;
 
-          for (const p of points) {
-            rows.push([userId, metricName, p.ts, p.end, p.value, unitCode]);
+          for (const b of buckets) {
+            const start =
+              b.start ??
+              b.startUtc ??
+              b.start_utc ??
+              b.from ??
+              b.fromUtc ??
+              b.from_utc ??
+              "";
+            const end =
+              b.end ??
+              b.endUtc ??
+              b.end_utc ??
+              b.to ??
+              b.toUtc ??
+              b.to_utc ??
+              "";
+            const value = b.value ?? b.val ?? b.data ?? "";
+
+            rows.push([
+              userId,
+              metricName,
+              start,
+              end,
+              value,
+              unitCode,
+            ]);
           }
         }
       }
@@ -1182,13 +1174,8 @@ export default function StudyDetail() {
                                 </View>
                               )}
                               {seg.metrics?.map((m: any, mi: number) => {
-                                const points = normalizeMetricPoints(m.computedJson);
-                                const buckets = points.map((p) => ({
-                                  start: p.ts,
-                                  end: p.end,
-                                  value: p.value,
-                                }));
-                                if (buckets.length === 0) return null;
+                                const buckets = m.computedJson?.buckets;
+                                if (!Array.isArray(buckets) || buckets.length === 0) return null;
                                 const minWidthPerPoint = 12;
                                 const widthFromPoints = buckets.length * minWidthPerPoint;
                                 const chartWidth = Math.max(
