@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, Platform, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { LABELS } from '@/constants/labels';
 
 // ── Data ───────────────────────────────────────────────────
 
@@ -771,7 +772,7 @@ export default function HowItWorks() {
               }}
               onClick={() => switchTab('contributors')}
             >
-              For Contributors
+              For {LABELS.CONTRIBUTOR_PLURAL}
             </button>
             <button
               className="hiw-tab-button"
@@ -781,7 +782,7 @@ export default function HowItWorks() {
               }}
               onClick={() => switchTab('institutions')}
             >
-              For Institutional Partners
+              For {LABELS.INSTITUTIONAL_PARTNER_PLURAL}
             </button>
           </div>
         </div>
@@ -855,7 +856,7 @@ export default function HowItWorks() {
         Web3Health connects contributors and research institutions through a transparent, consent-driven data platform.
       </Text>
 
-      <Text style={nativeStyles.sectionHeading}>For Contributors</Text>
+      <Text style={nativeStyles.sectionHeading}>For {LABELS.CONTRIBUTOR_PLURAL}</Text>
       {contributorSteps.map((step) => (
         <View key={step.id} style={nativeStyles.card}>
           <View style={nativeStyles.cardHeader}>
@@ -868,7 +869,7 @@ export default function HowItWorks() {
         </View>
       ))}
 
-      <Text style={[nativeStyles.sectionHeading, { marginTop: 32 }]}>For Institutional Partners</Text>
+      <Text style={[nativeStyles.sectionHeading, { marginTop: 32 }]}>For {LABELS.INSTITUTIONAL_PARTNER_PLURAL}</Text>
       {institutionSteps.map((step) => (
         <View key={step.id} style={nativeStyles.card}>
           <View style={nativeStyles.cardHeader}>
