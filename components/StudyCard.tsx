@@ -14,57 +14,50 @@ type StudyCardProps = {
 function getStatusColors(label: string): { bg: string; color: string; dot: string } {
   const l = (label ?? "").toLowerCase();
   if (l.includes("open") || l.includes("active") || l.includes("recruit") || l.includes("live"))
-    return { bg: "rgba(22, 163, 74, 0.12)", color: "#15803d", dot: "#16a34a" };
+    return { bg: "rgba(22, 163, 74, 0.18)", color: "#15803d", dot: "#16a34a" };
   if (l.includes("draft") || l.includes("pending") || l.includes("review"))
-    return { bg: "rgba(202, 138, 4, 0.12)", color: "#92400e", dot: "#d97706" };
+    return { bg: "rgba(202, 138, 4, 0.18)", color: "#92400e", dot: "#d97706" };
   if (l.includes("clos") || l.includes("complet") || l.includes("ended") || l.includes("inactiv"))
-    return { bg: "rgba(220, 38, 38, 0.12)", color: "#991b1b", dot: "#dc2626" };
+    return { bg: "rgba(220, 38, 38, 0.18)", color: "#991b1b", dot: "#dc2626" };
   if (l.includes("paus") || l.includes("hold"))
-    return { bg: "rgba(37, 99, 235, 0.12)", color: "#1e40af", dot: "#2563eb" };
-  return { bg: "rgba(107, 114, 128, 0.12)", color: "#374151", dot: "#6b7280" };
+    return { bg: "rgba(37, 99, 235, 0.18)", color: "#1e40af", dot: "#2563eb" };
+  return { bg: "rgba(107, 114, 128, 0.18)", color: "#374151", dot: "#6b7280" };
 }
 
 // ─── Web styles ───────────────────────────────────────────────────────────────
 const webStyles: Record<string, React.CSSProperties> = {
   card: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    boxShadow: "0 8px 40px rgba(0, 0, 0, 0.08)",
+    borderRadius: 16,
+    boxShadow: "0 4px 24px rgba(0, 0, 0, 0.07)",
     overflow: "hidden",
-    border: "1px solid rgba(0, 0, 0, 0.04)",
-    marginBottom: 24,
+    border: "1px solid rgba(0, 0, 0, 0.05)",
+    marginBottom: 20,
   },
+  // Header uses 12-col grid: title (9 cols) | status badge (3 cols)
   cardHeader: {
     background: "linear-gradient(135deg, #C62828 0%, #8B0000 100%)",
-    padding: "24px 28px",
+    padding: "20px 28px",
+    display: "grid",
+    gridTemplateColumns: "repeat(12, 1fr)" as any,
+    gap: "0 16px",
+    alignItems: "center",
+  },
+  headerTitleCol: {
+    gridColumn: "span 9" as any,
+  },
+  headerBadgeCol: {
+    gridColumn: "span 3" as any,
+    display: "flex",
+    justifyContent: "flex-end",
   },
   cardTitle: {
     fontFamily: "Barlow, sans-serif",
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
     color: "#FFFFFF",
     lineHeight: 1.3,
     margin: 0,
-  },
-  cardBody: {
-    padding: 28,
-  },
-  // 12-column grid: description (left) + actions (right)
-  bodyGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(12, 1fr)" as any,
-    gap: "0 32px",
-    alignItems: "start",
-  },
-  leftCol: {
-    gridColumn: "span 8" as any,
-  },
-  rightCol: {
-    gridColumn: "span 4" as any,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-end",
-    gap: 12,
   },
   statusBadge: {
     display: "inline-flex",
@@ -75,32 +68,56 @@ const webStyles: Record<string, React.CSSProperties> = {
     fontFamily: "Barlow, sans-serif",
     fontSize: 12,
     fontWeight: "600",
-    marginBottom: 14,
-    width: "fit-content",
+    whiteSpace: "nowrap" as any,
   },
   statusDot: {
     width: 7,
     height: 7,
     borderRadius: "50%" as any,
     flexShrink: 0,
+    display: "inline-block",
+  },
+  // Body uses 12-col grid: content (8 cols) | sidebar (4 cols)
+  cardBody: {
+    padding: "24px 28px",
+    display: "grid",
+    gridTemplateColumns: "repeat(12, 1fr)" as any,
+    gap: "0 32px",
+    alignItems: "start",
+  },
+  mainCol: {
+    gridColumn: "span 8" as any,
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+  },
+  sideCol: {
+    gridColumn: "span 4" as any,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    paddingTop: 4,
   },
   description: {
     fontFamily: "Barlow, sans-serif",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "400",
     color: "#444444",
     lineHeight: 1.7,
     margin: 0,
-    marginBottom: 16,
   },
-  organizerRow: {
+  organizerBox: {
     display: "flex",
-    alignItems: "center",
-    gap: 8,
+    flexDirection: "column",
+    gap: 3,
+    padding: "10px 14px",
+    backgroundColor: "#F9F9FB",
+    borderRadius: 10,
+    border: "1px solid rgba(0,0,0,0.04)",
   },
   organizerLabel: {
     fontFamily: "Barlow, sans-serif",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     color: "#888888",
     textTransform: "uppercase",
@@ -117,18 +134,18 @@ const webStyles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     color: "#aaaaaa",
     fontStyle: "italic",
-    marginTop: 10,
+    margin: 0,
   },
   btnGhost: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "9px 20px",
+    padding: "9px 16px",
     borderRadius: 10,
     border: "2px solid #B22222",
     backgroundColor: "transparent",
     fontFamily: "Barlow, sans-serif",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: "#B22222",
     cursor: "pointer",
@@ -139,16 +156,16 @@ const webStyles: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "9px 20px",
+    padding: "9px 16px",
     borderRadius: 10,
     border: "none",
     backgroundColor: "#B22222",
     fontFamily: "Barlow, sans-serif",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: "#FFFFFF",
     cursor: "pointer",
-    boxShadow: "0 4px 12px rgba(178, 34, 34, 0.3)",
+    boxShadow: "0 4px 12px rgba(178, 34, 34, 0.25)",
     width: "100%",
     boxSizing: "border-box",
   },
@@ -173,49 +190,47 @@ const StudyCardWeb: React.FC<StudyCardProps> = ({ study, statusLabel, onPress })
 
   return (
     <div style={webStyles.card}>
-      {/* Gradient header — title only */}
-      <div style={webStyles.cardHeader}>
-        <p style={webStyles.cardTitle}>{study.title}</p>
+      {/* Header: 12-col grid — title (9) | status badge (3) */}
+      <div style={webStyles.cardHeader as any}>
+        <div style={webStyles.headerTitleCol as any}>
+          <p style={webStyles.cardTitle}>{study.title}</p>
+        </div>
+        <div style={webStyles.headerBadgeCol as any}>
+          <span
+            style={{
+              ...webStyles.statusBadge,
+              backgroundColor: statusColors.bg,
+              color: statusColors.color,
+            }}
+          >
+            <span style={{ ...webStyles.statusDot, backgroundColor: statusColors.dot }} />
+            {label}
+          </span>
+        </div>
       </div>
 
-      {/* Body — 12-col grid */}
-      <div style={webStyles.cardBody}>
-        {/* Color-coded status badge */}
-        <div
-          style={{
-            ...webStyles.statusBadge,
-            backgroundColor: statusColors.bg,
-            color: statusColors.color,
-          }}
-        >
-          <span style={{ ...webStyles.statusDot, backgroundColor: statusColors.dot }} />
-          {label}
+      {/* Body: 12-col grid — content (8) | sidebar (4) */}
+      <div style={webStyles.cardBody as any}>
+        {/* Left 8 cols */}
+        <div style={webStyles.mainCol as any}>
+          <p style={webStyles.description}>{study.description || study.summary}</p>
+          <p style={webStyles.secureMuted}>
+            Data shared will be de-identified and transferred over secure channels.
+          </p>
         </div>
 
-        <div style={webStyles.bodyGrid as any}>
-          {/* Left 8 cols: description + organizer */}
-          <div style={webStyles.leftCol as any}>
-            <p style={webStyles.description}>{study.description || study.summary}</p>
-
-            <div style={webStyles.organizerRow}>
-              <span style={webStyles.organizerLabel}>Organizer</span>
-              <span style={webStyles.organizerValue}>{study.organizer}</span>
-            </div>
-
-            <p style={webStyles.secureMuted}>
-              Data shared will be de-identified and transferred over secure channels.
-            </p>
+        {/* Right 4 cols */}
+        <div style={webStyles.sideCol as any}>
+          <div style={webStyles.organizerBox}>
+            <span style={webStyles.organizerLabel}>Organizer</span>
+            <span style={webStyles.organizerValue}>{study.organizer}</span>
           </div>
-
-          {/* Right 4 cols: action buttons */}
-          <div style={webStyles.rightCol as any}>
-            <button style={webStyles.btnGhost} onClick={handleManagePress}>
-              {isDraft ? "Publish" : "Manage Study"}
-            </button>
-            <button style={webStyles.btnPrimary} onClick={handleViewPress}>
-              View Study
-            </button>
-          </div>
+          <button style={webStyles.btnGhost} onClick={handleManagePress}>
+            {isDraft ? "Publish" : "Manage Study"}
+          </button>
+          <button style={webStyles.btnPrimary} onClick={handleViewPress}>
+            View Study
+          </button>
         </div>
       </div>
     </div>

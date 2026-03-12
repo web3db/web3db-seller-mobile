@@ -121,6 +121,18 @@ const webStyles: Record<string, React.CSSProperties> = {
     color: "#1a1a1a",
     marginBottom: 16,
   },
+  listHeader: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  pageCount: {
+    fontFamily: "Barlow, sans-serif",
+    fontSize: 13,
+    color: "#888888",
+  },
   message: {
     fontFamily: "Barlow, sans-serif",
     fontSize: 15,
@@ -132,7 +144,41 @@ const webStyles: Record<string, React.CSSProperties> = {
     color: "#B22222",
     fontWeight: "600",
   },
+  pagination: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    paddingTop: 24,
+    paddingBottom: 8,
+  },
+  pageBtn: {
+    fontFamily: "Barlow, sans-serif",
+    fontSize: 13,
+    fontWeight: "600",
+    padding: "8px 14px",
+    borderRadius: 8,
+    border: "1px solid #E0E0E0",
+    cursor: "pointer",
+  },
+  pageBtnActive: {
+    backgroundColor: "#FFFFFF",
+    color: "#1a1a1a",
+  },
+  pageBtnCurrent: {
+    backgroundColor: "#B22222",
+    color: "#FFFFFF",
+    border: "1px solid #B22222",
+  },
+  pageBtnDisabled: {
+    backgroundColor: "#F5F5F5",
+    color: "#BBBBBB",
+    cursor: "not-allowed",
+  },
 };
+
+const PAGE_SIZE = 10;
 
 // ─── Web screen ───────────────────────────────────────────────────────────────
 const StudiesScreenWeb: React.FC<{
@@ -141,60 +187,110 @@ const StudiesScreenWeb: React.FC<{
   isLoading: boolean;
   error: string | null;
   router: ReturnType<typeof useRouter>;
-}> = ({ studies, statusLabelById, isLoading, error, router }) => (
-  <div style={webStyles.page}>
-    <div style={webStyles.inner}>
-      {/* Page header */}
-      <div style={webStyles.pageHeader}>
-        <div style={webStyles.headerLeft}>
-          <h1 style={webStyles.pageTitle}>Your Studies</h1>
-          <p style={webStyles.pageSubtitle}>
-            Below are the studies your organization currently manages. Click a study to view details or manage recruitment.
-          </p>
+}> = ({ studies, statusLabelById, isLoading, error, router }) => {
+  const [page, setPage] = React.useState(0);
+  const totalPages = Math.ceil(studies.length / PAGE_SIZE);
+  const paginated = studies.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  // Reset to first page when studies list changes
+  React.useEffect(() => { setPage(0); }, [studies.length]);
+
+  return (
+    <div style={webStyles.page}>
+      <div style={webStyles.inner}>
+        {/* Page header */}
+        <div style={webStyles.pageHeader}>
+          <div style={webStyles.headerLeft}>
+            <h1 style={webStyles.pageTitle}>Your Studies</h1>
+            <p style={webStyles.pageSubtitle}>
+              Below are the studies your organization currently manages. Click a study to view details or manage recruitment.
+            </p>
+          </div>
+          <button style={webStyles.addButton} onClick={() => router.push("/addstudy")}>
+            + Add Study
+          </button>
         </div>
-        <button style={webStyles.addButton} onClick={() => router.push("/addstudy")}>
-          + Add Study
-        </button>
+
+        {/* Stats row */}
+        <div style={webStyles.statsRow as any}>
+          <div style={webStyles.statCard}>
+            <span style={webStyles.statValue}>{isLoading ? "—" : studies.length}</span>
+            <span style={webStyles.statLabel}>Total Studies</span>
+          </div>
+          <div style={webStyles.statCard}>
+            <span style={webStyles.statValue}>{isLoading ? "—" : totalPages || "—"}</span>
+            <span style={webStyles.statLabel}>Pages</span>
+          </div>
+        </div>
+
+        {/* Study list */}
+        <div style={webStyles.listHeader as any}>
+          <h2 style={webStyles.sectionTitle}>All Studies</h2>
+          {!isLoading && studies.length > 0 && (
+            <span style={webStyles.pageCount}>
+              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, studies.length)} of {studies.length}
+            </span>
+          )}
+        </div>
+
+        {isLoading && <p style={webStyles.message}>Loading studies…</p>}
+        {error && <p style={{ ...webStyles.message, ...webStyles.errorText }}>⚠ {error}</p>}
+        {!isLoading && !error && studies.length === 0 && (
+          <p style={webStyles.message}>No studies found. Start by adding a new one!</p>
+        )}
+
+        {paginated.map((study) => (
+          <StudyCard
+            key={study.id}
+            study={study}
+            statusLabel={statusLabelById.get(study.statusId) ?? `Status ${study.statusId}`}
+            onPress={() => router.push(`/studies/${study.id}`)}
+          />
+        ))}
+
+        {/* Pagination controls */}
+        {totalPages > 1 && (
+          <div style={webStyles.pagination as any}>
+            <button
+              style={{
+                ...webStyles.pageBtn,
+                ...(page === 0 ? webStyles.pageBtnDisabled : webStyles.pageBtnActive),
+              }}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+            >
+              ← Previous
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i}
+                style={{
+                  ...webStyles.pageBtn,
+                  ...(i === page ? webStyles.pageBtnCurrent : webStyles.pageBtnActive),
+                }}
+                onClick={() => setPage(i)}
+              >
+                {i + 1}
+              </button>
+            ))}
+
+            <button
+              style={{
+                ...webStyles.pageBtn,
+                ...(page === totalPages - 1 ? webStyles.pageBtnDisabled : webStyles.pageBtnActive),
+              }}
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page === totalPages - 1}
+            >
+              Next →
+            </button>
+          </div>
+        )}
       </div>
-
-      {/* Stats row */}
-      <div style={webStyles.statsRow as any}>
-        <div style={webStyles.statCard}>
-          <span style={webStyles.statValue}>{isLoading ? "—" : studies.length}</span>
-          <span style={webStyles.statLabel}>Active Studies</span>
-        </div>
-        <div style={webStyles.statCard}>
-          <span style={webStyles.statValue}>
-            {isLoading ? "—" : studies.reduce((s, st) => s + st.spots, 0)}
-          </span>
-          <span style={webStyles.statLabel}>Total Spots</span>
-        </div>
-      </div>
-
-      {/* Study list */}
-      <h2 style={webStyles.sectionTitle}>All Studies</h2>
-
-      {isLoading && <p style={webStyles.message}>Loading studies…</p>}
-
-      {error && (
-        <p style={{ ...webStyles.message, ...webStyles.errorText }}>⚠ {error}</p>
-      )}
-
-      {!isLoading && !error && studies.length === 0 && (
-        <p style={webStyles.message}>No studies found. Start by adding a new one!</p>
-      )}
-
-      {studies.map((study) => (
-        <StudyCard
-          key={study.id}
-          study={study}
-          statusLabel={statusLabelById.get(study.statusId) ?? `Status ${study.statusId}`}
-          onPress={() => router.push(`/studies/${study.id}`)}
-        />
-      ))}
     </div>
-  </div>
-);
+  );
+};
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 const StudiesScreen: React.FC = () => {
