@@ -93,6 +93,7 @@ const ManageStudy: React.FC = () => {
   const [metricsDropdownOpen, setMetricsDropdownOpen] = useState(false);
   const [healthDropdownOpen, setHealthDropdownOpen] = useState(false);
   const [openStatusId, setOpenStatusId] = useState<number | null>(null);
+  const [publishMetricsError, setPublishMetricsError] = useState(false);
 
   const { user } = useAuth();
 
@@ -380,6 +381,13 @@ const ManageStudy: React.FC = () => {
       openStatusId != null &&
       selectedStatusId === openStatusId &&
       originalStatusId !== openStatusId;
+
+    if (isPublishing && selectedMetricIds.length === 0) {
+      setPublishMetricsError(true);
+      console.log("[ManageStudy] Blocked publish — no metrics selected");
+      return;
+    }
+    setPublishMetricsError(false);
 
     if (isPublishing) {
       console.log("[ManageStudy] Publishing study (status changing to Open)", {
@@ -690,6 +698,14 @@ const ManageStudy: React.FC = () => {
               </View>
             )}
 
+            {selectedMetricIds.length > 0 && (
+              <Text style={styles.infoText}>
+                All selected metrics require contributors to have this data
+                available on their device. Contributors without all selected
+                fields data will not be able to participate.
+              </Text>
+            )}
+
             <Text style={[styles.label, { marginTop: 12 }]}>
               Health Conditions
             </Text>
@@ -764,6 +780,12 @@ const ManageStudy: React.FC = () => {
                   be modified. Please review carefully before proceeding.
                 </Text>
               )}
+
+            {publishMetricsError && (
+              <Text style={styles.warningText}>
+                At least one metric must be selected before publishing.
+              </Text>
+            )}
 
             <View style={styles.formActions}>
               <TouchableOpacity
@@ -909,6 +931,16 @@ const styles = StyleSheet.create({
   btnGhostText: { color: Colors.light.text, fontWeight: "600" },
   disabled: { opacity: 0.5, backgroundColor: "#f5f5f5" },
   warningText: { color: "red", fontSize: 24, marginBottom: 4 },
+  infoText: {
+    color: "#92400E",
+    backgroundColor: "#FEF3C7",
+    fontSize: 13,
+    marginTop: 8,
+    marginBottom: 4,
+    padding: 10,
+    borderRadius: 6,
+    lineHeight: 18,
+  },
 });
 
 export default ManageStudy;
