@@ -22,9 +22,10 @@ import {
   listMetrics,
   listPostingStatuses,
   listRewardTypes,
+  listViewPolicies,
   listHealthConditions
 } from "./services/postings/api";
-import { Metric, PostingStatus, RewardType, HealthCondition } from "./services/postings/types";
+import { Metric, PostingStatus, RewardType, ViewPolicy, HealthCondition } from "./services/postings/types";
 import SingleSelectDropdown from "../components/SingleSelectDropdown";
 import { useAuth as localAuth } from "@/hooks/AuthContext";
 
@@ -87,6 +88,11 @@ export default function ManageStudy(): React.ReactElement {
   const [rewardTypesError, setRewardTypesError] = useState<string | null>(null);
   // default selected reward type id = 1 (Points)
   const [selectedRewardTypeId, setSelectedRewardTypeId] = useState<number>(1);
+
+  // view policies
+  const [viewPolicies, setViewPolicies] = useState<ViewPolicy[]>([]);
+  const [viewPoliciesLoading, setViewPoliciesLoading] = useState(false);
+  const [viewPoliciesError, setViewPoliciesError] = useState<string | null>(null);
 
   // health conditions
   const [healthConditions, setHealthConditions] = useState<HealthCondition[]>([]);
@@ -198,6 +204,27 @@ export default function ManageStudy(): React.ReactElement {
       }
     }
     void loadHealth();
+    return () => { mounted = false; };
+  }, []);
+
+  // mount view policies
+  useEffect(() => {
+    let mounted = true;
+    async function loadViewPolicies() {
+      setViewPoliciesLoading(true);
+      setViewPoliciesError(null);
+      try {
+        const items = await listViewPolicies();
+        if (!mounted) return;
+        setViewPolicies(items);
+      } catch (err) {
+        console.error("Failed to load view policies", err);
+        if (mounted) setViewPoliciesError(String(err ?? "Failed to load view policies"));
+      } finally {
+        if (mounted) setViewPoliciesLoading(false);
+      }
+    }
+    void loadViewPolicies();
     return () => { mounted = false; };
   }, []);
 
@@ -548,25 +575,21 @@ export default function ManageStudy(): React.ReactElement {
                 {formErrors.viewPolicy ? (
                   <Text style={styles.errorText}>{formErrors.viewPolicy}</Text>
                 ) : null}
-                <SingleSelectDropdown
-                  items={[
-                    {
-                      id: "buyer-only",
-                      displayName: "Institutional Partner only (sponsor only)",
-                    },
-                    {
-                      id: "buyer-and-contributors-aggregated",
-                      displayName: "Institutional Partner + contributors (aggregated)",
-                    },
-                    {
-                      id: "public-aggregated",
-                      displayName: "Public aggregated",
-                    },
-                  ]}
-                  selectedId={selectedViewPolicy}
-                  onSelect={(id) => setSelectedViewPolicy(String(id))}
-                  placeholder="Select view policy..."
-                />
+                {viewPoliciesLoading ? (
+                  <ActivityIndicator size="small" />
+                ) : viewPoliciesError ? (
+                  <Text style={styles.errorText}>{viewPoliciesError}</Text>
+                ) : (
+                  <SingleSelectDropdown
+                    items={viewPolicies.map((vp) => ({
+                      id: vp.code,
+                      displayName: vp.displayName,
+                    }))}
+                    selectedId={selectedViewPolicy}
+                    onSelect={(id) => setSelectedViewPolicy(String(id))}
+                    placeholder="Select view policy..."
+                  />
+                )}
 
                 <Text style={styles.label}>Tags (comma-separated)</Text>
                 <TextInput
@@ -589,6 +612,17 @@ export default function ManageStudy(): React.ReactElement {
                     placeholder="Select reward type..."
                   />
                 )}
+                {selectedRewardTypeId != null &&
+                  (() => {
+                    const selected = rewardTypes.find(
+                      (r) => r.rewardTypeId === selectedRewardTypeId
+                    );
+                    return selected?.description ? (
+                      <Text style={styles.rewardDescription}>
+                        {selected.description}
+                      </Text>
+                    ) : null;
+                  })()}
 
                 <Text style={styles.label}>Reward Value <Text style={styles.required}>*</Text></Text>
                 <TextInput
@@ -783,4 +817,11 @@ const styles = StyleSheet.create({
 
   required: { color: "red", marginLeft: 4 },
   errorText: { color: "red", fontSize: 12, marginTop: 4 },
+  rewardDescription: {
+    color: palette.light.text.secondary,
+    fontSize: 13,
+    marginTop: 4,
+    marginBottom: 2,
+    fontStyle: "italic" as const,
+  },
 });

@@ -21,12 +21,14 @@ import {
   listHealthConditions,
   listRewardTypes,
   listPostingStatuses,
+  listViewPolicies,
   getPostingShares,
 } from "../../services/postings/api";
 import type {
   Metric,
   HealthCondition,
   RewardType,
+  ViewPolicy,
   PostingStatus,
   StudyDetail,
 } from "../../services/postings/types";
@@ -65,6 +67,7 @@ const ManageStudy: React.FC = () => {
   // --- Dropdown options state ---
   const [statuses, setStatuses] = useState<PostingStatus[]>([]);
   const [rewardTypes, setRewardTypes] = useState<RewardType[]>([]);
+  const [viewPolicies, setViewPolicies] = useState<ViewPolicy[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [healthConditions, setHealthConditions] = useState<HealthCondition[]>(
     []
@@ -73,6 +76,7 @@ const ManageStudy: React.FC = () => {
   // --- Loading/Errors state ---
   const [statusesLoading, setStatusesLoading] = useState(true);
   const [rewardTypesLoading, setRewardTypesLoading] = useState(true);
+  const [viewPoliciesLoading, setViewPoliciesLoading] = useState(true);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [healthLoading, setHealthLoading] = useState(true);
 
@@ -93,6 +97,8 @@ const ManageStudy: React.FC = () => {
   const [metricsDropdownOpen, setMetricsDropdownOpen] = useState(false);
   const [healthDropdownOpen, setHealthDropdownOpen] = useState(false);
   const [openStatusId, setOpenStatusId] = useState<number | null>(null);
+  const [publishMetricsError, setPublishMetricsError] = useState(false);
+  const [publishRewardValueError, setPublishRewardValueError] = useState(false);
 
   const { user } = useAuth();
 
@@ -112,6 +118,9 @@ const ManageStudy: React.FC = () => {
     listRewardTypes()
       .then(setRewardTypes)
       .finally(() => setRewardTypesLoading(false));
+    listViewPolicies()
+      .then(setViewPolicies)
+      .finally(() => setViewPoliciesLoading(false));
     listMetrics()
       .then(setMetrics)
       .finally(() => setMetricsLoading(false));
@@ -215,7 +224,20 @@ const ManageStudy: React.FC = () => {
           }
           setTagsInput(
             Array.isArray(detail.tags) && detail.tags.length
-              ? detail.tags.join(", ")
+              ? detail.tags
+                  .map((t: any) => {
+                    if (typeof t === "string") return t;
+                    if (!t) return "";
+                    return (
+                      t.displayName ??
+                      t.display_name ??
+                      t.name ??
+                      t.code ??
+                      ""
+                    );
+                  })
+                  .filter((s: string) => s.length > 0)
+                  .join(", ")
               : ""
           );
         }
@@ -380,6 +402,26 @@ const ManageStudy: React.FC = () => {
       openStatusId != null &&
       selectedStatusId === openStatusId &&
       originalStatusId !== openStatusId;
+
+    let blocked = false;
+
+    if (isPublishing && selectedMetricIds.length === 0) {
+      setPublishMetricsError(true);
+      console.log("[ManageStudy] Blocked publish — no metrics selected");
+      blocked = true;
+    } else {
+      setPublishMetricsError(false);
+    }
+
+    if (isPublishing && (!rewardValue || Number(rewardValue) <= 0)) {
+      setPublishRewardValueError(true);
+      console.log("[ManageStudy] Blocked publish — no reward value");
+      blocked = true;
+    } else {
+      setPublishRewardValueError(false);
+    }
+
+    if (blocked) return;
 
     if (isPublishing) {
       console.log("[ManageStudy] Publishing study (status changing to Open)", {
@@ -581,6 +623,17 @@ const ManageStudy: React.FC = () => {
                 placeholder="Select reward type..."
               />
             )}
+            {selectedRewardTypeId != null &&
+              (() => {
+                const selected = rewardTypes.find(
+                  (r) => r.rewardTypeId === selectedRewardTypeId
+                );
+                return selected?.description ? (
+                  <Text style={styles.rewardDescription}>
+                    {selected.description}
+                  </Text>
+                ) : null;
+              })()}
 
             <Text style={styles.label}>Reward Value</Text>
             <TextInput
@@ -593,25 +646,19 @@ const ManageStudy: React.FC = () => {
           <Text style={[styles.label, { marginTop: 12 }]}>
             View Policy
           </Text>
-          <SingleSelectDropdown
-            items={[
-              {
-                id: "buyer-only",
-                displayName: "Institutional Partner only (sponsor only)",
-              },
-              {
-                id: "buyer-and-contributors-aggregated",
-                displayName: "Institutional Partner + contributors (aggregated)",
-              },
-              {
-                id: "public-aggregated",
-                displayName: "Public aggregated",
-              },
-            ]}
-            selectedId={selectedViewPolicy}
-            onSelect={(id) => setSelectedViewPolicy(String(id))}
-            placeholder="Select view policy..."
-          />
+          {viewPoliciesLoading ? (
+            <ActivityIndicator size="small" />
+          ) : (
+            <SingleSelectDropdown
+              items={viewPolicies.map((vp) => ({
+                id: vp.code,
+                displayName: vp.displayName,
+              }))}
+              selectedId={selectedViewPolicy}
+              onSelect={(id) => setSelectedViewPolicy(String(id))}
+              placeholder="Select view policy..."
+            />
+          )}
 
           <Text style={styles.label}>Tags (comma-separated)</Text>
           <TextInput
@@ -690,6 +737,14 @@ const ManageStudy: React.FC = () => {
               </View>
             )}
 
+            {selectedMetricIds.length > 0 && (
+              <Text style={styles.infoText}>
+                All selected metrics require contributors to have this data
+                available on their device. Contributors without all selected
+                fields data will not be able to participate.
+              </Text>
+            )}
+
             <Text style={[styles.label, { marginTop: 12 }]}>
               Health Conditions
             </Text>
@@ -764,6 +819,18 @@ const ManageStudy: React.FC = () => {
                   be modified. Please review carefully before proceeding.
                 </Text>
               )}
+
+            {publishMetricsError && (
+              <Text style={styles.warningText}>
+                At least one metric must be selected before publishing.
+              </Text>
+            )}
+
+            {publishRewardValueError && (
+              <Text style={styles.warningText}>
+                A reward value is required before publishing.
+              </Text>
+            )}
 
             <View style={styles.formActions}>
               <TouchableOpacity
@@ -909,6 +976,23 @@ const styles = StyleSheet.create({
   btnGhostText: { color: Colors.light.text, fontWeight: "600" },
   disabled: { opacity: 0.5, backgroundColor: "#f5f5f5" },
   warningText: { color: "red", fontSize: 24, marginBottom: 4 },
+  rewardDescription: {
+    color: palette.light.text.secondary,
+    fontSize: 13,
+    marginTop: 4,
+    marginBottom: 2,
+    fontStyle: "italic",
+  },
+  infoText: {
+    color: "#92400E",
+    backgroundColor: "#FEF3C7",
+    fontSize: 13,
+    marginTop: 8,
+    marginBottom: 4,
+    padding: 10,
+    borderRadius: 6,
+    lineHeight: 18,
+  },
 });
 
 export default ManageStudy;
