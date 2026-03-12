@@ -216,7 +216,20 @@ const ManageStudy: React.FC = () => {
           }
           setTagsInput(
             Array.isArray(detail.tags) && detail.tags.length
-              ? detail.tags.join(", ")
+              ? detail.tags
+                  .map((t: any) => {
+                    if (typeof t === "string") return t;
+                    if (!t) return "";
+                    return (
+                      t.displayName ??
+                      t.display_name ??
+                      t.name ??
+                      t.code ??
+                      ""
+                    );
+                  })
+                  .filter((s: string) => s.length > 0)
+                  .join(", ")
               : ""
           );
         }
