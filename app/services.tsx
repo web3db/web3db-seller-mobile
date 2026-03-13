@@ -772,7 +772,7 @@ export default function HowItWorks() {
               }}
               onClick={() => switchTab('contributors')}
             >
-              For {LABELS.CONTRIBUTOR_PLURAL}
+              For {LABELS.CONTRIBUTOR}
             </button>
             <button
               className="hiw-tab-button"
@@ -782,7 +782,7 @@ export default function HowItWorks() {
               }}
               onClick={() => switchTab('institutions')}
             >
-              For {LABELS.INSTITUTIONAL_PARTNER_PLURAL}
+              For {LABELS.INSTITUTIONAL_PARTNER}
             </button>
           </div>
         </div>
@@ -805,7 +805,7 @@ export default function HowItWorks() {
                 <div style={{ ...webStyles.ctaCardIcon, backgroundColor: 'rgba(178, 34, 34, 0.2)' }}>
                   <Ionicons name="phone-portrait-outline" size={26} color="#FF6B6B" />
                 </div>
-                <span style={webStyles.ctaCardTitle}>I'm a Contributor</span>
+                <span style={webStyles.ctaCardTitle}>I'm a {LABELS.CONTRIBUTOR}</span>
                 <span style={webStyles.ctaCardBody}>
                   Web3Health is a mobile app for iOS and Android. Download it to connect your health data, browse active studies, and participate entirely on your own terms.
                 </span>
@@ -826,7 +826,7 @@ export default function HowItWorks() {
                 <div style={{ ...webStyles.ctaCardIcon, backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
                   <Ionicons name="business-outline" size={26} color="rgba(255,255,255,0.8)" />
                 </div>
-                <span style={webStyles.ctaCardTitle}>I'm a Research Partner</span>
+                <span style={webStyles.ctaCardTitle}>I'm a {LABELS.INSTITUTIONAL_PARTNER}</span>
                 <span style={webStyles.ctaCardBody}>
                   Create an institutional account, configure your first study, and start recruiting participants through the Web3Health dashboard.
                 </span>
@@ -856,7 +856,7 @@ export default function HowItWorks() {
         Web3Health connects contributors and research institutions through a transparent, consent-driven data platform.
       </Text>
 
-      <Text style={nativeStyles.sectionHeading}>For {LABELS.CONTRIBUTOR_PLURAL}</Text>
+      <Text style={nativeStyles.sectionHeading}>For {LABELS.CONTRIBUTOR}</Text>
       {contributorSteps.map((step) => (
         <View key={step.id} style={nativeStyles.card}>
           <View style={nativeStyles.cardHeader}>
@@ -869,7 +869,7 @@ export default function HowItWorks() {
         </View>
       ))}
 
-      <Text style={[nativeStyles.sectionHeading, { marginTop: 32 }]}>For {LABELS.INSTITUTIONAL_PARTNER_PLURAL}</Text>
+      <Text style={[nativeStyles.sectionHeading, { marginTop: 32 }]}>For {LABELS.INSTITUTIONAL_PARTNER}</Text>
       {institutionSteps.map((step) => (
         <View key={step.id} style={nativeStyles.card}>
           <View style={nativeStyles.cardHeader}>

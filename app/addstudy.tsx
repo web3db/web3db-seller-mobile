@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Colors, palette } from '@/constants/theme';
+import { LABELS } from "@/constants/labels";
 import {
 
   SafeAreaView,
@@ -552,11 +553,11 @@ export default function ManageStudy(): React.ReactElement {
                   items={[
                     {
                       id: "buyer-only",
-                      displayName: "Institutional Partner only (sponsor only)",
+                      displayName: `${LABELS.INSTITUTIONAL_PARTNER} only (sponsor only)`,
                     },
                     {
                       id: "buyer-and-contributors-aggregated",
-                      displayName: "Institutional Partner + contributors (aggregated)",
+                      displayName: `${LABELS.INSTITUTIONAL_PARTNER} + ${LABELS.CONTRIBUTOR}s (aggregated)`,
                     },
                     {
                       id: "public-aggregated",

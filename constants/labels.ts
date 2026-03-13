@@ -9,7 +9,5 @@
  */
 export const LABELS = {
   CONTRIBUTOR: "Research Participant",
-  CONTRIBUTOR_PLURAL: "Research Participants",
   INSTITUTIONAL_PARTNER: "Clinical Researcher",
-  INSTITUTIONAL_PARTNER_PLURAL: "Clinical Researchers",
 } as const;

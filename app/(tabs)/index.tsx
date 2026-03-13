@@ -1,5 +1,6 @@
 import React from "react";
 import { Colors, palette } from "@/constants/theme";
+import { LABELS } from "@/constants/labels";
 import {
   SafeAreaView,
   ScrollView,
@@ -44,8 +45,8 @@ const features = [
 ];
 
 const howItWorksSteps = [
-  "Organizations create a study and define eligibility criteria for contributors.",
-  "Contributors consent and securely share anonymized step/activity data from their devices.",
+  `Organizations create a study and define eligibility criteria for ${LABELS.CONTRIBUTOR}s.`,
+  `${LABELS.CONTRIBUTOR}s consent and securely share anonymized step/activity data from their devices.`,
   "Researchers analyze aggregated datasets with clear, verifiable data provenance.",
 ];
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Colors, palette } from "@/constants/theme";
+import { LABELS } from "@/constants/labels";
 import {
   SafeAreaView,
   ScrollView,
@@ -67,7 +68,7 @@ export default function StudyDetail() {
   ): (string | number | null | undefined)[][] {
     const rows: (string | number | null | undefined)[][] = [
       [
-        "Contributor ID",
+        `${LABELS.CONTRIBUTOR} ID`,
         "Age",
         "Gender",
         "Height",
@@ -150,7 +151,7 @@ export default function StudyDetail() {
   ): (string | number | null | undefined)[][] {
     const rows: (string | number | null | undefined)[][] = [
       [
-        "Contributor ID",
+        `${LABELS.CONTRIBUTOR} ID`,
         "Metric Name",
         "Start Time",
         "End Time",
@@ -247,7 +248,7 @@ export default function StudyDetail() {
       XLSX.utils.book_append_sheet(
         wb,
         usersSheet,
-        "Contributor Demographics"
+        `${LABELS.CONTRIBUTOR} Demographics`
       );
 
       const userDataSheet = XLSX.utils.aoa_to_sheet(userDataRows);
@@ -913,7 +914,7 @@ export default function StudyDetail() {
             <View style={styles.detailSection}>
               <Text style={styles.sectionTitle}>Study Info</Text>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Institutional Partner</Text>
+                <Text style={styles.infoLabel}>{LABELS.INSTITUTIONAL_PARTNER}</Text>
                 <Text style={styles.infoValue}>{study.buyerDisplayName}</Text>
               </View>
               <View style={styles.infoRow}>
@@ -1275,7 +1276,7 @@ export default function StudyDetail() {
             </View>
 
             <View style={styles.metaBlock}>
-              <Text style={styles.metaLabel}>Institutional Partner</Text>
+              <Text style={styles.metaLabel}>{LABELS.INSTITUTIONAL_PARTNER}</Text>
               <Text style={styles.metaValue}>{study.buyerDisplayName}</Text>
             </View>
           </View>
