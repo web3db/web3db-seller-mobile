@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Colors, palette } from "@/constants/theme";
+import { LABELS } from "@/constants/labels";
 import {
   SafeAreaView,
   ScrollView,
@@ -739,9 +740,7 @@ const ManageStudy: React.FC = () => {
 
             {selectedMetricIds.length > 0 && (
               <Text style={styles.infoText}>
-                All selected metrics require Research Participants to have this data
-                available on their device. Research Participants without all selected
-                fields data will not be able to participate.
+                {`All selected metrics require ${LABELS.CONTRIBUTOR}s to have this data available on their device. ${LABELS.CONTRIBUTOR}s without all selected fields data will not be able to participate.`}
               </Text>
             )}
 
@@ -815,8 +814,7 @@ const ManageStudy: React.FC = () => {
               selectedStatusId === openStatusId &&
               originalStatusId !== openStatusId && (
                 <Text style={styles.warningText}>
-                  Once published and Research Participants have registered, this study cannot
-                  be modified. Please review carefully before proceeding.
+                  {`Once published and ${LABELS.CONTRIBUTOR}s have registered, this study cannot be modified. Please review carefully before proceeding.`}
                 </Text>
               )}
 
@@ -975,7 +973,7 @@ const styles = StyleSheet.create({
   },
   btnGhostText: { color: Colors.light.text, fontWeight: "600" },
   disabled: { opacity: 0.5, backgroundColor: "#f5f5f5" },
-  warningText: { color: "red", fontSize: 24, marginBottom: 4 },
+  warningText: { color: "red", fontSize: 14, marginBottom: 4 },
   rewardDescription: {
     color: palette.light.text.secondary,
     fontSize: 13,
