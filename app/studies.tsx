@@ -28,9 +28,9 @@ const webStyles: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "repeat(12, 1fr)" as any,
     gap: "0 24px",
-    maxWidth: 1400,
-    margin: "0 auto",
-    padding: "48px 32px 80px",
+    width: "100%",
+    boxSizing: "border-box" as any,
+    padding: "40px 48px 80px",
   },
   fullRow: {
     gridColumn: "span 12" as any,
