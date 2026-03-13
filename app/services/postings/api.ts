@@ -9,6 +9,7 @@ import type {
   Metric,
   PostingStatus,
   RewardType,
+  ViewPolicy,
   HealthCondition,
   PostingSharesResponse,
 } from "./types";
@@ -450,10 +451,52 @@ export async function listRewardTypes(): Promise<RewardType[]> {
     rewardTypeId: Number(r.rewardTypeId ?? r.reward_type_id ?? r.id),
     code: String(r.code ?? ""),
     displayName: String(r.displayName ?? r.display_name ?? ""),
+    description: String(r.description ?? r.Description ?? ""),
     isActive: Boolean(r.isActive ?? r.is_active ?? true),
   }));
 
   if (__DEV__) console.log(`[listRewardTypes] ✓ items=${items.length}`);
+  return items;
+}
+
+/** Fetch view policies: GET /functions/v1/view_policies */
+export async function listViewPolicies(): Promise<ViewPolicy[]> {
+  const u = buildUrl("view_policies");
+  if (__DEV__) console.log("[listViewPolicies] GET", u);
+
+  const res = await fetch(u, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    mode: "cors",
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    if (__DEV__)
+      console.warn("[listViewPolicies] ✗", res.status, res.statusText, txt);
+    throw new Error(
+      `view_policies API failed: ${res.status} ${res.statusText} ${txt}`
+    );
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json) return [];
+
+  const rawArr: any[] = Array.isArray(json)
+    ? json
+    : Array.isArray(json.items)
+    ? json.items
+    : [];
+
+  const items: ViewPolicy[] = rawArr.map((r) => ({
+    viewPolicyId: Number(r.viewPolicyId ?? r.view_policy_id ?? r.id),
+    code: String(r.code ?? ""),
+    displayName: String(r.displayName ?? r.display_name ?? ""),
+    description: String(r.description ?? r.Description ?? ""),
+    isActive: Boolean(r.isActive ?? r.is_active ?? true),
+  }));
+
+  if (__DEV__) console.log(`[listViewPolicies] ✓ items=${items.length}`);
   return items;
 }
 

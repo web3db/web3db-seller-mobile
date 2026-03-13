@@ -109,6 +109,15 @@ export type RewardType = {
   rewardTypeId: number;
   code: string;
   displayName: string;
+  description: string;
+  isActive: boolean;
+};
+
+export type ViewPolicy = {
+  viewPolicyId: number;
+  code: string;
+  displayName: string;
+  description: string;
   isActive: boolean;
 };
 
