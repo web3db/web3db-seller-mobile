@@ -756,7 +756,7 @@ export default function HowItWorks() {
         <div className="hiw-hero" style={webStyles.heroSection}>
           <h1 style={webStyles.heroTitle}>How It Works</h1>
           <p style={webStyles.heroSubtitle}>
-            Web3Health connects Research Participants and Clinical Researchers through a transparent, consent-driven data platform. Select your role to explore the workflow.
+            {`Web3Health connects ${LABELS.CONTRIBUTOR}s and ${LABELS.INSTITUTIONAL_PARTNER}s through a transparent, consent-driven data platform. Select your role to explore the workflow.`}
           </p>
         </div>
 
@@ -797,7 +797,7 @@ export default function HowItWorks() {
           <div className="hiw-cta" style={webStyles.ctaSection}>
             <h2 style={webStyles.ctaHeadline}>Ready to get started?</h2>
             <p style={webStyles.ctaSubheadline}>
-              Join the growing network of Research Participants and Clinical Researchers advancing health research.
+              {`Join the growing network of ${LABELS.CONTRIBUTOR}s and ${LABELS.INSTITUTIONAL_PARTNER}s advancing health research.`}
             </p>
             <div className="hiw-cta-cards" style={webStyles.ctaCards}>
               {/* Contributor CTA */}
@@ -853,7 +853,7 @@ export default function HowItWorks() {
     <ScrollView style={nativeStyles.container} contentContainerStyle={nativeStyles.scrollContent}>
       <Text style={nativeStyles.title}>How It Works</Text>
       <Text style={nativeStyles.subtitle}>
-        Web3Health connects Research Participants and Clinical Researchers through a transparent, consent-driven data platform.
+        {`Web3Health connects ${LABELS.CONTRIBUTOR}s and ${LABELS.INSTITUTIONAL_PARTNER}s through a transparent, consent-driven data platform.`}
       </Text>
 
       <Text style={nativeStyles.sectionHeading}>For {LABELS.CONTRIBUTOR}</Text>

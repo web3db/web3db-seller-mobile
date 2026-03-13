@@ -60,10 +60,10 @@ export type StudyDetail = {
 
   metrics?: { metricId: number; displayName?: string; metricDisplayName?: string }[];
 
-  viewPolicies: any[];
+  viewPolicies: ViewPolicy[];
   healthConditions: { id: number; displayName: string }[];
   tags: string[];
-  images: any[];
+  images: { url: string; [key: string]: unknown }[];
 
   isActive: boolean;
   isModified: boolean | null;

@@ -17,6 +17,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
+  getTrnPostingDetail,
   updateTrnPosting,
   listMetrics,
   listHealthConditions,
@@ -135,10 +136,8 @@ const ManageStudy: React.FC = () => {
       if (!studyId) return;
       setLoading(true);
       try {
-        const buyerId = user?.id ? Number(user.id) : -1;
-        const { getTrnPostingDetail } = await import(
-          "../../services/postings/api"
-        );
+        if (!user?.id) return;
+        const buyerId = Number(user.id);
         const [detail, sharesData] = await Promise.all([
           getTrnPostingDetail(buyerId, studyId),
           getPostingShares(studyId)
@@ -218,7 +217,7 @@ const ManageStudy: React.FC = () => {
             setSelectedViewPolicy(
               typeof first === "string"
                 ? first
-                : first?.code ?? first?.id ?? null
+                : first?.code ?? null
             );
           } else {
             setSelectedViewPolicy(null);
@@ -243,7 +242,7 @@ const ManageStudy: React.FC = () => {
           );
         }
       } catch (err) {
-        console.error(err);
+        if (__DEV__) console.error(err);
       } finally {
         setLoading(false);
       }
@@ -376,7 +375,7 @@ const ManageStudy: React.FC = () => {
         // reward type id
         rewardTypeId: selectedRewardTypeId,
         // The create/update functions expect `postingMetricsIds` (not `metrics`)
-        rewardValue: Number(rewardValue) || 0, // Include rewardValue in payload
+        rewardValue: rewardValue ? Number(rewardValue) : null,
         metrics: selectedMetricIds,
         // The create/update functions expect `healthConditionIds`
         healthConditionIds: selectedHealthConditionIds,
@@ -387,9 +386,9 @@ const ManageStudy: React.FC = () => {
         tags: tagsArray,
       };
       try {
-        const buyerId = user?.id ? Number(user.id) : -1;
-        const res = await updateTrnPosting(buyerId, postingId, payload as any);
-        console.log(res);
+        if (!user?.id) return alert("You must be signed in to save changes.");
+        const buyerId = Number(user.id);
+        await updateTrnPosting(buyerId, postingId, payload as any);
         router.replace(`/studies/${postingId}?saved=1`);
       } catch (err) {
         alert(
@@ -408,7 +407,6 @@ const ManageStudy: React.FC = () => {
 
     if (isPublishing && selectedMetricIds.length === 0) {
       setPublishMetricsError(true);
-      console.log("[ManageStudy] Blocked publish — no metrics selected");
       blocked = true;
     } else {
       setPublishMetricsError(false);
@@ -416,21 +414,12 @@ const ManageStudy: React.FC = () => {
 
     if (isPublishing && (!rewardValue || Number(rewardValue) <= 0)) {
       setPublishRewardValueError(true);
-      console.log("[ManageStudy] Blocked publish — no reward value");
       blocked = true;
     } else {
       setPublishRewardValueError(false);
     }
 
     if (blocked) return;
-
-    if (isPublishing) {
-      console.log("[ManageStudy] Publishing study (status changing to Open)", {
-        openStatusId,
-        selectedStatusId,
-        originalStatusId,
-      });
-    }
 
     await doSave();
   }

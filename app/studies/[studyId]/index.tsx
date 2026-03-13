@@ -650,11 +650,11 @@ export default function StudyDetail() {
         // HARD CODED TO 9001 TO GET DATA
         const res = await getPostingShares(Number(studyId));
         //const res = await getPostingShares(9001);
-        console.log("[StudyDetail] getPostingShares return value:", res);
+        if (__DEV__) console.log("[StudyDetail] getPostingShares return value:", res);
         // save full response (postingId, postingTitle, shares[])
         setSharesData(res);
       } catch (err: any) {
-        console.error("Failed to load posting shares", err);
+        if (__DEV__) console.error("Failed to load posting shares", err);
         setSharesError(err?.message ?? String(err));
       } finally {
         setSharesLoading(false);
@@ -694,7 +694,7 @@ export default function StudyDetail() {
           return (avg != null && !Number.isNaN(Number(avg))) ? Number(avg) : 0;
         });
       }
-      console.log(`[Metric ${metricId}] ${metricName}:`, { dates, data });
+      if (__DEV__) console.log(`[Metric ${metricId}] ${metricName}:`, { dates, data });
       const averages = dates.map(
         (d) =>
           (data[d].reduce((a, b) => a + b, 0) / (data[d].length || 1))

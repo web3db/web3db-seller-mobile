@@ -303,7 +303,7 @@ export async function updateTrnPosting(
 
 export async function createTrnPosting(
   buyerId: number,
-  params: ListParams = {} // Using params if the Edge Function expects them
+  payload: Record<string, unknown> = {}
 ): Promise<StudySummary> {
   const u = buildUrl(`buyers_postings_create/${buyerId}`);
   if (__DEV__) console.log("[createTrnPosting] POST", u);
@@ -314,7 +314,7 @@ export async function createTrnPosting(
       "Content-Type": "application/json",
       // You would typically include Authorization headers here if required
     },
-    body: JSON.stringify(params),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {

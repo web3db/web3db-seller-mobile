@@ -225,8 +225,8 @@ const StudiesScreenWeb: React.FC<{
             <span style={webStyles.statLabel}>Total Studies</span>
           </div>
           <div style={webStyles.statCard}>
-            <span style={webStyles.statValue}>{isLoading ? "—" : studies.filter((s: any) => {
-              const label = (s.statusLabel ?? "").toLowerCase();
+            <span style={webStyles.statValue}>{isLoading ? "—" : studies.filter((s) => {
+              const label = (statusLabelById.get(s.statusId) ?? "").toLowerCase();
               return label.includes("open") || label.includes("active") || label.includes("recruit");
             }).length}</span>
             <span style={webStyles.statLabel}>Active</span>
@@ -319,7 +319,12 @@ const StudiesScreen: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-          const buyerId = user?.id ? Number(user.id) : -1;
+          if (!user?.id) {
+            setError("You must be signed in to view studies.");
+            setIsLoading(false);
+            return;
+          }
+          const buyerId = Number(user.id);
           const [fetchedStatuses, fetchedStudies] = await Promise.all([
             listPostingStatuses(),
             listTrnPostings(buyerId),
@@ -327,7 +332,7 @@ const StudiesScreen: React.FC = () => {
           setStatuses(fetchedStatuses);
           setStudies(fetchedStudies);
         } catch (e: any) {
-          console.error("Failed to load studies from API:", e);
+          if (__DEV__) console.error("Failed to load studies from API:", e);
           setError(`Failed to load studies: ${e.message || "Unknown network error"}`);
           setStudies([]);
         } finally {
@@ -335,7 +340,7 @@ const StudiesScreen: React.FC = () => {
         }
       };
       loadStudies();
-    }, [])
+    }, [user])
   );
 
   const statusLabelById = new Map<number, string>(
