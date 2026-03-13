@@ -25,16 +25,23 @@ const webStyles: Record<string, React.CSSProperties> = {
     overflowX: "hidden",
   },
   inner: {
-    maxWidth: 960,
+    display: "grid",
+    gridTemplateColumns: "repeat(12, 1fr)" as any,
+    gap: "0 24px",
+    maxWidth: 1400,
     margin: "0 auto",
-    padding: "48px 24px 80px",
+    padding: "48px 32px 80px",
+  },
+  fullRow: {
+    gridColumn: "span 12" as any,
   },
   pageHeader: {
+    gridColumn: "span 12" as any,
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
+    borderRadius: 16,
     boxShadow: "0 2px 12px rgba(0, 0, 0, 0.06)",
-    padding: 32,
-    marginBottom: 28,
+    padding: "24px 32px",
+    marginBottom: 24,
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
@@ -212,7 +219,7 @@ const StudiesScreenWeb: React.FC<{
         </div>
 
         {/* Stats row */}
-        <div style={webStyles.statsRow as any}>
+        <div style={{ ...webStyles.statsRow, gridColumn: "span 12" } as any}>
           <div style={webStyles.statCard}>
             <span style={webStyles.statValue}>{isLoading ? "—" : studies.length}</span>
             <span style={webStyles.statLabel}>Total Studies</span>
@@ -227,7 +234,7 @@ const StudiesScreenWeb: React.FC<{
         </div>
 
         {/* Study list */}
-        <div style={webStyles.listHeader as any}>
+        <div style={{ ...webStyles.listHeader, gridColumn: "span 12" } as any}>
           <h2 style={webStyles.sectionTitle}>All Studies</h2>
           {!isLoading && studies.length > 0 && (
             <span style={webStyles.pageCount}>
@@ -236,24 +243,26 @@ const StudiesScreenWeb: React.FC<{
           )}
         </div>
 
-        {isLoading && <p style={webStyles.message}>Loading studies…</p>}
-        {error && <p style={{ ...webStyles.message, ...webStyles.errorText }}>⚠ {error}</p>}
+        {isLoading && <p style={{ ...webStyles.message, gridColumn: "span 12" } as any}>Loading studies…</p>}
+        {error && <p style={{ ...webStyles.message, ...webStyles.errorText, gridColumn: "span 12" } as any}>⚠ {error}</p>}
         {!isLoading && !error && studies.length === 0 && (
-          <p style={webStyles.message}>No studies found. Start by adding a new one!</p>
+          <p style={{ ...webStyles.message, gridColumn: "span 12" } as any}>No studies found. Start by adding a new one!</p>
         )}
 
-        {paginated.map((study) => (
-          <StudyCard
-            key={study.id}
-            study={study}
-            statusLabel={statusLabelById.get(study.statusId) ?? `Status ${study.statusId}`}
-            onPress={() => router.push(`/studies/${study.id}`)}
-          />
-        ))}
+        <div style={{ gridColumn: "span 12" } as any}>
+          {paginated.map((study) => (
+            <StudyCard
+              key={study.id}
+              study={study}
+              statusLabel={statusLabelById.get(study.statusId) ?? `Status ${study.statusId}`}
+              onPress={() => router.push(`/studies/${study.id}`)}
+            />
+          ))}
+        </div>
 
         {/* Pagination controls — always visible when there are studies */}
         {!isLoading && studies.length > 0 && (
-          <div style={webStyles.pagination as any}>
+          <div style={{ ...webStyles.pagination, gridColumn: "span 12" } as any}>
             <button
               style={{
                 ...webStyles.pageBtn,
