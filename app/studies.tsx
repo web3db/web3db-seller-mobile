@@ -36,7 +36,10 @@ const StudiesScreen: React.FC = () => {
         try {
           // --- FETCH API CALL ---
           const buyerId = user?.id ? Number(user.id) : -1;
-
+          if (buyerId === -1) {
+            setIsLoading(false);
+            return;
+          }
           const [fetchedStatuses, fetchedStudies] = await Promise.all([
             listPostingStatuses(),
             listTrnPostings(buyerId),
@@ -56,7 +59,7 @@ const StudiesScreen: React.FC = () => {
       };
 
       loadStudies();
-    }, [])
+    }, [user?.id])
   );
 
   // --- Dynamic Stats Calculation ---
@@ -132,29 +135,14 @@ const StudiesScreen: React.FC = () => {
   );
 };
 
-// --- Helper Component for Statistics ---
-const StatBox: React.FC<{ label: string; value: string | number }> = ({
-  label,
-  value,
-}) => (
-  <View style={styles.statBox}>
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
-);
-
-// --- Styles ---
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-  },
+// ─── Native styles ────────────────────────────────────────────────────────────
+const nativeStyles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: Colors.light.background },
   homeRoot: {
-    paddingVertical: 32,
+    paddingTop: Platform.OS === "web" ? 80 : 32,
+    paddingBottom: 32,
   },
-  listContainer: {
-    paddingHorizontal: 16,
-  },
+  listContainer: { paddingHorizontal: 16 },
   header: {
     backgroundColor: palette.light.surface,
     padding: 16,

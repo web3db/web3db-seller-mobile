@@ -12,6 +12,7 @@ import {
   useUser as useClerkUser,
 } from "@clerk/clerk-expo";
 import { lookupUser } from "@/app/services/users/api";
+import { setClerkToken, setInternalUserId } from '@/app/services/auth/tokenManager';
 
 interface User {
   id: number;
@@ -38,7 +39,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const [rehydrated, setRehydrated] = useState(false);
 
   // Sync with Clerk auth state
-  const { isLoaded: clerkLoaded, isSignedIn } = useClerkAuth();
+  const { isLoaded: clerkLoaded, isSignedIn, getToken } = useClerkAuth();
   const { isLoaded: clerkUserLoaded, user: clerkUser } = useClerkUser();
 
   // When Clerk reports a signed-in user, attempt to load the internal user profile
@@ -172,17 +173,46 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     };
   }, [clerkLoaded, isSignedIn, clerkUser, clerkUserLoaded]);
 
+  // Keep the Clerk session token in sync for API calls
+  useEffect(() => {
+    let mounted = true;
+    async function refreshToken() {
+      if (isSignedIn) {
+        try {
+          const token = await getToken();
+          if (mounted) setClerkToken(token);
+        } catch {
+          if (mounted) setClerkToken(null);
+        }
+      } else {
+        setClerkToken(null);
+      }
+    }
+    refreshToken();
+    // Clerk tokens typically expire in ~60s, refresh proactively
+    const interval = setInterval(refreshToken, 50000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, [isSignedIn, getToken]);
+
+  // Keep internal user ID in sync
+  useEffect(() => {
+    setInternalUserId(user?.id ?? null);
+  }, [user]);
+
   // Public login API: kept for compatibility with existing codepaths that call local login
   const login = async (email: string) => {
     const { userId, name } = await lookupUser(email);
     setIsAuthenticated(true);
     setUser({ id: Number(userId), name: name ?? "" });
+    setInternalUserId(Number(userId));
     return true;
   };
 
   const logout = () => {
     setIsAuthenticated(false);
     setUser(null);
+    setClerkToken(null);
+    setInternalUserId(null);
   };
 
   const value = useMemo(
