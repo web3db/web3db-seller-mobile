@@ -596,9 +596,11 @@ export default function StudyDetail() {
       setLoading(true);
       setError(null);
       try {
-        // Use the centralized API function which includes data normalization
-        const buyerId = user?.id ? Number(user.id) : -1;
-        // console.log("[StudyDetail] auth user (used as buyerId):", { user, buyerId });
+        if (!user?.id) {
+          setError("You must be signed in to view study details.");
+          return;
+        }
+        const buyerId = Number(user.id);
         const detail = await getTrnPostingDetail(buyerId, studyId);
         // console.log("[StudyDetail] getTrnPostingDetail return value:", detail);
 
@@ -647,9 +649,7 @@ export default function StudyDetail() {
       setSharesLoading(true);
       setSharesError(null);
       try {
-        // HARD CODED TO 9001 TO GET DATA
         const res = await getPostingShares(Number(studyId));
-        //const res = await getPostingShares(9001);
         if (__DEV__) console.log("[StudyDetail] getPostingShares return value:", res);
         // save full response (postingId, postingTitle, shares[])
         setSharesData(res);

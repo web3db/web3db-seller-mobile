@@ -15,7 +15,7 @@ import {
   ActivityIndicator,
   FlatList,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from "@clerk/clerk-expo";
 import {
@@ -31,7 +31,6 @@ import SingleSelectDropdown from "../components/SingleSelectDropdown";
 import { useAuth as localAuth } from "@/hooks/AuthContext";
 
 export default function ManageStudy(): React.ReactElement {
-  const { studyId } = useLocalSearchParams() as { studyId?: string };
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isNarrow = width < 720;
@@ -301,6 +300,11 @@ export default function ManageStudy(): React.ReactElement {
   }
 
   async function handlePublish() {
+    if (!buyerId) {
+      alert("You must be signed in to create a study.");
+      return;
+    }
+
     const errors: Record<string, string> = {};
     if (!title.trim()) errors.title = "Title is required";
     if (!summary.trim()) errors.summary = "Summary is required";
@@ -334,7 +338,6 @@ export default function ManageStudy(): React.ReactElement {
         description,
         dataCoverageDaysRequired: Number(length) || 1,
         postingStatusId: draftStatusId,
-        // New DB column requires the buyer user id; include both common casings
         buyerId: buyerId,
         postingMetricIds: selectedMetricIds,
         rewardTypeId: selectedRewardTypeId,
@@ -347,10 +350,6 @@ export default function ManageStudy(): React.ReactElement {
         tags: tagsArray,
       };
 
-      if (!buyerId) {
-        alert("You must be signed in to create a study.");
-        return;
-      }
       const response = await createTrnPosting(buyerId, payload as any);
 
       // Navigate to created study detail and show draft guidance
@@ -680,7 +679,6 @@ const styles = StyleSheet.create({
   },
 
   leftColumn: { flex: 2, marginRight: 8, minWidth: 0 },
-  rightColumn: { flex: 1, marginLeft: 8, minWidth: 260, maxWidth: 420 },
 
   fullWidth: { width: "100%" },
 

@@ -116,27 +116,31 @@ const ManageStudy: React.FC = () => {
           ) ?? null;
         setOpenStatusId(open ? open.postingStatusId : null);
       })
+      .catch((err) => { if (__DEV__) console.error("Failed to load statuses", err); })
       .finally(() => setStatusesLoading(false));
     listRewardTypes()
       .then(setRewardTypes)
+      .catch((err) => { if (__DEV__) console.error("Failed to load reward types", err); })
       .finally(() => setRewardTypesLoading(false));
     listViewPolicies()
       .then(setViewPolicies)
+      .catch((err) => { if (__DEV__) console.error("Failed to load view policies", err); })
       .finally(() => setViewPoliciesLoading(false));
     listMetrics()
       .then(setMetrics)
+      .catch((err) => { if (__DEV__) console.error("Failed to load metrics", err); })
       .finally(() => setMetricsLoading(false));
     listHealthConditions()
       .then(setHealthConditions)
+      .catch((err) => { if (__DEV__) console.error("Failed to load health conditions", err); })
       .finally(() => setHealthLoading(false));
   }, []);
 
   useEffect(() => {
     async function fetchStudyDetail() {
-      if (!studyId) return;
+      if (!studyId || !user?.id) return;
       setLoading(true);
       try {
-        if (!user?.id) return;
         const buyerId = Number(user.id);
         const [detail, sharesData] = await Promise.all([
           getTrnPostingDetail(buyerId, studyId),
@@ -248,7 +252,7 @@ const ManageStudy: React.FC = () => {
       }
     }
     fetchStudyDetail();
-  }, [studyId]);
+  }, [studyId, user?.id]);
 
   // --- Date Picker Handler ---
   const onDateChange = (event: any, selectedDate?: Date) => {
@@ -319,10 +323,6 @@ const ManageStudy: React.FC = () => {
   const formatDateForDisplay = (date: Date | null) => {
     if (!date) return "";
     return date.toISOString().split("T")[0];
-  };
-
-  const formatDate = (date: Date | null) => {
-    return date ? date.toISOString().split("T")[0] : "Select date...";
   };
 
   function toggleMetric(metricId: number) {

@@ -621,7 +621,7 @@ function Footer() {
           <a className="footer-link" style={webStyles.footerLink} href="https://www.uga.edu" target="_blank" rel="noopener noreferrer">
             University of Georgia
           </a>
-          <a className="footer-link" style={webStyles.footerLink} href="mailto:agp44843@uga.edu">
+          <a className="footer-link" style={webStyles.footerLink} href="mailto:engr-sensorweb@uga.edu">
             Contact
           </a>
         </div>

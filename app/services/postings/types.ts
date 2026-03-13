@@ -71,13 +71,6 @@ export type StudyDetail = {
   modifiedOn: string | null;
 };
 
-/**
- * Compatibility alias (temporary):
- * Existing code imports `Study` for the list screen.
- * We'll switch those imports to `StudySummary` next, then you may delete this alias.
- */
-export type Study = StudySummary;
-
 // --- DTOs (Data Transfer Objects) for the API response ---
 
 // This matches the format the *Edge Function* or PostgREST might return.

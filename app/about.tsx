@@ -670,8 +670,6 @@ const webStyles: Record<string, React.CSSProperties> = {
   footerDivider: {
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginTop: 32,
-    marginBottom: 24,
     maxWidth: 1200,
     margin: '32px auto 24px auto',
   },

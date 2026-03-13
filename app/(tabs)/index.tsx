@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.tint,
   },
   btnTextPrimary: {
-    color: Colors.light.tint,
+    color: Colors.light.background,
     fontWeight: "600",
   },
   btnGhost: {
