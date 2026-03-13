@@ -22,7 +22,7 @@ const sampleStudies: StudySummary[] = [
     title: "4-Week Physical Activity Study",
     summary: "Study for steps walked in 3 days",
     description:
-      "A four-week study collecting step counts and activity patterns from contributors who already use an activity tracker (phone or wearable).",
+      "A four-week study collecting step counts and activity patterns from Research Participants who already use an activity tracker (phone or wearable).",
     statusId: 2,
     organizer: "Web3Health",
     spots: 500,
@@ -64,7 +64,7 @@ const HomeScreen: React.FC = () => {
               Accelerate health research with consented activity data
             </Text>
             <Text style={styles.muted}>
-              Web3Health helps organizations recruit contributors who already
+              Web3Health helps organizations recruit Research Participants who already
               use activity trackers and securely collect anonymized data for
               reproducible science.
             </Text>

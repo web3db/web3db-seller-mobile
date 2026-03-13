@@ -741,8 +741,8 @@ const visionBullets = [
   },
   {
     icon: 'person-outline' as const,
-    title: 'Contributor Empowerment',
-    text: 'Participants are not passive data sources — they are active contributors who own, control, and are compensated for the value their health data creates.',
+    title: 'Research Participant Empowerment',
+    text: 'Participants are not passive data sources — they are active Research Participants who own, control, and are compensated for the value their health data creates.',
   },
   {
     icon: 'business-outline' as const,
@@ -759,7 +759,7 @@ function Vision() {
           <h2 style={webStyles.sectionTitle}>Our Vision</h2>
           <div style={webStyles.visionPullQuote}>
             <p style={webStyles.visionPullText}>
-              "A future where health data advances science without compromising individual privacy — where every contributor is informed, protected, and valued."
+              "A future where health data advances science without compromising individual privacy — where every Research Participant is informed, protected, and valued."
             </p>
           </div>
         </AnimatedSection>
@@ -1077,7 +1077,7 @@ export default function About() {
         <div className="about-hero" style={webStyles.heroSection}>
           <h1 style={webStyles.heroTitle}>About Web3Health</h1>
           <p style={webStyles.heroSubtitle}>
-            Web3Health is a secure and transparent health data infrastructure platform built at the University of Georgia — enabling privacy-preserving research through consented, contributor-owned data.
+            Web3Health is a secure and transparent health data infrastructure platform built at the University of Georgia — enabling privacy-preserving research through consented, participant-owned data.
           </p>
         </div>
 
@@ -1087,7 +1087,7 @@ export default function About() {
             <AnimatedSection>
               <h2 style={webStyles.sectionTitle}>Our Mission</h2>
               <p style={webStyles.sectionParagraph}>
-                Web3Health empowers individuals to selectively share health and activity data — such as step counts, sleep patterns, and vital signs — with approved research partners, while retaining full ownership and control. Participants grant granular consent, receive fair compensation through a blockchain-backed reward system, and can revoke access at any time. Our goal is to accelerate reproducible health research while upholding the highest standards of privacy, autonomy, and scientific rigor.
+                Web3Health empowers individuals to selectively share health and activity data — such as step counts, sleep patterns, and vital signs — with approved Clinical Researchers, while retaining full ownership and control. Participants grant granular consent, receive fair compensation through a blockchain-backed reward system, and can revoke access at any time. Our goal is to accelerate reproducible health research while upholding the highest standards of privacy, autonomy, and scientific rigor.
               </p>
             </AnimatedSection>
           </div>
@@ -1119,7 +1119,7 @@ export default function About() {
     <ScrollView style={nativeStyles.container} contentContainerStyle={nativeStyles.scrollContent}>
       <Text style={nativeStyles.title}>About Web3Health</Text>
       <Text style={nativeStyles.subtitle}>
-        A secure and transparent health data infrastructure platform enabling privacy-preserving research through consented, contributor-owned data.
+        A secure and transparent health data infrastructure platform enabling privacy-preserving research through consented, participant-owned data.
       </Text>
 
       <Text style={nativeStyles.heading}>Our Mission</Text>
@@ -1129,7 +1129,7 @@ export default function About() {
 
       <Text style={nativeStyles.heading}>Our Vision</Text>
       <Text style={nativeStyles.body}>
-        A future where health data advances science without compromising individual privacy — where every contributor is informed, protected, and valued.
+        A future where health data advances science without compromising individual privacy — where every Research Participant is informed, protected, and valued.
       </Text>
 
       <Text style={nativeStyles.heading}>Principal Investigators</Text>

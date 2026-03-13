@@ -60,8 +60,8 @@ export default function StudyDetail() {
   const { user } = useAuth();
 
   /**
-   * Build rows for the "Contributor Demographics" sheet: one row per contributor.
-   * Columns: Contributor ID, Age, Gender, Height, Weight, Health Conditions
+   * Build rows for the "Research Participant Demographics" sheet: one row per participant.
+   * Columns: Research Participant ID, Age, Gender, Height, Weight, Health Conditions
    */
   function buildUserSheetRows(
     shares: any[]
@@ -143,8 +143,8 @@ export default function StudyDetail() {
   }
 
   /**
-   * Build rows for the "Metrics Data" sheet: one row per contributor per time interval.
-   * Columns: Contributor ID, Metric Name, Date, Time Granularity, Metric Value, Units
+   * Build rows for the "Metrics Data" sheet: one row per participant per time interval.
+   * Columns: Research Participant ID, Metric Name, Date, Time Granularity, Metric Value, Units
    */
   function buildUserDataSheetRows(
     shares: any[]

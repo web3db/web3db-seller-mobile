@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Colors, palette } from "@/constants/theme";
-import { LABELS } from "@/constants/labels";
 import {
   SafeAreaView,
   ScrollView,
@@ -740,8 +739,8 @@ const ManageStudy: React.FC = () => {
 
             {selectedMetricIds.length > 0 && (
               <Text style={styles.infoText}>
-                All selected metrics require contributors to have this data
-                available on their device. Contributors without all selected
+                All selected metrics require Research Participants to have this data
+                available on their device. Research Participants without all selected
                 fields data will not be able to participate.
               </Text>
             )}
@@ -816,7 +815,7 @@ const ManageStudy: React.FC = () => {
               selectedStatusId === openStatusId &&
               originalStatusId !== openStatusId && (
                 <Text style={styles.warningText}>
-                  Once published and contributors have registered, this study cannot
+                  Once published and Research Participants have registered, this study cannot
                   be modified. Please review carefully before proceeding.
                 </Text>
               )}
