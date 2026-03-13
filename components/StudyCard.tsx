@@ -10,60 +10,75 @@ type StudyCardProps = {
   onPress?: () => void;
 };
 
-// ─── Status badge color helper ────────────────────────────────────────────────
+// ─── Status color helper ──────────────────────────────────────────────────────
+// Returns solid, high-contrast colors for white backgrounds.
 function getStatusColors(label: string): { bg: string; color: string; dot: string } {
   const l = (label ?? "").toLowerCase();
   if (l.includes("open") || l.includes("active") || l.includes("recruit") || l.includes("live"))
-    return { bg: "rgba(22, 163, 74, 0.18)", color: "#15803d", dot: "#16a34a" };
+    return { bg: "#DCFCE7", color: "#15803D", dot: "#16A34A" };         // green
   if (l.includes("draft") || l.includes("pending") || l.includes("review"))
-    return { bg: "rgba(202, 138, 4, 0.18)", color: "#92400e", dot: "#d97706" };
+    return { bg: "#FEF9C3", color: "#854D0E", dot: "#CA8A04" };         // amber
   if (l.includes("clos") || l.includes("complet") || l.includes("ended") || l.includes("inactiv"))
-    return { bg: "rgba(220, 38, 38, 0.18)", color: "#991b1b", dot: "#dc2626" };
+    return { bg: "#FEE2E2", color: "#991B1B", dot: "#DC2626" };         // red
   if (l.includes("paus") || l.includes("hold"))
-    return { bg: "rgba(37, 99, 235, 0.18)", color: "#1e40af", dot: "#2563eb" };
-  return { bg: "rgba(107, 114, 128, 0.18)", color: "#374151", dot: "#6b7280" };
+    return { bg: "#DBEAFE", color: "#1E40AF", dot: "#2563EB" };         // blue
+  return { bg: "#F3F4F6", color: "#374151", dot: "#6B7280" };           // gray
 }
 
 // ─── Web styles ───────────────────────────────────────────────────────────────
 const webStyles: Record<string, React.CSSProperties> = {
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    boxShadow: "0 4px 24px rgba(0, 0, 0, 0.07)",
-    overflow: "hidden",
-    border: "1px solid rgba(0, 0, 0, 0.05)",
-    marginBottom: 20,
-  },
-  // Header uses 12-col grid: title (9 cols) | status badge (3 cols)
-  cardHeader: {
-    background: "linear-gradient(135deg, #C62828 0%, #8B0000 100%)",
-    padding: "20px 28px",
+  // Horizontal row — no gradient header
+  row: {
     display: "grid",
     gridTemplateColumns: "repeat(12, 1fr)" as any,
     gap: "0 16px",
     alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    border: "1px solid #EBEBEB",
+    padding: "16px 20px",
+    marginBottom: 10,
+    boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
   },
-  headerTitleCol: {
-    gridColumn: "span 9" as any,
-  },
-  headerBadgeCol: {
-    gridColumn: "span 3" as any,
+  // Left: title + organizer (5 cols)
+  titleCol: {
+    gridColumn: "span 5" as any,
     display: "flex",
-    justifyContent: "flex-end",
+    flexDirection: "column",
+    gap: 4,
+    minWidth: 0,
   },
-  cardTitle: {
+  title: {
     fontFamily: "Barlow, sans-serif",
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: "700",
-    color: "#FFFFFF",
-    lineHeight: 1.3,
+    color: "#1A1A1A",
     margin: 0,
+    whiteSpace: "nowrap" as any,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+  organizer: {
+    fontFamily: "Barlow, sans-serif",
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#888888",
+    margin: 0,
+    whiteSpace: "nowrap" as any,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+  // Middle: status badge (2 cols)
+  statusCol: {
+    gridColumn: "span 2" as any,
+    display: "flex",
+    justifyContent: "center",
   },
   statusBadge: {
     display: "inline-flex",
     alignItems: "center",
-    gap: 6,
-    padding: "5px 12px",
+    gap: 5,
+    padding: "4px 10px",
     borderRadius: 20,
     fontFamily: "Barlow, sans-serif",
     fontSize: 12,
@@ -71,103 +86,60 @@ const webStyles: Record<string, React.CSSProperties> = {
     whiteSpace: "nowrap" as any,
   },
   statusDot: {
-    width: 7,
-    height: 7,
+    width: 6,
+    height: 6,
     borderRadius: "50%" as any,
     flexShrink: 0,
     display: "inline-block",
   },
-  // Body uses 12-col grid: content (8 cols) | sidebar (4 cols)
-  cardBody: {
-    padding: "24px 28px",
-    display: "grid",
-    gridTemplateColumns: "repeat(12, 1fr)" as any,
-    gap: "0 32px",
-    alignItems: "start",
-  },
-  mainCol: {
-    gridColumn: "span 8" as any,
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  },
-  sideCol: {
-    gridColumn: "span 4" as any,
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-    paddingTop: 4,
-  },
-  description: {
-    fontFamily: "Barlow, sans-serif",
-    fontSize: 14,
-    fontWeight: "400",
-    color: "#444444",
-    lineHeight: 1.7,
-    margin: 0,
-  },
-  organizerBox: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 3,
-    padding: "10px 14px",
-    backgroundColor: "#F9F9FB",
-    borderRadius: 10,
-    border: "1px solid rgba(0,0,0,0.04)",
-  },
-  organizerLabel: {
-    fontFamily: "Barlow, sans-serif",
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#888888",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-  },
-  organizerValue: {
-    fontFamily: "Barlow, sans-serif",
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1a1a1a",
-  },
-  secureMuted: {
-    fontFamily: "Barlow, sans-serif",
-    fontSize: 12,
-    color: "#aaaaaa",
-    fontStyle: "italic",
-    margin: 0,
-  },
-  btnGhost: {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "9px 16px",
-    borderRadius: 10,
-    border: "2px solid #B22222",
-    backgroundColor: "transparent",
+  // Description snippet (3 cols)
+  descCol: {
+    gridColumn: "span 3" as any,
     fontFamily: "Barlow, sans-serif",
     fontSize: 13,
-    fontWeight: "600",
-    color: "#B22222",
-    cursor: "pointer",
-    width: "100%",
-    boxSizing: "border-box",
+    color: "#666666",
+    lineHeight: 1.5,
+    overflow: "hidden",
+    display: "-webkit-box" as any,
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical" as any,
+  },
+  // Actions (2 cols)
+  actionsCol: {
+    gridColumn: "span 2" as any,
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    alignItems: "stretch",
   },
   btnPrimary: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "9px 16px",
-    borderRadius: 10,
+    padding: "7px 12px",
+    borderRadius: 8,
     border: "none",
     backgroundColor: "#B22222",
     fontFamily: "Barlow, sans-serif",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: "#FFFFFF",
     cursor: "pointer",
-    boxShadow: "0 4px 12px rgba(178, 34, 34, 0.25)",
-    width: "100%",
-    boxSizing: "border-box",
+    boxShadow: "0 2px 6px rgba(178,34,34,0.2)",
+  },
+  btnGhost: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "7px 12px",
+    borderRadius: 8,
+    border: "1.5px solid #B22222",
+    backgroundColor: "transparent",
+    fontFamily: "Barlow, sans-serif",
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#B22222",
+    cursor: "pointer",
   },
 };
 
@@ -189,49 +161,40 @@ const StudyCardWeb: React.FC<StudyCardProps> = ({ study, statusLabel, onPress })
   const statusColors = getStatusColors(label);
 
   return (
-    <div style={webStyles.card}>
-      {/* Header: 12-col grid — title (9) | status badge (3) */}
-      <div style={webStyles.cardHeader as any}>
-        <div style={webStyles.headerTitleCol as any}>
-          <p style={webStyles.cardTitle}>{study.title}</p>
-        </div>
-        <div style={webStyles.headerBadgeCol as any}>
-          <span
-            style={{
-              ...webStyles.statusBadge,
-              backgroundColor: statusColors.bg,
-              color: statusColors.color,
-            }}
-          >
-            <span style={{ ...webStyles.statusDot, backgroundColor: statusColors.dot }} />
-            {label}
-          </span>
-        </div>
+    <div style={webStyles.row as any}>
+      {/* Title + organizer (5 cols) */}
+      <div style={webStyles.titleCol as any}>
+        <p style={webStyles.title}>{study.title}</p>
+        <p style={webStyles.organizer}>{study.organizer}</p>
       </div>
 
-      {/* Body: 12-col grid — content (8) | sidebar (4) */}
-      <div style={webStyles.cardBody as any}>
-        {/* Left 8 cols */}
-        <div style={webStyles.mainCol as any}>
-          <p style={webStyles.description}>{study.description || study.summary}</p>
-          <p style={webStyles.secureMuted}>
-            Data shared will be de-identified and transferred over secure channels.
-          </p>
-        </div>
+      {/* Status badge (2 cols) */}
+      <div style={webStyles.statusCol as any}>
+        <span
+          style={{
+            ...webStyles.statusBadge,
+            backgroundColor: statusColors.bg,
+            color: statusColors.color,
+          }}
+        >
+          <span style={{ ...webStyles.statusDot, backgroundColor: statusColors.dot }} />
+          {label}
+        </span>
+      </div>
 
-        {/* Right 4 cols */}
-        <div style={webStyles.sideCol as any}>
-          <div style={webStyles.organizerBox}>
-            <span style={webStyles.organizerLabel}>Organizer</span>
-            <span style={webStyles.organizerValue}>{study.organizer}</span>
-          </div>
-          <button style={webStyles.btnGhost} onClick={handleManagePress}>
-            {isDraft ? "Publish" : "Manage Study"}
-          </button>
-          <button style={webStyles.btnPrimary} onClick={handleViewPress}>
-            View Study
-          </button>
-        </div>
+      {/* Description snippet (3 cols) */}
+      <p style={webStyles.descCol as any}>
+        {study.description || study.summary || "—"}
+      </p>
+
+      {/* Actions (2 cols) */}
+      <div style={webStyles.actionsCol as any}>
+        <button style={webStyles.btnPrimary} onClick={handleViewPress}>
+          View Study
+        </button>
+        <button style={webStyles.btnGhost} onClick={handleManagePress}>
+          {isDraft ? "Publish" : "Manage"}
+        </button>
       </div>
     </div>
   );
@@ -253,7 +216,7 @@ const StudyCardNative: React.FC<StudyCardProps> = ({ study, statusLabel, onPress
   return (
     <View style={nativeStyles.studyCard}>
       <View style={nativeStyles.header}>
-        <Text style={nativeStyles.title}>{study.title}</Text>
+        <Text style={nativeStyles.title} numberOfLines={2}>{study.title}</Text>
         <View style={nativeStyles.badge}>
           <Text style={nativeStyles.badgeText}>
             {statusLabel ?? `Status ${study.statusId}`}
@@ -261,18 +224,8 @@ const StudyCardNative: React.FC<StudyCardProps> = ({ study, statusLabel, onPress
         </View>
       </View>
 
-      <Text style={nativeStyles.description}>{study.description}</Text>
-
-      <Text style={nativeStyles.secureMuted}>
-        Data shared will be de-identified and transferred over secure channels;
-        contributors must consent.
-      </Text>
-
-      <View style={nativeStyles.metaContainer}>
-        <Text style={nativeStyles.metaText}>
-          Organizer: <Text style={nativeStyles.boldText}>{study.organizer}</Text>
-        </Text>
-      </View>
+      <Text style={nativeStyles.organizer}>{study.organizer}</Text>
+      <Text style={nativeStyles.description} numberOfLines={2}>{study.description}</Text>
 
       <View style={nativeStyles.actionsContainer}>
         <TouchableOpacity
@@ -280,7 +233,7 @@ const StudyCardNative: React.FC<StudyCardProps> = ({ study, statusLabel, onPress
           onPress={handleManagePress}
         >
           <Text style={nativeStyles.btnTextGhost}>
-            {(statusLabel ?? "").toLowerCase().includes("draft") ? "Publish" : "Manage Study"}
+            {(statusLabel ?? "").toLowerCase().includes("draft") ? "Publish" : "Manage"}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -305,93 +258,67 @@ const nativeStyles = StyleSheet.create({
     backgroundColor: Colors.light.background,
     borderRadius: 8,
     padding: 16,
-    marginVertical: 8,
+    marginVertical: 6,
     marginHorizontal: 16,
     shadowColor: Colors.light.text,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#EBEBEB",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
+    alignItems: "flex-start",
+    marginBottom: 6,
+    gap: 8,
   },
   title: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "700",
     color: Colors.light.text,
     flex: 1,
-    marginRight: 8,
   },
   badge: {
     backgroundColor: palette.light.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
     borderRadius: 12,
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     color: palette.light.text.secondary,
   },
-  description: {
-    fontSize: 14,
-    color: palette.light.text.secondary,
-    lineHeight: 20,
-  },
-  secureMuted: {
+  organizer: {
     fontSize: 12,
-    color: palette.light.text.muted,
-    fontStyle: "italic",
-    marginTop: 12,
-  },
-  metaContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: palette.light.border,
-    paddingTop: 12,
-  },
-  metaText: {
-    fontSize: 14,
     color: palette.light.text.secondary,
+    marginBottom: 4,
   },
-  boldText: {
-    fontWeight: "bold",
+  description: {
+    fontSize: 13,
+    color: palette.light.text.secondary,
+    lineHeight: 18,
   },
   actionsContainer: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    marginTop: 16,
-    gap: 10,
+    marginTop: 12,
+    gap: 8,
   },
   btn: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
     borderRadius: 6,
     justifyContent: "center",
     alignItems: "center",
   },
-  btnPrimary: {
-    backgroundColor: Colors.light.tint,
-  },
-  btnTextPrimary: {
-    color: palette.light.text.inverse,
-    fontWeight: "bold",
-  },
-  btnGhost: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: Colors.light.tint,
-  },
-  btnTextGhost: {
-    color: Colors.light.tint,
-    fontWeight: "bold",
-  },
+  btnPrimary: { backgroundColor: Colors.light.tint },
+  btnTextPrimary: { color: palette.light.text.inverse, fontWeight: "600", fontSize: 13 },
+  btnGhost: { borderWidth: 1, borderColor: Colors.light.tint, backgroundColor: "transparent" },
+  btnTextGhost: { color: Colors.light.tint, fontWeight: "600", fontSize: 13 },
 });
 
 export default StudyCard;
