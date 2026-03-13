@@ -218,8 +218,11 @@ const StudiesScreenWeb: React.FC<{
             <span style={webStyles.statLabel}>Total Studies</span>
           </div>
           <div style={webStyles.statCard}>
-            <span style={webStyles.statValue}>{isLoading ? "—" : totalPages || "—"}</span>
-            <span style={webStyles.statLabel}>Pages</span>
+            <span style={webStyles.statValue}>{isLoading ? "—" : studies.filter((s: any) => {
+              const label = (s.statusLabel ?? "").toLowerCase();
+              return label.includes("open") || label.includes("active") || label.includes("recruit");
+            }).length}</span>
+            <span style={webStyles.statLabel}>Active</span>
           </div>
         </div>
 
@@ -248,8 +251,8 @@ const StudiesScreenWeb: React.FC<{
           />
         ))}
 
-        {/* Pagination controls */}
-        {totalPages > 1 && (
+        {/* Pagination controls — always visible when there are studies */}
+        {!isLoading && studies.length > 0 && (
           <div style={webStyles.pagination as any}>
             <button
               style={{
