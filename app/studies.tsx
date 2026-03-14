@@ -6,6 +6,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Platform,
 } from "react-native";
 // Assuming these context and navigation hooks exist:
 import { useAuth } from "@clerk/clerk-expo";
@@ -136,7 +137,14 @@ const StudiesScreen: React.FC = () => {
 };
 
 // ─── Native styles ────────────────────────────────────────────────────────────
-const nativeStyles = StyleSheet.create({
+const StatBox = ({ label, value }: { label: string; value: string | number }) => (
+  <View style={styles.statBox}>
+    <Text style={styles.statValue}>{value}</Text>
+    <Text style={styles.statLabel}>{label}</Text>
+  </View>
+);
+
+const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.light.background },
   homeRoot: {
     paddingTop: Platform.OS === "web" ? 80 : 32,
