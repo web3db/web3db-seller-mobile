@@ -683,7 +683,7 @@ const ManageStudy: React.FC = () => {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.light.background },
-  scrollContainer: { padding: 16, paddingBottom: 48 },
+  scrollContainer: { padding: 16, paddingTop: Platform.OS === "web" ? 80 : 16, paddingBottom: 48 },
   contentRow: { width: "100%", gap: 16 },
   rowLayout: { flexDirection: "row", alignItems: "flex-start" },
   columnLayout: { flexDirection: "column" },
