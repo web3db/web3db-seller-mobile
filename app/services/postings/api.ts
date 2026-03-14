@@ -151,20 +151,21 @@ export type ListParams = {
   // future: tag?: string; sort?: string;
 };
 
-// ** REPLACE with your actual Supabase Function base URL **
 export const FUNCTIONS_BASE = (() => {
   // Use a runtime override for development (e.g., http://localhost:8787)
   try {
-    // window is available in web; process.env in build time
     // @ts-ignore
     if (typeof window !== "undefined" && (window as any).__DEV_PROXY__)
       return (window as any).__DEV_PROXY__;
   } catch {}
-  // fallback to process env (used by bundlers)
   if (typeof process !== "undefined" && process.env && process.env.DEV_PROXY)
     return process.env.DEV_PROXY;
 
-  return "https://owypzbpmqvclgkurghjg.supabase.co/functions/v1";
+  // Read Supabase URL from env var (set EXPO_PUBLIC_SUPABASE_URL in .env)
+  const supabaseUrl = process?.env?.EXPO_PUBLIC_SUPABASE_URL ?? '';
+  if (supabaseUrl) return `${supabaseUrl}/functions/v1`;
+
+  throw new Error('EXPO_PUBLIC_SUPABASE_URL is not configured. Add it to your .env file.');
 })();
 
 // Global flag assumed to be set in your build system

@@ -62,11 +62,16 @@ serve(async (req) => {
     // HMAC-pseudonymized participant ID
     const participantId = await pseudonymize(survey.PostingId, recipient.UserId);
 
-    // Validate stored URL is HTTPS (defense in depth against DB corruption)
+    // Validate stored URL is HTTPS and from allowed domain (defense in depth against DB corruption)
     const redirectUrl = new URL(formUrl);
     if (redirectUrl.protocol !== 'https:') {
       console.error('survey_redirect blocked non-HTTPS redirect:', formUrl);
       return errorResponse('CONFIG_ERROR', 'Survey URL must use HTTPS', 500);
+    }
+    const ALLOWED_REDIRECT_DOMAINS = ['docs.google.com', 'forms.gle', 'forms.google.com', 'surveymonkey.com', 'qualtrics.com', 'typeform.com'];
+    if (!ALLOWED_REDIRECT_DOMAINS.some(d => redirectUrl.hostname === d || redirectUrl.hostname.endsWith(`.${d}`))) {
+      console.error('survey_redirect blocked redirect to disallowed domain:', redirectUrl.hostname);
+      return errorResponse('CONFIG_ERROR', 'Survey URL domain is not allowed', 500);
     }
     redirectUrl.searchParams.set(paramKey, participantId);
 
