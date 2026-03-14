@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { corsHeaders, corsResponse, jsonResponse, errorResponse } from '../_shared/cors.ts';
-import { createServiceClient, getPathParam, getPageParams, enforceMethod, pseudonymize } from '../_shared/supabase.ts';
-import { verifyAuth } from '../_shared/auth.ts';
+import { createServiceClient, getPathParamAsInt, getPageParams, enforceMethod, pseudonymize, ValidationError } from '../_shared/supabase.ts';
+import { verifyAuth, AuthError } from '../_shared/auth.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
@@ -10,18 +10,14 @@ serve(async (req) => {
   if (methodErr) return methodErr;
 
   try {
-    const user = await verifyAuth(req);
+    const sb = createServiceClient();
+    const user = await verifyAuth(req, sb);
 
     const url = new URL(req.url);
-    const surveyId = Number(getPathParam(url));
-    if (!surveyId || isNaN(surveyId)) {
-      return errorResponse('INVALID_PARAM', 'surveyId is required in path');
-    }
+    const surveyId = getPathParamAsInt(url);
 
     const { page, page_size, offset } = getPageParams(url);
     const statusFilter = url.searchParams.get('status');
-
-    const sb = createServiceClient();
 
     // Get survey and verify posting ownership
     const { data: survey } = await sb
@@ -62,7 +58,7 @@ serve(async (req) => {
     // Compute HMAC-pseudonymized participant_ids
     const items = await Promise.all((recipients ?? []).map(async (r: any) => {
       const status = r.OpenedOn ? 'OPENED' : r.SentOn ? 'SENT' : 'NOT_SENT';
-      const participantId = await pseudonymize(r.UserId);
+      const participantId = await pseudonymize(survey.PostingId, r.UserId);
       return {
         survey_recipient_id: r.SurveyRecipientId,
         participant_id: participantId,
@@ -84,7 +80,10 @@ serve(async (req) => {
       recipients: items,
     });
   } catch (err: any) {
-    if (err.message?.includes('authorization') || err.message?.includes('token') || err.message?.includes('Auth not configured')) {
+    if (err instanceof ValidationError) {
+      return errorResponse('INVALID_PARAM', err.message, 400);
+    }
+    if (err instanceof AuthError) {
       return errorResponse('UNAUTHORIZED', 'Authentication required', 401);
     }
     console.error('survey_recipients_list error:', err);

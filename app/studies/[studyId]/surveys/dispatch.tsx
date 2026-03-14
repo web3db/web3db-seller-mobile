@@ -271,8 +271,10 @@ export default function DispatchCenterPage() {
     setPreviewError(null);
     setEmailPreview(null);
     try {
+      const firstSurveyId = [...selectedSurveyIds][0];
       const res = await surveyEmailPreview({
-        include_link: includeLink,
+        survey_id: firstSurveyId,
+        include_survey_link: includeLink,
         include_message: includeMessage,
         message_text: includeMessage ? messageText : undefined,
       });
@@ -328,10 +330,10 @@ export default function DispatchCenterPage() {
         survey_ids: [...selectedSurveyIds],
         user_ids,
         mode,
-        include_link: includeLink,
+        include_survey_link: includeLink,
         include_message: includeMessage,
         message_text: includeMessage ? messageText : undefined,
-        dry_run: false,
+        is_dry_run: false,
       });
       setDispatchResult(res);
       setDispatchError(null);
@@ -853,12 +855,12 @@ export default function DispatchCenterPage() {
               <View style={dStyles.previewBox}>
                 <Text style={dStyles.previewBoxLabel}>Subject</Text>
                 <Text style={dStyles.previewSubject}>
-                  {emailPreview.rendered_subject}
+                  {emailPreview.subject}
                 </Text>
                 <View style={dStyles.previewDivider} />
                 <Text style={dStyles.previewBoxLabel}>Body</Text>
                 <Text style={dStyles.previewBody}>
-                  {emailPreview.rendered_body}
+                  {emailPreview.body_html}
                 </Text>
               </View>
             )}

@@ -137,6 +137,7 @@ export default function SurveyCreatePage() {
     try {
       const res = await surveyEmailPreview({
         survey_title: title.trim() || undefined,
+        form_url: paramUrl.trim() || undefined,
         include_message: includeMessage,
         message_text: includeMessage && messageText.trim() ? messageText.trim() : undefined,
       });
@@ -311,22 +312,22 @@ export default function SurveyCreatePage() {
 
             <View style={styles.previewMeta}>
               <Text style={styles.previewMetaLabel}>Subject:</Text>
-              <Text style={styles.previewMetaValue}>{preview.rendered_subject}</Text>
+              <Text style={styles.previewMetaValue}>{preview.subject}</Text>
             </View>
 
             <View style={styles.previewBody}>
               <Text style={styles.previewBodyLabel}>Body:</Text>
               <View style={styles.previewBodyBox}>
-                <Text style={styles.previewBodyText}>{preview.rendered_body}</Text>
+                <Text style={styles.previewBodyText}>{preview.body_html}</Text>
               </View>
             </View>
 
-            {Object.keys(preview.placeholders ?? {}).length > 0 && (
+            {(preview.placeholders_used ?? []).length > 0 && (
               <View style={styles.previewPlaceholders}>
                 <Text style={styles.previewMetaLabel}>Placeholders used:</Text>
-                {Object.entries(preview.placeholders).map(([key, val]) => (
+                {preview.placeholders_used.map((key) => (
                   <Text key={key} style={styles.previewPlaceholderItem}>
-                    <Text style={styles.codeInline}>{key}</Text> → {val}
+                    <Text style={styles.codeInline}>{key}</Text>
                   </Text>
                 ))}
               </View>

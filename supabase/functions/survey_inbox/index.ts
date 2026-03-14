@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { corsHeaders, corsResponse, jsonResponse, errorResponse } from '../_shared/cors.ts';
-import { createServiceClient, getPageParams, enforceMethod } from '../_shared/supabase.ts';
-import { verifyAuth } from '../_shared/auth.ts';
+import { createServiceClient, getPageParams, enforceMethod, getFunctionsBaseUrl } from '../_shared/supabase.ts';
+import { verifyAuth, AuthError } from '../_shared/auth.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
@@ -10,7 +10,8 @@ serve(async (req) => {
   if (methodErr) return methodErr;
 
   try {
-    const user = await verifyAuth(req);
+    const sb = createServiceClient();
+    const user = await verifyAuth(req, sb);
 
     const url = new URL(req.url);
     const userId = Number(url.searchParams.get('user_id'));
@@ -23,10 +24,9 @@ serve(async (req) => {
     }
 
     const { page, page_size, offset } = getPageParams(url);
-    const sb = createServiceClient();
 
-    // Derive base URL for survey links
-    const baseUrl = `${url.protocol}//${url.host}`;
+    // Derive base URL for survey links (includes /functions/v1 prefix)
+    const baseUrl = getFunctionsBaseUrl(url);
 
     const { data: recipients, count, error } = await sb
       .from('TRN_SurveyRecipient')
@@ -59,7 +59,7 @@ serve(async (req) => {
       items,
     });
   } catch (err: any) {
-    if (err.message?.includes('authorization') || err.message?.includes('token') || err.message?.includes('Auth not configured')) {
+    if (err instanceof AuthError) {
       return errorResponse('UNAUTHORIZED', 'Authentication required', 401);
     }
     console.error('survey_inbox error:', err);

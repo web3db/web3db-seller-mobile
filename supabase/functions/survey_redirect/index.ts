@@ -29,19 +29,28 @@ serve(async (req) => {
       return errorResponse('NOT_FOUND', 'Invalid or expired survey link', 404);
     }
 
-    // Update tracking
+    // Check survey status BEFORE tracking to avoid inflating analytics on inactive surveys
+    const survey = recipient.TRN_Survey;
+    if (survey && survey.IsActive === false) {
+      return errorResponse('SURVEY_INACTIVE', 'This survey is no longer active', 410);
+    }
+
+    // Update tracking (cap open count to prevent inflation from bots/crawlers)
+    const currentCount = recipient.OpenCount ?? 0;
+    const MAX_TRACKED_OPENS = 1000;
     const now = new Date().toISOString();
-    await sb
-      .from('TRN_SurveyRecipient')
-      .update({
-        OpenedOn: recipient.OpenedOn ?? now,
-        OpenCount: (recipient.OpenCount ?? 0) + 1,
-        LastOpenedOn: now,
-      })
-      .eq('SurveyRecipientId', recipient.SurveyRecipientId);
+    if (currentCount < MAX_TRACKED_OPENS) {
+      await sb
+        .from('TRN_SurveyRecipient')
+        .update({
+          OpenedOn: recipient.OpenedOn ?? now,
+          OpenCount: currentCount + 1,
+          LastOpenedOn: now,
+        })
+        .eq('SurveyRecipientId', recipient.SurveyRecipientId);
+    }
 
     // Build redirect URL with participant param
-    const survey = recipient.TRN_Survey;
     const formUrl = survey?.FormResponderUrl ?? survey?.GoogleFormResponderUrl;
     const paramKey = survey?.ParticipantParamKey ?? survey?.PrefillEntryKey;
 
@@ -51,10 +60,14 @@ serve(async (req) => {
     }
 
     // HMAC-pseudonymized participant ID
-    const participantId = await pseudonymize(recipient.UserId);
+    const participantId = await pseudonymize(survey.PostingId, recipient.UserId);
 
-    // Proper URL construction handles existing query parameters
+    // Validate stored URL is HTTPS (defense in depth against DB corruption)
     const redirectUrl = new URL(formUrl);
+    if (redirectUrl.protocol !== 'https:') {
+      console.error('survey_redirect blocked non-HTTPS redirect:', formUrl);
+      return errorResponse('CONFIG_ERROR', 'Survey URL must use HTTPS', 500);
+    }
     redirectUrl.searchParams.set(paramKey, participantId);
 
     return new Response(null, {

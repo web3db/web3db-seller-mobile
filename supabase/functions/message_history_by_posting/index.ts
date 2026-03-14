@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { corsHeaders, corsResponse, jsonResponse, errorResponse } from '../_shared/cors.ts';
-import { createServiceClient, getPathParam, getPageParams, enforceMethod } from '../_shared/supabase.ts';
-import { verifyAuth } from '../_shared/auth.ts';
+import { createServiceClient, getPathParamAsInt, getPageParams, enforceMethod, ValidationError } from '../_shared/supabase.ts';
+import { verifyAuth, AuthError } from '../_shared/auth.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
@@ -10,19 +10,15 @@ serve(async (req) => {
   if (methodErr) return methodErr;
 
   try {
-    const user = await verifyAuth(req);
+    const sb = createServiceClient();
+    const user = await verifyAuth(req, sb);
 
     const url = new URL(req.url);
-    const postingId = Number(getPathParam(url));
-    if (!postingId || isNaN(postingId)) {
-      return errorResponse('INVALID_PARAM', 'postingId is required in path');
-    }
+    const postingId = getPathParamAsInt(url);
 
     const { page, page_size, offset } = getPageParams(url);
     const surveyIdFilter = url.searchParams.get('survey_id');
     const eventSourceFilter = url.searchParams.get('event_source');
-
-    const sb = createServiceClient();
 
     // Verify posting ownership
     const { data: posting } = await sb.from('TRN_Posting').select('BuyerUserId').eq('PostingId', postingId).single();
@@ -37,8 +33,20 @@ serve(async (req) => {
       .order('CreatedOn', { ascending: false })
       .range(offset, offset + page_size - 1);
 
-    if (surveyIdFilter) query = query.eq('SurveyId', Number(surveyIdFilter));
-    if (eventSourceFilter) query = query.eq('EventSource', eventSourceFilter);
+    if (surveyIdFilter) {
+      const surveyIdNum = Number(surveyIdFilter);
+      if (!Number.isInteger(surveyIdNum) || surveyIdNum <= 0) {
+        return errorResponse('VALIDATION_ERROR', 'survey_id must be a positive integer', 400);
+      }
+      query = query.eq('SurveyId', surveyIdNum);
+    }
+    if (eventSourceFilter) {
+      const validSources = ['SURVEY_SEND', 'DISPATCH_CENTER', 'CUSTOM_MESSAGE'];
+      if (!validSources.includes(eventSourceFilter)) {
+        return errorResponse('VALIDATION_ERROR', `event_source must be one of: ${validSources.join(', ')}`, 400);
+      }
+      query = query.eq('EventSource', eventSourceFilter);
+    }
 
     const { data: events, count, error } = await query;
     if (error) {
@@ -47,18 +55,20 @@ serve(async (req) => {
     }
 
     const items = (events ?? []).map((e: any) => ({
-      survey_message_event_id: e.SurveyMessageEventId,
+      message_event_id: e.MessageEventId,
       posting_id: e.PostingId,
       survey_id: e.SurveyId,
       event_source: e.EventSource,
       dispatch_mode: e.DispatchMode,
-      include_link: e.IncludeLink,
+      include_survey_link: e.IncludeSurveyLink,
       include_message: e.IncludeMessage,
-      dry_run: e.DryRun,
-      initiated_by: e.InitiatedBy,
-      pairs_sent: e.PairsSent,
-      pairs_failed: e.PairsFailed,
-      pairs_skipped: e.PairsSkipped,
+      is_dry_run: e.IsDryRun,
+      created_by: e.CreatedBy,
+      total_sent: e.TotalSent,
+      total_failed: e.TotalFailed,
+      total_skipped: e.TotalSkipped,
+      total_recipients: e.TotalRecipients,
+      channel: e.Channel,
       created_on: e.CreatedOn,
       survey_title: e.TRN_Survey?.Title ?? null,
     }));
@@ -72,7 +82,10 @@ serve(async (req) => {
       events: items,
     });
   } catch (err: any) {
-    if (err.message?.includes('authorization') || err.message?.includes('token') || err.message?.includes('Auth not configured')) {
+    if (err instanceof ValidationError) {
+      return errorResponse('INVALID_PARAM', err.message, 400);
+    }
+    if (err instanceof AuthError) {
       return errorResponse('UNAUTHORIZED', 'Authentication required', 401);
     }
     console.error('message_history_by_posting error:', err);

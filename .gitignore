@@ -44,3 +44,47 @@ app-example
 /android
 
 node_modules
+
+# IDE
+.idea/
+
+# Supabase local
+supabase/.temp/
+supabase/migrations/
+
+# Non-feature edge functions (kept local only)
+supabase/functions/auth_lookup/
+supabase/functions/buyer_get_posting_shares/
+supabase/functions/buyers_postings_create/
+supabase/functions/buyers_postings_delete/
+supabase/functions/buyers_postings_detail/
+supabase/functions/buyers_postings_list/
+supabase/functions/buyers_postings_update/
+supabase/functions/health_conditions/
+supabase/functions/marketplace_postings/
+supabase/functions/measurement_systems/
+supabase/functions/metrics/
+supabase/functions/posting_statuses/
+supabase/functions/push_register/
+supabase/functions/push_run_policy/
+supabase/functions/push_send/
+supabase/functions/push_test_send/
+supabase/functions/races/
+supabase/functions/reward_types/
+supabase/functions/sexes/
+supabase/functions/share_get_session_snapshot/
+supabase/functions/units/
+supabase/functions/user_active-share-sessions/
+supabase/functions/user_cancel_share_session/
+supabase/functions/user_get_session_by_posting/
+supabase/functions/user_get_sharing_dashboard/
+supabase/functions/user_login_profile_by_clerk_id/
+supabase/functions/user_login_share_hydration/
+supabase/functions/user_rewards_summary/
+supabase/functions/user_start_share_session/
+supabase/functions/user_submit_segment/
+supabase/functions/users_create/
+supabase/functions/users_profile/
+supabase/functions/users_profile_status/
+supabase/functions/users_update/
+supabase/functions/view_policies/

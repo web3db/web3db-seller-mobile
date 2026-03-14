@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { corsHeaders, corsResponse, jsonResponse, errorResponse } from '../_shared/cors.ts';
-import { createServiceClient, getPathParam, enforceMethod } from '../_shared/supabase.ts';
-import { verifyAuth } from '../_shared/auth.ts';
+import { createServiceClient, getPathParamAsInt, enforceMethod, ValidationError } from '../_shared/supabase.ts';
+import { verifyAuth, AuthError } from '../_shared/auth.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
@@ -10,16 +10,14 @@ serve(async (req) => {
   if (methodErr) return methodErr;
 
   try {
-    const user = await verifyAuth(req);
+    const sb = createServiceClient();
+    const user = await verifyAuth(req, sb);
 
     const url = new URL(req.url);
-    const surveyId = Number(getPathParam(url));
-    if (!surveyId || isNaN(surveyId)) {
-      return errorResponse('INVALID_PARAM', 'surveyId is required in path');
-    }
+    const surveyId = getPathParamAsInt(url);
 
     const includeStats = url.searchParams.get('include_stats') === 'true';
-    const sb = createServiceClient();
+    const includeFormUrl = url.searchParams.get('include_form_url') === 'true';
 
     const { data: survey, error } = await sb
       .from('TRN_Survey')
@@ -37,22 +35,36 @@ serve(async (req) => {
       return errorResponse('FORBIDDEN', 'You do not have permission to view this survey', 403);
     }
 
-    let result: any = survey;
+    // Normalize to snake_case
+    const normalized: any = {
+      survey_id: survey.SurveyId,
+      posting_id: survey.PostingId,
+      created_by: survey.CreatedBy,
+      title: survey.Title,
+      participant_param_key: survey.ParticipantParamKey,
+      is_active: survey.IsActive,
+      created_on: survey.CreatedOn,
+      modified_on: survey.ModifiedOn,
+    };
 
-    if (includeStats) {
-      const { data: recipients } = await sb
-        .from('TRN_SurveyRecipient')
-        .select('OpenedOn')
-        .eq('SurveyId', surveyId);
-
-      const total = recipients?.length ?? 0;
-      const opened = recipients?.filter((r: any) => r.OpenedOn).length ?? 0;
-      result = { ...survey, stats: { recipients_total: total, opened_total: opened } };
+    if (includeFormUrl) {
+      normalized.form_responder_url = survey.FormResponderUrl;
     }
 
-    return jsonResponse({ ok: true, survey: result });
+    if (includeStats) {
+      const [totalRes, openedRes] = await Promise.all([
+        sb.from('TRN_SurveyRecipient').select('*', { count: 'exact', head: true }).eq('SurveyId', surveyId),
+        sb.from('TRN_SurveyRecipient').select('*', { count: 'exact', head: true }).eq('SurveyId', surveyId).not('OpenedOn', 'is', null),
+      ]);
+      normalized.stats = { recipients_total: totalRes.count ?? 0, opened_total: openedRes.count ?? 0 };
+    }
+
+    return jsonResponse({ ok: true, survey: normalized });
   } catch (err: any) {
-    if (err.message?.includes('authorization') || err.message?.includes('token') || err.message?.includes('Auth not configured')) {
+    if (err instanceof ValidationError) {
+      return errorResponse('INVALID_PARAM', err.message, 400);
+    }
+    if (err instanceof AuthError) {
       return errorResponse('UNAUTHORIZED', 'Authentication required', 401);
     }
     console.error('survey_get error:', err);

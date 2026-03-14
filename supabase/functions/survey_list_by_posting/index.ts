@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { corsHeaders, corsResponse, jsonResponse, errorResponse } from '../_shared/cors.ts';
-import { createServiceClient, getPathParam, getPageParams, enforceMethod } from '../_shared/supabase.ts';
-import { verifyAuth } from '../_shared/auth.ts';
+import { createServiceClient, getPathParamAsInt, getPageParams, enforceMethod, ValidationError } from '../_shared/supabase.ts';
+import { verifyAuth, AuthError } from '../_shared/auth.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
@@ -10,19 +10,15 @@ serve(async (req) => {
   if (methodErr) return methodErr;
 
   try {
-    const user = await verifyAuth(req);
+    const sb = createServiceClient();
+    const user = await verifyAuth(req, sb);
 
     const url = new URL(req.url);
-    const postingId = Number(getPathParam(url));
-    if (!postingId || isNaN(postingId)) {
-      return errorResponse('INVALID_PARAM', 'postingId is required in path');
-    }
+    const postingId = getPathParamAsInt(url);
 
     const { page, page_size, offset } = getPageParams(url);
     const includeStats = url.searchParams.get('include_stats') === 'true';
     const isActiveParam = url.searchParams.get('is_active');
-
-    const sb = createServiceClient();
 
     // Verify posting ownership
     const { data: posting } = await sb.from('TRN_Posting').select('BuyerUserId').eq('PostingId', postingId).single();
@@ -48,19 +44,22 @@ serve(async (req) => {
 
     let enriched = surveys ?? [];
 
+    const MAX_STATS_SURVEYS = 50;
     if (includeStats && enriched.length > 0) {
-      const surveyIds = enriched.map((s: any) => s.SurveyId);
-      const { data: recipients } = await sb
-        .from('TRN_SurveyRecipient')
-        .select('SurveyId, OpenedOn')
-        .in('SurveyId', surveyIds);
+      const surveyIds = enriched.slice(0, MAX_STATS_SURVEYS).map((s: any) => s.SurveyId);
 
+      // Use COUNT queries instead of fetching all rows
       const statsMap: Record<number, { recipients_total: number; opened_total: number }> = {};
-      for (const r of recipients ?? []) {
-        if (!statsMap[r.SurveyId]) statsMap[r.SurveyId] = { recipients_total: 0, opened_total: 0 };
-        statsMap[r.SurveyId].recipients_total++;
-        if (r.OpenedOn) statsMap[r.SurveyId].opened_total++;
-      }
+      await Promise.all(surveyIds.map(async (sid: number) => {
+        const [totalRes, openedRes] = await Promise.all([
+          sb.from('TRN_SurveyRecipient').select('*', { count: 'exact', head: true }).eq('SurveyId', sid),
+          sb.from('TRN_SurveyRecipient').select('*', { count: 'exact', head: true }).eq('SurveyId', sid).not('OpenedOn', 'is', null),
+        ]);
+        statsMap[sid] = {
+          recipients_total: totalRes.count ?? 0,
+          opened_total: openedRes.count ?? 0,
+        };
+      }));
 
       enriched = enriched.map((s: any) => ({
         ...s,
@@ -68,17 +67,35 @@ serve(async (req) => {
       }));
     }
 
+    // Normalize PascalCase DB rows to snake_case
+    const normalized = enriched.map((s: any) => ({
+      survey_id: s.SurveyId,
+      posting_id: s.PostingId,
+      created_by: s.CreatedBy,
+      title: s.Title,
+      form_responder_url: s.FormResponderUrl,
+      participant_param_key: s.ParticipantParamKey,
+      is_active: s.IsActive,
+      created_on: s.CreatedOn,
+      modified_on: s.ModifiedOn,
+      ...(s.stats != null ? { stats: s.stats } : {}),
+    }));
+
     return jsonResponse({
       ok: true,
       posting_id: postingId,
       page,
       page_size,
       total: count ?? 0,
-      surveys: enriched,
+      surveys: normalized,
     });
   } catch (err: any) {
-    if (err.message?.includes('authorization') || err.message?.includes('token') || err.message?.includes('Auth not configured')) {
-      return errorResponse('UNAUTHORIZED', 'Authentication required', 401);
+    if (err instanceof ValidationError) {
+      return errorResponse('INVALID_PARAM', err.message, 400);
+    }
+    if (err instanceof AuthError) {
+      console.error('survey_list_by_posting auth error:', err.message);
+      return errorResponse('UNAUTHORIZED', err.message, 401);
     }
     console.error('survey_list_by_posting error:', err);
     return errorResponse('INTERNAL', 'Internal server error', 500);

@@ -2,7 +2,7 @@
 // Updated from reverted code: provider-agnostic naming + new endpoints
 
 import { FUNCTIONS_BASE } from '../postings/api';
-import { getClerkToken, getInternalUserId } from '@/app/services/auth/tokenManager';
+import { getClerkToken } from '@/app/services/auth/tokenManager';
 import type {
   SurveyListResponse,
   SurveyCreateBody,
@@ -59,7 +59,21 @@ function buildUrl(name: string, qs?: Record<string, unknown>): string {
   return `${FUNCTIONS_BASE}/${clean}${buildQuery(qs)}`;
 }
 
-function authHeaders(): Record<string, string> {
+/** Wait for the Clerk token to become available (handles race on page load) */
+async function waitForClerkToken(maxMs = 3000): Promise<string | null> {
+  const immediate = getClerkToken();
+  if (immediate) return immediate;
+
+  const start = Date.now();
+  while (Date.now() - start < maxMs) {
+    await new Promise((r) => setTimeout(r, 100));
+    const t = getClerkToken();
+    if (t) return t;
+  }
+  return null;
+}
+
+async function authHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -67,15 +81,11 @@ function authHeaders(): Record<string, string> {
   if (anonKey) {
     headers['apikey'] = anonKey;
   }
-  const token = getClerkToken();
+  const token = await waitForClerkToken();
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   } else if (__DEV__) {
     console.warn('[surveys/api] No auth token available — requests will be unauthenticated');
-  }
-  const userId = getInternalUserId();
-  if (userId != null) {
-    headers['x-internal-user-id'] = String(userId);
   }
   return headers;
 }
@@ -85,7 +95,7 @@ async function fetchWithAuth(url: string, init: Omit<RequestInit, 'headers' | 'm
     console.warn('[surveys/api] SUPABASE_ANON_KEY is empty — restart the dev server after adding EXPO_PUBLIC_SUPABASE_ANON_KEY to .env');
   }
   try {
-    return await fetch(url, { ...init, headers: authHeaders(), mode: 'cors' });
+    return await fetch(url, { ...init, headers: await authHeaders(), mode: 'cors' });
   } catch (err: any) {
     const msg = err?.message ?? 'Network error';
     throw new Error(
@@ -119,6 +129,57 @@ function normalizeSurvey(s: any) {
   return normalized;
 }
 
+// Normalizes a MessageEvent from either old or new field names to spec-compliant types.
+function normalizeMessageEvent(e: any): import('./types').MessageEvent {
+  return {
+    message_event_id: e.message_event_id ?? e.survey_message_event_id,
+    posting_id: e.posting_id,
+    survey_id: e.survey_id,
+    event_source: e.event_source,
+    dispatch_mode: e.dispatch_mode,
+    include_survey_link: e.include_survey_link ?? e.include_link ?? false,
+    include_message: e.include_message ?? false,
+    is_dry_run: e.is_dry_run ?? e.dry_run ?? false,
+    created_by: e.created_by ?? e.initiated_by,
+    total_sent: e.total_sent ?? e.pairs_sent ?? 0,
+    total_failed: e.total_failed ?? e.pairs_failed ?? 0,
+    total_skipped: e.total_skipped ?? e.pairs_skipped ?? 0,
+    total_recipients: e.total_recipients,
+    targeting_summary: e.targeting_summary,
+    channel: e.channel,
+    created_on: e.created_on,
+    survey_title: e.survey_title,
+  };
+}
+
+// Normalizes a MessageRecipientItem from either old or new field names.
+function normalizeMessageRecipient(r: any): import('./types').MessageRecipientItem {
+  return {
+    message_recipient_id: r.message_recipient_id ?? r.survey_message_recipient_id,
+    participant_id: r.participant_id,
+    outcome_status: r.outcome_status,
+    skip_reason: r.skip_reason,
+    failure_code: r.failure_code,
+    posting_id: r.posting_id,
+    channel: r.channel,
+    attempted_on: r.attempted_on,
+    completed_on: r.completed_on,
+  };
+}
+
+// Normalizes a SurveySendResponse from either old or new field names.
+function normalizeSurveySendResponse(data: any): import('./types').SurveySendResponse {
+  return {
+    ok: data.ok ?? true,
+    survey_id: data.survey_id,
+    message_event_id: data.message_event_id ?? null,
+    total_sent: data.total_sent ?? data.pairs_sent ?? 0,
+    total_failed: data.total_failed ?? data.pairs_failed ?? 0,
+    total_skipped: data.total_skipped ?? data.pairs_skipped ?? 0,
+    errors: data.errors ?? [],
+  };
+}
+
 async function handleResponse<T>(res: Response, label: string): Promise<T> {
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
@@ -131,7 +192,7 @@ async function handleResponse<T>(res: Response, label: string): Promise<T> {
     if (errJson) {
       serverMessage = errJson.message;
       if (errJson.code === 'UNAUTHORIZED') {
-        throw new Error('Please sign in to continue');
+        throw new Error(errJson.message || 'Please sign in to continue');
       }
       if (errJson.code === 'FORBIDDEN') {
         throw new Error('You do not have permission for this action');
@@ -199,6 +260,7 @@ export async function surveyGet(
   surveyId: number | string,
   params?: {
     include_stats?: boolean;
+    include_form_url?: boolean;
   }
 ): Promise<SurveyGetResponse> {
   const u = buildUrl(`survey_get/${validateId(surveyId)}`, params as Record<string, unknown>);
@@ -219,7 +281,8 @@ export async function surveySend(
   const u = buildUrl(`survey_send/${validateId(surveyId)}`);
   if (__DEV__) console.log('[surveySend] POST', u, body);
   const res = await fetchWithAuth(u, { method: 'POST', body: JSON.stringify(body) });
-  return handleResponse<SurveySendResponse>(res, 'surveySend');
+  const data = await handleResponse<any>(res, 'surveySend');
+  return normalizeSurveySendResponse(data);
 }
 
 // ---------------------------------------------------------------------------
@@ -272,10 +335,14 @@ export async function surveyDispatch(body: DispatchBody): Promise<DispatchRespon
     survey_ids_count: body.survey_ids.length,
     user_ids_count: body.user_ids.length,
     mode: body.mode,
-    dry_run: body.dry_run,
+    is_dry_run: body.is_dry_run,
   });
   const res = await fetchWithAuth(u, { method: 'POST', body: JSON.stringify(body) });
-  return handleResponse<DispatchResponse>(res, 'surveyDispatch');
+  const data = await handleResponse<any>(res, 'surveyDispatch');
+  return {
+    ...data,
+    is_dry_run: data.is_dry_run ?? data.dry_run ?? false,
+  } as DispatchResponse;
 }
 
 // ---------------------------------------------------------------------------
@@ -288,7 +355,13 @@ export async function surveyEmailPreview(
   const u = buildUrl('survey_email_preview');
   if (__DEV__) console.log('[surveyEmailPreview] POST', u);
   const res = await fetchWithAuth(u, { method: 'POST', body: JSON.stringify(body) });
-  return handleResponse<EmailPreviewResponse>(res, 'surveyEmailPreview');
+  const data = await handleResponse<any>(res, 'surveyEmailPreview');
+  return {
+    ok: data.ok ?? true,
+    subject: data.subject ?? data.rendered_subject ?? '',
+    body_html: data.body_html ?? data.rendered_body ?? '',
+    placeholders_used: data.placeholders_used ?? (data.placeholders ? Object.keys(data.placeholders) : []),
+  } as EmailPreviewResponse;
 }
 
 // ---------------------------------------------------------------------------
@@ -320,7 +393,11 @@ export async function messageHistoryByPosting(
   const u = buildUrl(`message_history_by_posting/${validateId(postingId)}`, params as Record<string, unknown>);
   if (__DEV__) console.log('[messageHistoryByPosting] GET', u);
   const res = await fetchWithAuth(u, { method: 'GET' });
-  return handleResponse<MessageEventListResponse>(res, 'messageHistoryByPosting');
+  const data = await handleResponse<any>(res, 'messageHistoryByPosting');
+  return {
+    ...data,
+    events: (data.events ?? []).map(normalizeMessageEvent),
+  } as MessageEventListResponse;
 }
 
 // ---------------------------------------------------------------------------
@@ -338,5 +415,13 @@ export async function messageHistoryGet(
   const u = buildUrl(`message_history_get/${validateId(messageEventId)}`, params as Record<string, unknown>);
   if (__DEV__) console.log('[messageHistoryGet] GET', u);
   const res = await fetchWithAuth(u, { method: 'GET' });
-  return handleResponse<MessageHistoryDetail>(res, 'messageHistoryGet');
+  const data = await handleResponse<any>(res, 'messageHistoryGet');
+  return {
+    ...data,
+    event: normalizeMessageEvent(data.event),
+    recipients: {
+      ...data.recipients,
+      items: (data.recipients?.items ?? []).map(normalizeMessageRecipient),
+    },
+  } as MessageHistoryDetail;
 }

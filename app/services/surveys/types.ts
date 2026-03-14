@@ -1,5 +1,15 @@
 // Survey feature TypeScript types
-// Updated from reverted code: provider-agnostic naming + new message/email types
+// Spec-compliant naming: snake_case fields matching Edge Function responses
+
+// --- Enums ---
+
+export type EventSource = 'SURVEY_SEND' | 'DISPATCH_CENTER' | 'CUSTOM_MESSAGE';
+
+export type OutcomeStatus = 'SENT' | 'FAILED' | 'SKIPPED_NOT_ENROLLED' | 'SKIPPED_ALREADY_SENT' | 'SKIPPED_DUE_TO_MODE';
+
+export type SkipReason = 'NOT_ENROLLED' | 'ALREADY_SENT' | 'MODE_SEND_MISSING_ALREADY_EXISTS' | 'MODE_RESEND_EXISTING_MISSING';
+
+// --- Survey ---
 
 export type Survey = {
   survey_id: number;
@@ -65,18 +75,17 @@ export type SurveySendBody = {
   include_message?: boolean;
   message_text?: string;
   force_resend?: boolean;
-  dry_run?: boolean;
+  is_dry_run?: boolean;
   limit?: number;
 };
 
 export type SurveySendResponse = {
   ok: boolean;
   survey_id: number;
-  message_event_id?: number;
-  pairs_sent: number;
-  pairs_failed: number;
-  pairs_skipped: number;
-  message_recipients_created: number;
+  message_event_id: number | null;
+  total_sent: number;
+  total_failed: number;
+  total_skipped: number;
   errors: { code: string; message: string; details?: Record<string, unknown> }[];
 };
 
@@ -91,7 +100,7 @@ export type DispatchParticipant = {
 export type RecipientStatus = {
   survey_id: number;
   user_id?: number;
-  participant_id?: string;
+  participant_id: string;
   sent_on: string | null;
   opened_on: string | null;
   open_count: number;
@@ -119,10 +128,10 @@ export type DispatchBody = {
   survey_ids: number[];
   user_ids: number[];
   mode: DispatchMode;
-  include_link?: boolean;
+  include_survey_link?: boolean;
   include_message?: boolean;
   message_text?: string;
-  dry_run?: boolean;
+  is_dry_run?: boolean;
 };
 
 export type DispatchResults = {
@@ -145,7 +154,7 @@ export type DispatchResponse = {
   ok: boolean;
   posting_id: number;
   mode: DispatchMode;
-  dry_run: boolean;
+  is_dry_run: boolean;
   results: DispatchResults;
   errors: { code: string; message: string; details?: Record<string, unknown> }[];
 };
@@ -153,18 +162,21 @@ export type DispatchResponse = {
 // --- Message History ---
 
 export type MessageEvent = {
-  survey_message_event_id: number;
+  message_event_id: number;
   posting_id: number;
   survey_id: number | null;
-  event_source: string;
+  event_source: EventSource | string;
   dispatch_mode: string | null;
-  include_link: boolean;
+  include_survey_link: boolean;
   include_message: boolean;
-  dry_run: boolean;
-  initiated_by: number;
-  pairs_sent: number;
-  pairs_failed: number;
-  pairs_skipped: number;
+  is_dry_run: boolean;
+  created_by: number;
+  total_sent: number;
+  total_failed: number;
+  total_skipped: number;
+  total_recipients?: number;
+  targeting_summary?: Record<string, unknown>;
+  channel?: string;
   created_on: string;
   survey_title?: string;
 };
@@ -179,11 +191,13 @@ export type MessageEventListResponse = {
 };
 
 export type MessageRecipientItem = {
-  survey_message_recipient_id: number;
+  message_recipient_id: number;
   participant_id: string;
-  outcome_status: string;
-  skip_reason: string | null;
+  outcome_status: OutcomeStatus | string;
+  skip_reason: SkipReason | string | null;
   failure_code: string | null;
+  posting_id?: number;
+  channel?: string;
   attempted_on: string | null;
   completed_on: string | null;
 };
@@ -203,19 +217,21 @@ export type MessageHistoryDetail = {
 // --- Email Preview ---
 
 export type EmailPreviewRequest = {
-  template_code?: string;
+  template_key?: string;
+  survey_id?: number;
+  form_url?: string;
   survey_title?: string;
   study_title?: string;
-  include_link?: boolean;
+  include_survey_link?: boolean;
   include_message?: boolean;
   message_text?: string;
 };
 
 export type EmailPreviewResponse = {
   ok: boolean;
-  rendered_subject: string;
-  rendered_body: string;
-  placeholders: Record<string, string>;
+  subject: string;
+  body_html: string;
+  placeholders_used: string[];
 };
 
 // --- Survey Inbox ---

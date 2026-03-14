@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { corsHeaders, corsResponse, jsonResponse, errorResponse } from '../_shared/cors.ts';
 import { createServiceClient, enforceMethod } from '../_shared/supabase.ts';
-import { verifyAuth } from '../_shared/auth.ts';
+import { verifyAuth, AuthError } from '../_shared/auth.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
@@ -10,7 +10,8 @@ serve(async (req) => {
   if (methodErr) return methodErr;
 
   try {
-    const user = await verifyAuth(req);
+    const sb = createServiceClient();
+    const user = await verifyAuth(req, sb);
     if (!user.internalUserId) {
       return errorResponse('FORBIDDEN', 'Internal user ID is required for mutations', 403);
     }
@@ -23,7 +24,9 @@ serve(async (req) => {
       return errorResponse('VALIDATION_ERROR', 'posting_id must be a number', 400);
     }
     if (!title?.trim()) return errorResponse('MISSING_FIELD', 'title is required');
+    if (title.trim().length > 500) return errorResponse('VALIDATION_ERROR', 'title must be 500 characters or fewer', 400);
     if (!parameterized_form_url?.trim()) return errorResponse('MISSING_FIELD', 'parameterized_form_url is required');
+    if (parameterized_form_url.trim().length > 2048) return errorResponse('VALIDATION_ERROR', 'URL must be 2048 characters or fewer', 400);
 
     // Parse URL to extract form_responder_url and participant_param_key
     let parsedUrl: URL;
@@ -49,8 +52,6 @@ serve(async (req) => {
     // Build the base form URL without the participant param
     parsedUrl.searchParams.delete(participantParamKey);
     const formResponderUrl = parsedUrl.toString();
-
-    const sb = createServiceClient();
 
     // Look up the posting to get BuyerUserId as CreatedBy
     const { data: posting, error: postingErr } = await sb
@@ -85,9 +86,20 @@ serve(async (req) => {
       return errorResponse('INSERT_FAILED', 'Failed to create survey', 500);
     }
 
-    return jsonResponse({ ok: true, survey }, 201);
+    const normalized = {
+      survey_id: survey.SurveyId,
+      posting_id: survey.PostingId,
+      created_by: survey.CreatedBy,
+      title: survey.Title,
+      form_responder_url: survey.FormResponderUrl,
+      participant_param_key: survey.ParticipantParamKey,
+      is_active: survey.IsActive,
+      created_on: survey.CreatedOn,
+      modified_on: survey.ModifiedOn,
+    };
+    return jsonResponse({ ok: true, survey: normalized }, 201);
   } catch (err: any) {
-    if (err.message?.includes('authorization') || err.message?.includes('token') || err.message?.includes('Auth not configured')) {
+    if (err instanceof AuthError) {
       return errorResponse('UNAUTHORIZED', 'Authentication required', 401);
     }
     console.error('survey_create error:', err);

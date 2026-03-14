@@ -19,6 +19,10 @@ declare const __DEV__: boolean;
 
 function EventSourceBadge({ source }: { source: string }) {
   const config: Record<string, { bg: string; text: string }> = {
+    SURVEY_SEND: { bg: "#DBEAFE", text: "#1E40AF" },
+    DISPATCH_CENTER: { bg: "#FEF9C3", text: "#854D0E" },
+    CUSTOM_MESSAGE: { bg: "#F3E8FF", text: "#6B21A8" },
+    // Backward compat for old values
     SEND_TO_ALL: { bg: "#DBEAFE", text: "#1E40AF" },
     DISPATCH: { bg: "#FEF9C3", text: "#854D0E" },
     MANUAL: { bg: "#F3E8FF", text: "#6B21A8" },
@@ -117,8 +121,9 @@ export default function MessageHistoryListPage() {
           <View style={mStyles.filterButtons}>
             {[
               { label: "All", value: undefined },
-              { label: "Send to All", value: "SEND_TO_ALL" },
-              { label: "Dispatch", value: "DISPATCH" },
+              { label: "Survey Send", value: "SURVEY_SEND" },
+              { label: "Dispatch Center", value: "DISPATCH_CENTER" },
+              { label: "Custom Message", value: "CUSTOM_MESSAGE" },
             ].map((opt) => (
               <TouchableOpacity
                 key={String(opt.label)}
@@ -215,13 +220,13 @@ export default function MessageHistoryListPage() {
 
             {events.map((evt, idx) => (
               <TouchableOpacity
-                key={evt.survey_message_event_id}
+                key={evt.message_event_id}
                 style={[
                   mStyles.tableRow,
                   idx < events.length - 1 && mStyles.tableRowBorder,
                 ]}
                 onPress={() =>
-                  router.push(`/studies/${studyId}/message-history/${evt.survey_message_event_id}`)
+                  router.push(`/studies/${studyId}/message-history/${evt.message_event_id}`)
                 }
               >
                 {isNarrow ? (
@@ -234,8 +239,8 @@ export default function MessageHistoryListPage() {
                       {evt.survey_title ?? "Multiple surveys"}
                     </Text>
                     <Text style={mStyles.mobileRowMeta}>
-                      {evt.pairs_sent} sent · {evt.pairs_failed} failed · {evt.pairs_skipped} skipped
-                      {evt.include_link ? " · Link" : ""}
+                      {evt.total_sent} sent · {evt.total_failed} failed · {evt.total_skipped} skipped
+                      {evt.include_survey_link ? " · Link" : ""}
                       {evt.include_message ? " · Message" : ""}
                     </Text>
                   </View>
@@ -249,14 +254,14 @@ export default function MessageHistoryListPage() {
                       {evt.survey_title ?? "Multiple surveys"}
                     </Text>
                     <Text style={[mStyles.tdCell, { flex: 0.8, textAlign: "center" }]}>
-                      {evt.include_link ? "Yes" : "No"}
+                      {evt.include_survey_link ? "Yes" : "No"}
                     </Text>
                     <Text style={[mStyles.tdCell, { flex: 0.8, textAlign: "center" }]}>
                       {evt.include_message ? "Yes" : "No"}
                     </Text>
-                    <Text style={[mStyles.tdCell, { flex: 1, textAlign: "right" }]}>{evt.pairs_sent}</Text>
-                    <Text style={[mStyles.tdCell, { flex: 1, textAlign: "right" }]}>{evt.pairs_failed}</Text>
-                    <Text style={[mStyles.tdCell, { flex: 1, textAlign: "right" }]}>{evt.pairs_skipped}</Text>
+                    <Text style={[mStyles.tdCell, { flex: 1, textAlign: "right" }]}>{evt.total_sent}</Text>
+                    <Text style={[mStyles.tdCell, { flex: 1, textAlign: "right" }]}>{evt.total_failed}</Text>
+                    <Text style={[mStyles.tdCell, { flex: 1, textAlign: "right" }]}>{evt.total_skipped}</Text>
                   </>
                 )}
               </TouchableOpacity>

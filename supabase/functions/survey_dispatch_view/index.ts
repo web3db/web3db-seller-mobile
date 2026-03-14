@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { corsHeaders, corsResponse, jsonResponse, errorResponse } from '../_shared/cors.ts';
-import { createServiceClient, getPathParam, getPageParams, enforceMethod, pseudonymize } from '../_shared/supabase.ts';
-import { verifyAuth } from '../_shared/auth.ts';
+import { createServiceClient, getPathParamAsInt, getPageParams, enforceMethod, pseudonymize, ValidationError } from '../_shared/supabase.ts';
+import { verifyAuth, AuthError } from '../_shared/auth.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
@@ -10,16 +10,13 @@ serve(async (req) => {
   if (methodErr) return methodErr;
 
   try {
-    const user = await verifyAuth(req);
+    const sb = createServiceClient();
+    const user = await verifyAuth(req, sb);
 
     const url = new URL(req.url);
-    const postingId = Number(getPathParam(url));
-    if (!postingId || isNaN(postingId)) {
-      return errorResponse('INVALID_PARAM', 'postingId is required in path');
-    }
+    const postingId = getPathParamAsInt(url);
 
     const { page, page_size, offset } = getPageParams(url);
-    const sb = createServiceClient();
 
     // Verify posting ownership
     const { data: posting } = await sb.from('TRN_Posting').select('BuyerUserId').eq('PostingId', postingId).single();
@@ -39,32 +36,52 @@ serve(async (req) => {
       return errorResponse('QUERY_FAILED', 'Failed to retrieve surveys', 500);
     }
 
-    // Load enrolled participants (paged)
-    const { data: sessions, count: sessCount, error: sessErr } = await sb
+    // Load enrolled participants with hard cap to prevent memory exhaustion
+    const MAX_PARTICIPANTS = 10000;
+    const { data: allSessions, error: sessErr } = await sb
       .from('TRN_ShareSession')
-      .select('UserId', { count: 'exact' })
+      .select('UserId')
       .eq('PostingId', postingId)
       .eq('IsActive', true)
-      .range(offset, offset + page_size - 1);
+      .order('UserId', { ascending: true })
+      .limit(MAX_PARTICIPANTS);
 
     if (sessErr) {
       console.error('survey_dispatch_view sessions query failed:', sessErr);
       return errorResponse('QUERY_FAILED', 'Failed to retrieve participants', 500);
     }
 
-    // Build participant items with user_id (secured by ownership check above)
-    const participants = await Promise.all(
-      (sessions ?? []).map(async (s: any) => ({
-        participant_id: await pseudonymize(s.UserId),
-        user_id: s.UserId,
-      }))
+    // Deduplicate by UserId BEFORE paging to ensure consistent page sizes
+    const seenUserIds = new Set<number>();
+    const allUnique = (allSessions ?? []).filter((s: any) => {
+      if (seenUserIds.has(s.UserId)) return false;
+      seenUserIds.add(s.UserId);
+      return true;
+    });
+    const totalUnique = allUnique.length;
+    const uniqueSessions = allUnique.slice(offset, offset + page_size);
+
+    // Build pseudonym cache for this page of participants (avoids redundant HMAC calls)
+    const pseudonymCache = new Map<number, string>();
+    await Promise.all(
+      uniqueSessions.map(async (s: any) => {
+        pseudonymCache.set(s.UserId, await pseudonymize(postingId, s.UserId));
+      })
     );
+
+    // Build participant items with pseudonymized IDs
+    // Note: user_id is included because this is an ownership-verified admin endpoint
+    // and the dispatch API requires raw user_ids for targeting
+    const participants = uniqueSessions.map((s: any) => ({
+      participant_id: pseudonymCache.get(s.UserId)!,
+      user_id: s.UserId,
+    }));
 
     // Load recipient statuses for all surveys x visible participants
     const surveyIds = (surveys ?? []).map((s: any) => s.SurveyId);
-    const userIds = (sessions ?? []).map((s: any) => s.UserId);
+    const userIds = uniqueSessions.map((s: any) => s.UserId);
 
-    let recipientStatus: any[] = [];
+    let recipientStatusMap = new Map<string, any>();
     if (surveyIds.length > 0 && userIds.length > 0) {
       const { data: recipients } = await sb
         .from('TRN_SurveyRecipient')
@@ -72,31 +89,64 @@ serve(async (req) => {
         .in('SurveyId', surveyIds)
         .in('UserId', userIds);
 
-      recipientStatus = await Promise.all((recipients ?? []).map(async (r: any) => ({
-        survey_id: r.SurveyId,
-        participant_id: await pseudonymize(r.UserId),
-        sent_on: r.SentOn,
-        opened_on: r.OpenedOn,
-        open_count: r.OpenCount ?? 0,
-        last_opened_on: r.LastOpenedOn,
-        status: r.OpenedOn ? 'OPENED' : r.SentOn ? 'SENT' : 'NOT_SENT',
-      })));
+      for (const r of recipients ?? []) {
+        recipientStatusMap.set(`${r.SurveyId}:${r.UserId}`, r);
+      }
+    }
+
+    // Full grid expansion: every (survey, participant) pair — uses cached pseudonyms
+    const recipientStatus = [];
+    for (const survey of surveys ?? []) {
+      for (const s of uniqueSessions) {
+        const r = recipientStatusMap.get(`${survey.SurveyId}:${s.UserId}`);
+        const pid = pseudonymCache.get(s.UserId)!;
+        if (r) {
+          recipientStatus.push({
+            survey_id: r.SurveyId,
+            participant_id: pid,
+            sent_on: r.SentOn,
+            opened_on: r.OpenedOn,
+            open_count: r.OpenCount ?? 0,
+            last_opened_on: r.LastOpenedOn,
+            status: r.OpenedOn ? 'OPENED' : r.SentOn ? 'SENT' : 'NOT_SENT',
+          });
+        } else {
+          recipientStatus.push({
+            survey_id: survey.SurveyId,
+            participant_id: pid,
+            sent_on: null,
+            opened_on: null,
+            open_count: 0,
+            last_opened_on: null,
+            status: 'NOT_SENT',
+          });
+        }
+      }
     }
 
     return jsonResponse({
       ok: true,
       posting: { posting_id: postingId },
-      surveys: surveys ?? [],
+      surveys: (surveys ?? []).map((s: any) => ({
+        survey_id: s.SurveyId,
+        posting_id: s.PostingId,
+        title: s.Title,
+        is_active: s.IsActive,
+        created_on: s.CreatedOn,
+      })),
       participants: {
         page,
         page_size,
-        total: sessCount ?? 0,
+        total: totalUnique,
         items: participants,
       },
       recipient_status: recipientStatus,
     });
   } catch (err: any) {
-    if (err.message?.includes('authorization') || err.message?.includes('token') || err.message?.includes('Auth not configured')) {
+    if (err instanceof ValidationError) {
+      return errorResponse('INVALID_PARAM', err.message, 400);
+    }
+    if (err instanceof AuthError) {
       return errorResponse('UNAUTHORIZED', 'Authentication required', 401);
     }
     console.error('survey_dispatch_view error:', err);

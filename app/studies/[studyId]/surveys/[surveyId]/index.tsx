@@ -59,7 +59,7 @@ export default function SurveyManagePage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await surveyGet(surveyId!, { include_stats: true });
+        const res = await surveyGet(surveyId!, { include_stats: true, include_form_url: true });
         if (!cancelled) setSurvey(res.survey);
       } catch (e: any) {
         if (!cancelled) setError(e?.message ?? "Failed to load survey");
@@ -93,8 +93,9 @@ export default function SurveyManagePage() {
     setEmailPreview(null);
     try {
       const res = await surveyEmailPreview({
+        survey_id: Number(surveyId),
         survey_title: survey.title,
-        include_link: true,
+        include_survey_link: true,
         include_message: includeMessage,
         message_text: includeMessage ? messageText : undefined,
       });
@@ -416,13 +417,13 @@ export default function SurveyManagePage() {
                     <View style={styles.previewSubjectRow}>
                       <Text style={styles.previewSubjectLabel}>Subject: </Text>
                       <Text style={styles.previewSubjectValue}>
-                        {emailPreview.rendered_subject}
+                        {emailPreview.subject}
                       </Text>
                     </View>
                     <View style={styles.previewBodyDivider} />
                     <Text style={styles.previewBodyLabel}>Body</Text>
                     <Text style={styles.previewBodyText}>
-                      {emailPreview.rendered_body}
+                      {emailPreview.body_html}
                     </Text>
                   </View>
                 )}
@@ -430,14 +431,14 @@ export default function SurveyManagePage() {
 
               {/* Send result */}
               {sendResult && (() => {
-                const hasFailures = sendResult.pairs_failed > 0 && sendResult.pairs_sent === 0;
+                const hasFailures = sendResult.total_failed > 0 && sendResult.total_sent === 0;
                 return (
                 <View style={[styles.sendResultBox, hasFailures && { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
                   <Text style={[styles.sendResultTitle, hasFailures && { color: '#DC2626' }]}>Last Send Result</Text>
                   <View style={styles.sendResultRow}>
                     <View style={styles.sendResultStat}>
                       <Text style={styles.sendResultNumber}>
-                        {sendResult.pairs_sent}
+                        {sendResult.total_sent}
                       </Text>
                       <Text style={styles.sendResultLabel}>Sent</Text>
                     </View>
@@ -445,17 +446,17 @@ export default function SurveyManagePage() {
                       <Text
                         style={[
                           styles.sendResultNumber,
-                          sendResult.pairs_failed > 0 &&
+                          sendResult.total_failed > 0 &&
                             styles.sendResultFailed,
                         ]}
                       >
-                        {sendResult.pairs_failed}
+                        {sendResult.total_failed}
                       </Text>
                       <Text style={styles.sendResultLabel}>Failed</Text>
                     </View>
                     <View style={styles.sendResultStat}>
                       <Text style={styles.sendResultNumber}>
-                        {sendResult.pairs_skipped}
+                        {sendResult.total_skipped}
                       </Text>
                       <Text style={styles.sendResultLabel}>Skipped</Text>
                     </View>

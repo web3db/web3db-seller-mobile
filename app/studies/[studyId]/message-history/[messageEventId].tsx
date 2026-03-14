@@ -17,12 +17,16 @@ import type { MessageEvent, MessageRecipientItem } from "../../../services/surve
 
 declare const __DEV__: boolean;
 
-type StatusFilter = "ALL" | "SENT" | "FAILED" | "SKIPPED";
+type StatusFilter = "ALL" | "SENT" | "FAILED" | "SKIPPED_NOT_ENROLLED" | "SKIPPED_ALREADY_SENT" | "SKIPPED_DUE_TO_MODE";
 
 function OutcomeBadge({ status }: { status: string }) {
   const config: Record<string, { bg: string; text: string }> = {
     SENT: { bg: "#DCFCE7", text: "#166534" },
     FAILED: { bg: "#FEF2F2", text: "#DC2626" },
+    SKIPPED_NOT_ENROLLED: { bg: "#FEF9C3", text: "#854D0E" },
+    SKIPPED_ALREADY_SENT: { bg: "#FEF9C3", text: "#854D0E" },
+    SKIPPED_DUE_TO_MODE: { bg: "#FEF9C3", text: "#854D0E" },
+    // Backward compat
     SKIPPED: { bg: "#FEF9C3", text: "#854D0E" },
     PENDING: { bg: palette.light.muted, text: palette.light.text.secondary },
   };
@@ -162,14 +166,14 @@ export default function MessageHistoryDetailPage() {
             <Text style={dStyles.cardSectionTitle}>Event Details</Text>
 
             {[
-              ["Event ID", event.survey_message_event_id],
+              ["Event ID", event.message_event_id],
               ["Source", event.event_source],
               ["Dispatch Mode", event.dispatch_mode ?? "-"],
               ["Survey", event.survey_title ?? (event.survey_id ? `#${event.survey_id}` : "Multiple")],
               ["Created", formatDate(event.created_on)],
-              ["Include Link", event.include_link ? "Yes" : "No"],
+              ["Include Link", event.include_survey_link ? "Yes" : "No"],
               ["Include Message", event.include_message ? "Yes" : "No"],
-              ["Dry Run", event.dry_run ? "Yes" : "No"],
+              ["Dry Run", event.is_dry_run ? "Yes" : "No"],
             ].map(([label, value]) => (
               <View key={String(label)} style={dStyles.infoRow}>
                 <Text style={dStyles.infoLabel}>{label}</Text>
@@ -183,9 +187,9 @@ export default function MessageHistoryDetailPage() {
             <Text style={dStyles.cardSectionTitle}>Summary</Text>
             <View style={dStyles.statsGrid}>
               {[
-                { label: "Sent", value: event.pairs_sent, color: "#166534" },
-                { label: "Failed", value: event.pairs_failed, color: "#DC2626" },
-                { label: "Skipped", value: event.pairs_skipped, color: "#854D0E" },
+                { label: "Sent", value: event.total_sent, color: "#166534" },
+                { label: "Failed", value: event.total_failed, color: "#DC2626" },
+                { label: "Skipped", value: event.total_skipped, color: "#854D0E" },
               ].map((stat) => (
                 <View key={stat.label} style={dStyles.statBox}>
                   <Text style={[dStyles.statNumber, { color: stat.color }]}>{stat.value}</Text>
@@ -212,7 +216,7 @@ export default function MessageHistoryDetailPage() {
 
           {/* Status filter */}
           <View style={dStyles.filterButtons}>
-            {(["ALL", "SENT", "FAILED", "SKIPPED"] as StatusFilter[]).map((f) => (
+            {(["ALL", "SENT", "FAILED", "SKIPPED_NOT_ENROLLED", "SKIPPED_ALREADY_SENT", "SKIPPED_DUE_TO_MODE"] as StatusFilter[]).map((f) => (
               <TouchableOpacity
                 key={f}
                 style={[dStyles.filterBtn, statusFilter === f && dStyles.filterBtnActive]}
@@ -241,7 +245,7 @@ export default function MessageHistoryDetailPage() {
                   </View>
                   {recipients.map((r, idx) => (
                     <View
-                      key={r.survey_message_recipient_id}
+                      key={r.message_recipient_id}
                       style={[
                         dStyles.tableRow,
                         idx < recipients.length - 1 && dStyles.tableRowBorder,
