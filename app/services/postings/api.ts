@@ -161,11 +161,9 @@ export const FUNCTIONS_BASE = (() => {
   if (typeof process !== "undefined" && process.env && process.env.DEV_PROXY)
     return process.env.DEV_PROXY;
 
-  // Read Supabase URL from env var (set EXPO_PUBLIC_SUPABASE_URL in .env)
-  const supabaseUrl = process?.env?.EXPO_PUBLIC_SUPABASE_URL ?? '';
-  if (supabaseUrl) return `${supabaseUrl}/functions/v1`;
-
-  throw new Error('EXPO_PUBLIC_SUPABASE_URL is not configured. Add it to your .env file.');
+  // Read Supabase URL from env var, default to test project
+  const supabaseUrl = process?.env?.EXPO_PUBLIC_SUPABASE_URL || 'https://owypzbpmqvclgkurghjg.supabase.co';
+  return `${supabaseUrl}/functions/v1`;
 })();
 
 // Global flag assumed to be set in your build system
