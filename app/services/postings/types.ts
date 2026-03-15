@@ -16,10 +16,20 @@ export type StudySummary = {
   summary: string;
   description: string;
   statusId: number;
+  statusDisplayName: string;
 
-  // Used by the studies list UI (existing screens rely on these)
   organizer: string;
   spots: number;
+
+  // Fields from buyers_postings_list API
+  rewardTypeDisplayName: string | null;
+  dataCoverageDaysRequired: number | null;
+  minAge: number | null;
+  applyOpenAt: string | null;
+  applyCloseAt: string | null;
+  metrics: { id: number; displayName: string }[];
+  healthConditions: { id: number; displayName: string }[];
+  tags: string[];
 };
 
 /**

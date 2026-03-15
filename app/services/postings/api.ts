@@ -204,16 +204,45 @@ function mapRawToStudy(raw: PostingDTO): StudySummary {
     anyRaw.PostingStatusID ??
     0;
 
+  // Normalize metrics: API returns [{id, displayName}]
+  const rawMetrics = Array.isArray(anyRaw.metrics) ? anyRaw.metrics : [];
+  const metrics = rawMetrics.map((m: any) => ({
+    id: Number(m.id ?? m.metricId ?? 0),
+    displayName: String(m.displayName ?? m.display_name ?? ""),
+  }));
+
+  // Normalize health conditions: API returns [{id, displayName}]
+  const rawHC = Array.isArray(anyRaw.healthConditions) ? anyRaw.healthConditions : [];
+  const healthConditions = rawHC.map((hc: any) => ({
+    id: Number(hc.id ?? hc.healthConditionId ?? 0),
+    displayName: String(hc.displayName ?? hc.display_name ?? ""),
+  }));
+
+  // Normalize tags: API returns string[] or [{displayName}]
+  const rawTags = Array.isArray(anyRaw.tags) ? anyRaw.tags : [];
+  const tags = rawTags.map((t: any) =>
+    typeof t === "string" ? t : String(t.displayName ?? t.display_name ?? t.name ?? "")
+  ).filter((s: string) => s.length > 0);
+
   return {
     id,
     title,
     summary,
     description,
     statusId,
-    // Mocking display fields as they are not available from the raw PostgREST data here
+    statusDisplayName: String(anyRaw.postingStatusDisplayName ?? anyRaw.PostingStatusDisplayName ?? ""),
     organizer: anyRaw.buyerDisplayName ?? "Web3Health",
-    // 'spots' doesn't exist on the API response; keep a reasonable default so UI math works
     spots: typeof anyRaw.spots === "number" ? anyRaw.spots : 0,
+
+    rewardTypeDisplayName: anyRaw.rewardTypeDisplayName ?? null,
+    dataCoverageDaysRequired:
+      anyRaw.dataCoverageDaysRequired != null ? Number(anyRaw.dataCoverageDaysRequired) : null,
+    minAge: anyRaw.minAge != null ? Number(anyRaw.minAge) : null,
+    applyOpenAt: anyRaw.applyOpenAt ?? null,
+    applyCloseAt: anyRaw.applyCloseAt ?? null,
+    metrics,
+    healthConditions,
+    tags,
   };
 }
 

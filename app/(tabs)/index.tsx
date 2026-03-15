@@ -24,8 +24,21 @@ const sampleStudies: StudySummary[] = [
     description:
       `A four-week study collecting step counts and activity patterns from ${LABELS.CONTRIBUTOR}s who already use an activity tracker (phone or wearable).`,
     statusId: 2,
+    statusDisplayName: "Open",
     organizer: "Web3Health",
     spots: 500,
+    rewardTypeDisplayName: "Points",
+    dataCoverageDaysRequired: 28,
+    minAge: 18,
+    applyOpenAt: "2026-03-01T00:00:00",
+    applyCloseAt: "2026-04-30T00:00:00",
+    metrics: [
+      { id: 2, displayName: "Steps" },
+      { id: 5, displayName: "Sleep Minutes" },
+      { id: 6, displayName: "Distance" },
+    ],
+    healthConditions: [],
+    tags: ["Activity", "Wearables"],
   },
 ];
 
