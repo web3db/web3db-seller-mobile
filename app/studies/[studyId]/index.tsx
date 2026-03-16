@@ -248,7 +248,7 @@ export default function StudyDetail() {
       XLSX.utils.book_append_sheet(
         wb,
         usersSheet,
-        `${LABELS.CONTRIBUTOR} Demographics`
+        "Participant Demographics"
       );
 
       const userDataSheet = XLSX.utils.aoa_to_sheet(userDataRows);
