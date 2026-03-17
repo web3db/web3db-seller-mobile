@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Colors, palette } from '@/constants/theme';
+import { LABELS } from "@/constants/labels";
 import {
 
   SafeAreaView,
@@ -14,9 +15,9 @@ import {
   ActivityIndicator,
   FlatList,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useAuth } from "@clerk/clerk-expo"; // Use Clerk's useAuth
+import { useAuth } from "@clerk/clerk-expo";
 import {
   createTrnPosting,
   listMetrics,
@@ -29,23 +30,11 @@ import { Metric, PostingStatus, RewardType, ViewPolicy, HealthCondition } from "
 import SingleSelectDropdown from "../components/SingleSelectDropdown";
 import { useAuth as localAuth } from "@/hooks/AuthContext";
 
-type Study = {
-  id: string;
-  title: string;
-  type: string;
-  description: string;
-  organizer: string;
-  spots: number;
-  participants?: string[];
-  active?: boolean;
-};
-
 export default function ManageStudy(): React.ReactElement {
-  const { studyId } = useLocalSearchParams() as { studyId?: string };
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isNarrow = width < 720;
-  const { isSignedIn } = useAuth(); // Use Clerk's isSignedIn
+  const { isSignedIn } = useAuth();
 
   // form state (pre-filled)
   const [title, setTitle] = useState("");
@@ -106,7 +95,7 @@ export default function ManageStudy(): React.ReactElement {
 
   const { user } = localAuth();
 
-  const buyerId = user ? Number(user.id) : -1;
+  const buyerId = user?.id ? Number(user.id) : null;
 
   // mount metrics
   useEffect(() => {
@@ -119,7 +108,7 @@ export default function ManageStudy(): React.ReactElement {
         if (!mounted) return;
         setMetrics(items);
       } catch (err) {
-        console.error("Failed to load metrics", err);
+        if (__DEV__) console.error("Failed to load metrics", err);
         if (mounted) setMetricsError(String(err ?? "Failed to load metrics"));
       } finally {
         if (mounted) setMetricsLoading(false);
@@ -150,7 +139,7 @@ export default function ManageStudy(): React.ReactElement {
           ) ?? items.find((i) => i.isActive) ?? items[0];
         setDraftStatusId(draft ? draft.postingStatusId : null);
       } catch (err) {
-        console.error("Failed to load statuses", err);
+        if (__DEV__) console.error("Failed to load statuses", err);
         if (mounted) setStatusesError(String(err ?? "Failed to load statuses"));
       } finally {
         if (mounted) setStatusesLoading(false);
@@ -176,7 +165,7 @@ export default function ManageStudy(): React.ReactElement {
           if (firstActive) setSelectedRewardTypeId(firstActive.rewardTypeId);
         }
       } catch (err) {
-        console.error("Failed to load reward types", err);
+        if (__DEV__) console.error("Failed to load reward types", err);
         if (mounted) setRewardTypesError(String(err ?? "Failed to load reward types"));
       } finally {
         if (mounted) setRewardTypesLoading(false);
@@ -197,7 +186,7 @@ export default function ManageStudy(): React.ReactElement {
         if (!mounted) return;
         setHealthConditions(items);
       } catch (err) {
-        console.error("Failed to load health conditions", err);
+        if (__DEV__) console.error("Failed to load health conditions", err);
         if (mounted) setHealthError(String(err ?? "Failed to load health conditions"));
       } finally {
         if (mounted) setHealthLoading(false);
@@ -218,7 +207,7 @@ export default function ManageStudy(): React.ReactElement {
         if (!mounted) return;
         setViewPolicies(items);
       } catch (err) {
-        console.error("Failed to load view policies", err);
+        if (__DEV__) console.error("Failed to load view policies", err);
         if (mounted) setViewPoliciesError(String(err ?? "Failed to load view policies"));
       } finally {
         if (mounted) setViewPoliciesLoading(false);
@@ -311,6 +300,11 @@ export default function ManageStudy(): React.ReactElement {
   }
 
   async function handlePublish() {
+    if (!buyerId) {
+      alert("You must be signed in to create a study.");
+      return;
+    }
+
     const errors: Record<string, string> = {};
     if (!title.trim()) errors.title = "Title is required";
     if (!summary.trim()) errors.summary = "Summary is required";
@@ -344,11 +338,10 @@ export default function ManageStudy(): React.ReactElement {
         description,
         dataCoverageDaysRequired: Number(length) || 1,
         postingStatusId: draftStatusId,
-        // New DB column requires the buyer user id; include both common casings
         buyerId: buyerId,
         postingMetricIds: selectedMetricIds,
         rewardTypeId: selectedRewardTypeId,
-        rewardValue: Number(rewardValue) || 0,
+        rewardValue: rewardValue ? Number(rewardValue) : null,
         healthConditionIds: selectedHealthConditionIds,
         applyOpenAt: applyOpenAt ? applyOpenAt.toISOString() : null,
         applyCloseAt: applyCloseAt ? applyCloseAt.toISOString() : null,
@@ -357,15 +350,15 @@ export default function ManageStudy(): React.ReactElement {
         tags: tagsArray,
       };
 
-      console.log("Saving draft payload:", payload);
       const response = await createTrnPosting(buyerId, payload as any);
 
       // Navigate to created study detail and show draft guidance
       router.replace(`/studies/${response.id}?draft=1`);
-    } catch (error) {
-      console.error("Error saving study:", error);
-      // show minimal feedback — you can replace with a toast
-      alert("Failed to publish study. See console for details.");
+    } catch (err) {
+      alert(
+        "Failed to save study: " +
+          (err instanceof Error ? err.message : String(err))
+      );
     }
   }
 
@@ -686,7 +679,6 @@ const styles = StyleSheet.create({
   },
 
   leftColumn: { flex: 2, marginRight: 8, minWidth: 0 },
-  rightColumn: { flex: 1, marginLeft: 8, minWidth: 260, maxWidth: 420 },
 
   fullWidth: { width: "100%" },
 

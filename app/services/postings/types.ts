@@ -16,10 +16,20 @@ export type StudySummary = {
   summary: string;
   description: string;
   statusId: number;
+  statusDisplayName: string;
 
-  // Used by the studies list UI (existing screens rely on these)
   organizer: string;
   spots: number;
+
+  // Fields from buyers_postings_list API
+  rewardTypeDisplayName: string | null;
+  dataCoverageDaysRequired: number | null;
+  minAge: number | null;
+  applyOpenAt: string | null;
+  applyCloseAt: string | null;
+  metrics: { id: number; displayName: string }[];
+  healthConditions: { id: number; displayName: string }[];
+  tags: string[];
 };
 
 /**
@@ -60,23 +70,16 @@ export type StudyDetail = {
 
   metrics?: { metricId: number; displayName?: string; metricDisplayName?: string }[];
 
-  viewPolicies: any[];
+  viewPolicies: ViewPolicy[];
   healthConditions: { id: number; displayName: string }[];
   tags: string[];
-  images: any[];
+  images: { url: string; [key: string]: unknown }[];
 
   isActive: boolean;
   isModified: boolean | null;
   createdOn: string | null;
   modifiedOn: string | null;
 };
-
-/**
- * Compatibility alias (temporary):
- * Existing code imports `Study` for the list screen.
- * We'll switch those imports to `StudySummary` next, then you may delete this alias.
- */
-export type Study = StudySummary;
 
 // --- DTOs (Data Transfer Objects) for the API response ---
 

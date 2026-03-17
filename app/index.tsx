@@ -14,7 +14,7 @@ const webStyles: Record<string, React.CSSProperties> = {
   mainContent: {
     display: 'flex',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'flex-start',
     paddingLeft: 80,
     paddingRight: 80,
@@ -149,7 +149,7 @@ const webStyles: Record<string, React.CSSProperties> = {
   },
   // Partners Styles
   partnersSection: {
-    marginTop: 80,
+    marginTop: 40,
     width: '100%',
     maxWidth: 500,
   },

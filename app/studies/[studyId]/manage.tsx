@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Colors, palette } from "@/constants/theme";
+import { LABELS } from "@/constants/labels";
 import {
   SafeAreaView,
   ScrollView,
@@ -16,6 +17,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
+  getTrnPostingDetail,
   updateTrnPosting,
   listMetrics,
   listHealthConditions,
@@ -114,30 +116,32 @@ const ManageStudy: React.FC = () => {
           ) ?? null;
         setOpenStatusId(open ? open.postingStatusId : null);
       })
+      .catch((err) => { if (__DEV__) console.error("Failed to load statuses", err); })
       .finally(() => setStatusesLoading(false));
     listRewardTypes()
       .then(setRewardTypes)
+      .catch((err) => { if (__DEV__) console.error("Failed to load reward types", err); })
       .finally(() => setRewardTypesLoading(false));
     listViewPolicies()
       .then(setViewPolicies)
+      .catch((err) => { if (__DEV__) console.error("Failed to load view policies", err); })
       .finally(() => setViewPoliciesLoading(false));
     listMetrics()
       .then(setMetrics)
+      .catch((err) => { if (__DEV__) console.error("Failed to load metrics", err); })
       .finally(() => setMetricsLoading(false));
     listHealthConditions()
       .then(setHealthConditions)
+      .catch((err) => { if (__DEV__) console.error("Failed to load health conditions", err); })
       .finally(() => setHealthLoading(false));
   }, []);
 
   useEffect(() => {
     async function fetchStudyDetail() {
-      if (!studyId) return;
+      if (!studyId || !user?.id) return;
       setLoading(true);
       try {
-        const buyerId = user?.id ? Number(user.id) : -1;
-        const { getTrnPostingDetail } = await import(
-          "../../services/postings/api"
-        );
+        const buyerId = Number(user.id);
         const [detail, sharesData] = await Promise.all([
           getTrnPostingDetail(buyerId, studyId),
           getPostingShares(studyId)
@@ -217,7 +221,7 @@ const ManageStudy: React.FC = () => {
             setSelectedViewPolicy(
               typeof first === "string"
                 ? first
-                : first?.code ?? first?.id ?? null
+                : first?.code ?? null
             );
           } else {
             setSelectedViewPolicy(null);
@@ -242,13 +246,13 @@ const ManageStudy: React.FC = () => {
           );
         }
       } catch (err) {
-        console.error(err);
+        if (__DEV__) console.error(err);
       } finally {
         setLoading(false);
       }
     }
     fetchStudyDetail();
-  }, [studyId]);
+  }, [studyId, user?.id]);
 
   // --- Date Picker Handler ---
   const onDateChange = (event: any, selectedDate?: Date) => {
@@ -321,10 +325,6 @@ const ManageStudy: React.FC = () => {
     return date.toISOString().split("T")[0];
   };
 
-  const formatDate = (date: Date | null) => {
-    return date ? date.toISOString().split("T")[0] : "Select date...";
-  };
-
   function toggleMetric(metricId: number) {
     setSelectedMetricIds((prev) =>
       prev.includes(metricId)
@@ -375,7 +375,7 @@ const ManageStudy: React.FC = () => {
         // reward type id
         rewardTypeId: selectedRewardTypeId,
         // The create/update functions expect `postingMetricsIds` (not `metrics`)
-        rewardValue: Number(rewardValue) || 0, // Include rewardValue in payload
+        rewardValue: rewardValue ? Number(rewardValue) : null,
         metrics: selectedMetricIds,
         // The create/update functions expect `healthConditionIds`
         healthConditionIds: selectedHealthConditionIds,
@@ -386,9 +386,9 @@ const ManageStudy: React.FC = () => {
         tags: tagsArray,
       };
       try {
-        const buyerId = user?.id ? Number(user.id) : -1;
-        const res = await updateTrnPosting(buyerId, postingId, payload as any);
-        console.log(res);
+        if (!user?.id) return alert("You must be signed in to save changes.");
+        const buyerId = Number(user.id);
+        await updateTrnPosting(buyerId, postingId, payload as any);
         router.replace(`/studies/${postingId}?saved=1`);
       } catch (err) {
         alert(
@@ -407,7 +407,6 @@ const ManageStudy: React.FC = () => {
 
     if (isPublishing && selectedMetricIds.length === 0) {
       setPublishMetricsError(true);
-      console.log("[ManageStudy] Blocked publish — no metrics selected");
       blocked = true;
     } else {
       setPublishMetricsError(false);
@@ -415,21 +414,12 @@ const ManageStudy: React.FC = () => {
 
     if (isPublishing && (!rewardValue || Number(rewardValue) <= 0)) {
       setPublishRewardValueError(true);
-      console.log("[ManageStudy] Blocked publish — no reward value");
       blocked = true;
     } else {
       setPublishRewardValueError(false);
     }
 
     if (blocked) return;
-
-    if (isPublishing) {
-      console.log("[ManageStudy] Publishing study (status changing to Open)", {
-        openStatusId,
-        selectedStatusId,
-        originalStatusId,
-      });
-    }
 
     await doSave();
   }
@@ -739,9 +729,7 @@ const ManageStudy: React.FC = () => {
 
             {selectedMetricIds.length > 0 && (
               <Text style={styles.infoText}>
-                All selected metrics require contributors to have this data
-                available on their device. Contributors without all selected
-                fields data will not be able to participate.
+                {`All selected metrics require ${LABELS.CONTRIBUTOR}s to have this data available on their device. ${LABELS.CONTRIBUTOR}s without all selected fields data will not be able to participate.`}
               </Text>
             )}
 
@@ -815,8 +803,7 @@ const ManageStudy: React.FC = () => {
               selectedStatusId === openStatusId &&
               originalStatusId !== openStatusId && (
                 <Text style={styles.warningText}>
-                  Once published and contributors have registered, this study cannot
-                  be modified. Please review carefully before proceeding.
+                  {`Once published and ${LABELS.CONTRIBUTOR}s have registered, this study cannot be modified. Please review carefully before proceeding.`}
                 </Text>
               )}
 
@@ -975,7 +962,7 @@ const styles = StyleSheet.create({
   },
   btnGhostText: { color: Colors.light.text, fontWeight: "600" },
   disabled: { opacity: 0.5, backgroundColor: "#f5f5f5" },
-  warningText: { color: "red", fontSize: 24, marginBottom: 4 },
+  warningText: { color: "red", fontSize: 14, marginBottom: 4 },
   rewardDescription: {
     color: palette.light.text.secondary,
     fontSize: 13,

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Colors, palette } from "@/constants/theme";
+import { LABELS } from "@/constants/labels";
 import {
   SafeAreaView,
   ScrollView,
@@ -16,7 +17,7 @@ import {
   Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { getPostingShares } from "../../services/postings/api";
+import { getPostingShares, getTrnPostingDetail } from "../../services/postings/api";
 import { useAuth } from "@/hooks/AuthContext";
 import type { StudyDetail } from "../../services/postings/types";
 
@@ -59,15 +60,15 @@ export default function StudyDetail() {
   const { user } = useAuth();
 
   /**
-   * Build rows for the "Contributor Demographics" sheet: one row per contributor.
-   * Columns: Contributor ID, Age, Gender, Height, Weight, Health Conditions
+   * Build rows for the "Research Participant Demographics" sheet: one row per participant.
+   * Columns: Research Participant ID, Age, Gender, Height, Weight, Health Conditions
    */
   function buildUserSheetRows(
     shares: any[]
   ): (string | number | null | undefined)[][] {
     const rows: (string | number | null | undefined)[][] = [
       [
-        "Contributor ID",
+        `${LABELS.CONTRIBUTOR} ID`,
         "Age",
         "Gender",
         "Height",
@@ -142,15 +143,15 @@ export default function StudyDetail() {
   }
 
   /**
-   * Build rows for the "Metrics Data" sheet: one row per contributor per time interval.
-   * Columns: Contributor ID, Metric Name, Date, Time Granularity, Metric Value, Units
+   * Build rows for the "Metrics Data" sheet: one row per participant per time interval.
+   * Columns: Research Participant ID, Metric Name, Date, Time Granularity, Metric Value, Units
    */
   function buildUserDataSheetRows(
     shares: any[]
   ): (string | number | null | undefined)[][] {
     const rows: (string | number | null | undefined)[][] = [
       [
-        "Contributor ID",
+        `${LABELS.CONTRIBUTOR} ID`,
         "Metric Name",
         "Start Time",
         "End Time",
@@ -247,7 +248,7 @@ export default function StudyDetail() {
       XLSX.utils.book_append_sheet(
         wb,
         usersSheet,
-        "Contributor Demographics"
+        "Participant Demographics"
       );
 
       const userDataSheet = XLSX.utils.aoa_to_sheet(userDataRows);
@@ -595,12 +596,11 @@ export default function StudyDetail() {
       setLoading(true);
       setError(null);
       try {
-        // Use the centralized API function which includes data normalization
-        const { getTrnPostingDetail } = await import(
-          "../../services/postings/api"
-        );
-        const buyerId = user?.id ? Number(user.id) : -1;
-        // console.log("[StudyDetail] auth user (used as buyerId):", { user, buyerId });
+        if (!user?.id) {
+          setError("You must be signed in to view study details.");
+          return;
+        }
+        const buyerId = Number(user.id);
         const detail = await getTrnPostingDetail(buyerId, studyId);
         // console.log("[StudyDetail] getTrnPostingDetail return value:", detail);
 
@@ -649,14 +649,12 @@ export default function StudyDetail() {
       setSharesLoading(true);
       setSharesError(null);
       try {
-        // HARD CODED TO 9001 TO GET DATA
         const res = await getPostingShares(Number(studyId));
-        //const res = await getPostingShares(9001);
-        console.log("[StudyDetail] getPostingShares return value:", res);
+        if (__DEV__) console.log("[StudyDetail] getPostingShares return value:", res);
         // save full response (postingId, postingTitle, shares[])
         setSharesData(res);
       } catch (err: any) {
-        console.error("Failed to load posting shares", err);
+        if (__DEV__) console.error("Failed to load posting shares", err);
         setSharesError(err?.message ?? String(err));
       } finally {
         setSharesLoading(false);
@@ -696,7 +694,7 @@ export default function StudyDetail() {
           return (avg != null && !Number.isNaN(Number(avg))) ? Number(avg) : 0;
         });
       }
-      console.log(`[Metric ${metricId}] ${metricName}:`, { dates, data });
+      if (__DEV__) console.log(`[Metric ${metricId}] ${metricName}:`, { dates, data });
       const averages = dates.map(
         (d) =>
           (data[d].reduce((a, b) => a + b, 0) / (data[d].length || 1))
@@ -904,7 +902,7 @@ export default function StudyDetail() {
             <View style={styles.detailSection}>
               <Text style={styles.sectionTitle}>Study Info</Text>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Institutional Partner</Text>
+                <Text style={styles.infoLabel}>{LABELS.INSTITUTIONAL_PARTNER}</Text>
                 <Text style={styles.infoValue}>{study.buyerDisplayName}</Text>
               </View>
               <View style={styles.infoRow}>
@@ -1266,7 +1264,7 @@ export default function StudyDetail() {
             </View>
 
             <View style={styles.metaBlock}>
-              <Text style={styles.metaLabel}>Institutional Partner</Text>
+              <Text style={styles.metaLabel}>{LABELS.INSTITUTIONAL_PARTNER}</Text>
               <Text style={styles.metaValue}>{study.buyerDisplayName}</Text>
             </View>
           </View>
