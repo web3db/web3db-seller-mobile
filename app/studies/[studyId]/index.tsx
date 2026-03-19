@@ -337,34 +337,52 @@ export default function StudyDetail() {
     };
   }
 
-  /** Returns a "nice" Y-axis ceiling (1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, …). */
-  function niceYCeiling(maxVal: number): number {
-    if (maxVal <= 0) return 1;
-    const exp = Math.floor(Math.log10(maxVal));
-    const magnitude = Math.pow(10, exp);
-    const normalized = maxVal / magnitude;
-    if (normalized <= 1) return 1 * magnitude;
-    if (normalized <= 2) return 2 * magnitude;
-    if (normalized <= 5) return 5 * magnitude;
-    return 10 * magnitude;
+  /**
+   * Compute nice round Y-axis ticks. Always starts at 0 (no negatives).
+   * Uses round step sizes (1, 2, 5, 10, 20, 50, 100, 200, 500, …).
+   */
+  function computeYTicks(dataMin: number, dataMax: number, targetCount = 5) {
+    const floor = Math.max(0, dataMin);
+    const ceil = dataMax <= floor ? floor + 1 : dataMax;
+    const rawRange = ceil - floor;
+
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rawRange || 1)));
+    const residual = rawRange / magnitude;
+    let niceStep: number;
+    if (residual <= 1) niceStep = magnitude * 0.2;
+    else if (residual <= 2) niceStep = magnitude * 0.5;
+    else if (residual <= 5) niceStep = magnitude;
+    else niceStep = magnitude * 2;
+
+    if (niceStep <= 0) niceStep = 1;
+
+    const niceMin = Math.floor(floor / niceStep) * niceStep;
+    const niceMax = Math.ceil(ceil / niceStep) * niceStep;
+
+    const ticks: number[] = [];
+    for (let v = niceMin; v <= niceMax + niceStep * 0.001; v += niceStep) {
+      ticks.push(Math.round(v * 1e9) / 1e9);
+    }
+
+    return { vMin: Math.max(0, niceMin), vMax: niceMax, yTicks: ticks };
   }
 
-  /** Format bucket time for x-axis label (time only). */
-  function formatBucketTime(iso: string): string {
-    try {
-      const d = new Date(iso);
-      return d.toLocaleTimeString(undefined, {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return "";
-    }
+  /** Format a timestamp for X-axis tick labels. */
+  function formatTickTime(ms: number): string {
+    const d = new Date(ms);
+    return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function formatTickDate(ms: number): string {
+    const d = new Date(ms);
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
 
   /**
-   * Line chart for computedJson.buckets: value over time.
-   * Buckets: { start, end, value }[].
+   * Smooth SVG line chart using react-native-svg.
+   * - Catmull-Rom → cubic Bezier spline for smooth curves
+   * - Proper Y/X axis with tick marks & labels
+   * - Designed to sit inside a scrollable container with a sticky Y-axis
    */
   function BucketsLineChart({
     buckets,
@@ -379,10 +397,31 @@ export default function StudyDetail() {
     chartWidth: number;
     chartHeight?: number;
   }) {
-    const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
-    const padding = { left: 44, right: 12, top: 8, bottom: 28 };
-    const plotWidth = chartWidth - padding.left - padding.right;
-    const plotHeight = chartHeight - padding.top - padding.bottom;
+    const SvgComponents = React.useMemo(() => {
+      try {
+        const mod = require("react-native-svg");
+        return {
+          Svg: mod.Svg || mod.default,
+          Path: mod.Path,
+          Line: mod.Line,
+          Text: mod.Text as any,
+          Circle: mod.Circle,
+          G: mod.G,
+          Defs: mod.Defs,
+          LinearGradient: mod.LinearGradient,
+          Stop: mod.Stop,
+          Rect: mod.Rect,
+        };
+      } catch {
+        return null;
+      }
+    }, []);
+
+    const [activeIdx, setActiveIdx] = useState<number | null>(null);
+
+    const PADDING = { left: 0, right: 16, top: 20, bottom: 52 };
+    const plotW = chartWidth - PADDING.left - PADDING.right;
+    const plotH = chartHeight - PADDING.top - PADDING.bottom;
 
     const points = React.useMemo(() => {
       const list = buckets
@@ -397,148 +436,324 @@ export default function StudyDetail() {
       return list;
     }, [buckets]);
 
-    const { tMin, tMax, vMin, vMax } = React.useMemo(() => {
+    const { tMin, tMax, yTicks, vMin, vMax } = React.useMemo(() => {
       if (points.length === 0)
-        return { tMin: 0, tMax: 1, vMin: 0, vMax: 1 };
+        return { tMin: 0, tMax: 1, yTicks: [0, 1], vMin: 0, vMax: 1 };
       const ts = points.map((p) => p.t);
       const vs = points.map((p) => p.v);
-      return {
-        tMin: Math.min(...ts),
-        tMax: Math.max(...ts),
-        vMin: Math.min(...vs),
-        vMax: Math.max(...vs),
-      };
+      const { vMin, vMax, yTicks } = computeYTicks(Math.min(...vs), Math.max(...vs));
+      return { tMin: Math.min(...ts), tMax: Math.max(...ts), yTicks, vMin, vMax };
     }, [points]);
+
+    const xTicks = React.useMemo(() => {
+      if (points.length === 0) return [];
+      const tRange = tMax - tMin;
+      if (tRange <= 0) return [tMin];
+      const HOUR = 3_600_000;
+      const DAY = 86_400_000;
+      let interval: number;
+      if (tRange <= 6 * HOUR) interval = HOUR;
+      else if (tRange <= 24 * HOUR) interval = 2 * HOUR;
+      else if (tRange <= 3 * DAY) interval = 6 * HOUR;
+      else if (tRange <= 7 * DAY) interval = DAY;
+      else interval = Math.ceil(tRange / 8 / DAY) * DAY;
+
+      const firstTick = Math.ceil(tMin / interval) * interval;
+      const ticks: number[] = [];
+      for (let tick = firstTick; tick <= tMax; tick += interval) ticks.push(tick);
+      if (ticks.length === 0) ticks.push(tMin);
+      return ticks;
+    }, [points, tMin, tMax]);
 
     const tRange = tMax - tMin || 1;
     const vRange = vMax - vMin || 1;
+    const toX = (t: number) => PADDING.left + ((t - tMin) / tRange) * plotW;
+    const toY = (v: number) => PADDING.top + (1 - (v - vMin) / vRange) * plotH;
 
-    const toX = (t: number) =>
-      padding.left + ((t - tMin) / tRange) * plotWidth;
-    const toY = (v: number) =>
-      padding.top + (1 - (v - vMin) / vRange) * plotHeight;
+    const splinePath = React.useMemo(() => {
+      if (points.length === 0) return "";
+      if (points.length === 1)
+        return `M ${toX(points[0].t)} ${toY(points[0].v)}`;
 
-    const segments: { x1: number; y1: number; x2: number; y2: number }[] = [];
-    for (let i = 0; i < points.length - 1; i++) {
-      segments.push({
-        x1: toX(points[i].t),
-        y1: toY(points[i].v),
-        x2: toX(points[i + 1].t),
-        y2: toY(points[i + 1].v),
-      });
+      const coords = points.map((p) => ({ x: toX(p.t), y: toY(p.v) }));
+      const tension = 0.15;
+      const yFloor = toY(vMin);
+      const yCeil = toY(vMax);
+      const clampY = (y: number) => Math.max(yCeil, Math.min(yFloor, y));
+      let d = `M ${coords[0].x} ${coords[0].y}`;
+
+      for (let i = 0; i < coords.length - 1; i++) {
+        const p0 = coords[Math.max(i - 1, 0)];
+        const p1 = coords[i];
+        const p2 = coords[i + 1];
+        const p3 = coords[Math.min(i + 2, coords.length - 1)];
+
+        const cp1x = p1.x + (p2.x - p0.x) * tension;
+        const cp1y = clampY(p1.y + (p2.y - p0.y) * tension);
+        const cp2x = p2.x - (p3.x - p1.x) * tension;
+        const cp2y = clampY(p2.y - (p3.y - p1.y) * tension);
+
+        d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+      }
+      return d;
+    }, [points, tMin, tMax, vMin, vMax, chartWidth, chartHeight]);
+
+    const areaPath = React.useMemo(() => {
+      if (points.length < 2) return "";
+      const baseY = toY(vMin);
+      const coords = points.map((p) => ({ x: toX(p.t), y: toY(p.v) }));
+      return `${splinePath} L ${coords[coords.length - 1].x} ${baseY} L ${coords[0].x} ${baseY} Z`;
+    }, [splinePath, points, vMin, chartWidth, chartHeight]);
+
+    if (!SvgComponents) {
+      return (
+        <View style={{ padding: 12 }}>
+          <Text>Chart unavailable (react-native-svg not loaded)</Text>
+        </View>
+      );
     }
 
+    const { Svg, Path, Line: SvgLine, Text: SvgText, Circle, G, Defs, LinearGradient, Stop, Rect } = SvgComponents;
+    const HOUR = 3_600_000;
+    const showDate = (tMax - tMin) > 24 * HOUR;
+
     return (
-      <View style={[styles.bucketsChartCard, { width: chartWidth }]}>
-        <Text style={styles.bucketsChartTitle}>
-          {metricName}
-          {unitCode ? ` (${unitCode})` : ""} — over time
-        </Text>
-        <View style={[styles.bucketsChartPlot, { width: chartWidth, height: chartHeight }]}>
-          {/* Y-axis labels */}
-          <View
-            style={[
-              styles.bucketsChartYAxis,
-              { left: 0, top: 0, height: chartHeight, width: padding.left },
-            ]}
-          >
-            <Text style={styles.bucketsChartAxisLabel} numberOfLines={1}>
-              {vMax === vMin ? String(vMax) : Number.isInteger(vMax) ? String(vMax) : vMax.toFixed(1)}
-            </Text>
-            <Text style={[styles.bucketsChartAxisLabel, { marginTop: "auto" }]} numberOfLines={1}>
-              {vMax === vMin ? String(vMin) : Number.isInteger(vMin) ? String(vMin) : vMin.toFixed(1)}
-            </Text>
-          </View>
-          {/* Line segments */}
-          {segments.map((seg, idx) => {
-            const dx = seg.x2 - seg.x1;
-            const dy = seg.y2 - seg.y1;
-            const length = Math.sqrt(dx * dx + dy * dy) || 1;
-            const angle = Math.atan2(dy, dx);
-            const centerX = (seg.x1 + seg.x2) / 2;
-            const centerY = (seg.y1 + seg.y2) / 2;
+      <View style={svgStyles.chartContainer}>
+        <Svg width={chartWidth} height={chartHeight}>
+          <Defs>
+            <LinearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor={palette.light.primary} stopOpacity="0.18" />
+              <Stop offset="100%" stopColor={palette.light.primary} stopOpacity="0.01" />
+            </LinearGradient>
+          </Defs>
+
+          {/* Horizontal grid lines at Y ticks */}
+          {yTicks.map((tick, i) => {
+            const y = toY(tick);
             return (
-              <View
-                key={idx}
-                style={[
-                  styles.bucketsChartLineSegment,
-                  {
-                    position: "absolute",
-                    left: centerX - length / 2,
-                    top: centerY - 1,
-                    width: length,
-                    height: 2,
-                    transform: [{ rotate: `${angle}rad` }],
-                  },
-                ]}
+              <SvgLine
+                key={`grid-${i}`}
+                x1={PADDING.left}
+                y1={y}
+                x2={chartWidth - PADDING.right}
+                y2={y}
+                stroke="#e5e7eb"
+                strokeWidth={1}
+                strokeDasharray="4,3"
               />
             );
           })}
-          {/* Dots at each point - value label on hover/press */}
-          {points.map((p, idx) => {
-            const x = toX(p.t);
-            const y = toY(p.v);
-            const isActive = activePointIndex === idx;
-            const valueStr =
-              Number.isInteger(p.v) ? String(p.v) : p.v.toFixed(2);
+
+          {/* X-axis baseline */}
+          <SvgLine
+            x1={PADDING.left}
+            y1={chartHeight - PADDING.bottom}
+            x2={chartWidth - PADDING.right}
+            y2={chartHeight - PADDING.bottom}
+            stroke="#d1d5db"
+            strokeWidth={1}
+          />
+
+          {/* X tick marks & labels */}
+          {xTicks.map((tick, i) => {
+            const x = toX(tick);
             return (
-              <Pressable
-                key={idx}
-                style={[
-                  styles.bucketsChartDot,
-                  {
-                    position: "absolute",
-                    left: x - 6,
-                    top: y - 6,
-                  },
-                ]}
-                onPressIn={() => setActivePointIndex(idx)}
-                onPressOut={() => setActivePointIndex(null)}
-                onHoverIn={() => setActivePointIndex(idx)}
-                onHoverOut={() => setActivePointIndex(null)}
-              >
-                {isActive && (
-                  <Text
-                    style={[
-                      styles.bucketsChartDotLabel,
-                      {
-                        position: "absolute",
-                        left: 6,
-                        bottom: 16,
-                        transform: [{ translateX: -20 }],
-                      },
-                    ]}
-                  >
-                    {valueStr}
-                    {unitCode ? ` ${unitCode}` : ""}
-                  </Text>
+              <G key={`xt-${i}`}>
+                <SvgLine x1={x} y1={chartHeight - PADDING.bottom} x2={x} y2={chartHeight - PADDING.bottom + 5} stroke="#9ca3af" strokeWidth={1} />
+                <SvgText x={x} y={chartHeight - PADDING.bottom + 18} fontSize={10} fill="#6B7280" textAnchor="middle">
+                  {formatTickTime(tick)}
+                </SvgText>
+                {showDate && (
+                  <SvgText x={x} y={chartHeight - PADDING.bottom + 30} fontSize={9} fill="#9ca3af" textAnchor="middle">
+                    {formatTickDate(tick)}
+                  </SvgText>
                 )}
-              </Pressable>
+              </G>
             );
           })}
-          {/* X-axis labels */}
-          {points.length > 0 && (
-            <>
-              <Text
-                style={[
-                  styles.bucketsChartXLabel,
-                  { left: padding.left, bottom: 4 },
-                ]}
-                numberOfLines={1}
-              >
-                {formatBucketTime(buckets[0].start)}
-              </Text>
-              <Text
-                style={[
-                  styles.bucketsChartXLabel,
-                  { right: padding.right, bottom: 4, left: undefined },
-                ]}
-                numberOfLines={1}
-              >
-                {formatBucketTime(buckets[buckets.length - 1].end)}
-              </Text>
-            </>
+
+          {/* X-axis label */}
+          <SvgText
+            x={(PADDING.left + chartWidth - PADDING.right) / 2}
+            y={chartHeight - 4}
+            fontSize={11}
+            fill="#6B7280"
+            textAnchor="middle"
+            fontWeight="500"
+          >
+            Time
+          </SvgText>
+
+          {/* Area fill under curve */}
+          {areaPath ? <Path d={areaPath} fill="url(#areaGrad)" /> : null}
+
+          {/* Smooth spline line */}
+          {splinePath ? (
+            <Path
+              d={splinePath}
+              fill="none"
+              stroke={palette.light.primary}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ) : null}
+
+          {/* Active point indicator (rendered inside SVG) */}
+          {activeIdx != null && activeIdx >= 0 && activeIdx < points.length && (() => {
+            const p = points[activeIdx];
+            const x = toX(p.t);
+            const y = toY(p.v);
+            const label = (Number.isInteger(p.v) ? String(p.v) : p.v.toFixed(2)) + (unitCode ? ` ${unitCode}` : "");
+            const tooltipW = Math.max(72, label.length * 8);
+            return (
+              <G>
+                <SvgLine x1={x} y1={PADDING.top} x2={x} y2={chartHeight - PADDING.bottom} stroke={palette.light.primary} strokeWidth={1} strokeOpacity={0.35} strokeDasharray="3,3" />
+                <Circle cx={x} cy={y} r={4} fill="#fff" stroke={palette.light.primary} strokeWidth={2} />
+                <Rect x={x - tooltipW / 2} y={y - 30} width={tooltipW} height={22} rx={6} fill="rgba(0,0,0,0.78)" />
+                <SvgText x={x} y={y - 15} fontSize={11} fill="#fff" textAnchor="middle" fontWeight="600" dominantBaseline="central">
+                  {label}
+                </SvgText>
+              </G>
+            );
+          })()}
+        </Svg>
+        {/* Transparent hit areas overlaid on top of SVG for hover + press */}
+        {points.map((p, idx) => {
+          const x = toX(p.t);
+          return (
+            <Pressable
+              key={`hit-${idx}`}
+              onPressIn={() => setActiveIdx(idx)}
+              onPressOut={() => setActiveIdx(null)}
+              onHoverIn={() => setActiveIdx(idx)}
+              onHoverOut={() => setActiveIdx(null)}
+              style={{
+                position: "absolute",
+                left: x - 14,
+                top: PADDING.top,
+                width: 28,
+                height: plotH,
+              }}
+            />
+          );
+        })}
+      </View>
+    );
+  }
+
+  /**
+   * Wrapper that renders a sticky Y-axis to the left of a horizontally
+   * scrollable chart area.
+   */
+  function StickyYAxisChart({
+    buckets,
+    metricName,
+    unitCode,
+    containerWidth,
+    chartHeight = 320,
+  }: {
+    buckets: { start: string; end: string; value: number }[];
+    metricName: string;
+    unitCode?: string | null;
+    containerWidth: number;
+    chartHeight?: number;
+  }) {
+    const SvgComponents = React.useMemo(() => {
+      try {
+        const mod = require("react-native-svg");
+        return {
+          Svg: mod.Svg || mod.default,
+          Line: mod.Line,
+          Text: mod.Text as any,
+        };
+      } catch {
+        return null;
+      }
+    }, []);
+
+    const Y_AXIS_WIDTH = 52;
+    const PADDING = { top: 20, bottom: 52 };
+    const plotH = chartHeight - PADDING.top - PADDING.bottom;
+
+    const { yTicks, vMin, vMax } = React.useMemo(() => {
+      const parsed = buckets
+        .map((b) => Number(b.value))
+        .filter((v) => !Number.isNaN(v));
+      if (parsed.length === 0)
+        return { yTicks: [0, 1], vMin: 0, vMax: 1 };
+      return computeYTicks(Math.min(...parsed), Math.max(...parsed));
+    }, [buckets]);
+
+    const vRange = vMax - vMin || 1;
+    const toY = (v: number) => PADDING.top + (1 - (v - vMin) / vRange) * plotH;
+
+    const formatVal = (v: number) =>
+      Number.isInteger(v) ? String(v) : v.toFixed(1);
+
+    const minWidthPerPoint = 14;
+    const naturalWidth = containerWidth - Y_AXIS_WIDTH;
+    const scrollableWidth = Math.max(naturalWidth, buckets.length * minWidthPerPoint);
+
+    return (
+      <View style={svgStyles.outerWrapper}>
+        <Text style={svgStyles.chartTitle}>
+          {metricName}{unitCode ? ` (${unitCode})` : ""} — over time
+        </Text>
+        <View style={svgStyles.stickyWrapper}>
+          {/* Fixed Y-axis column */}
+          {SvgComponents ? (
+            <View style={[svgStyles.yAxisColumn, { width: Y_AXIS_WIDTH, height: chartHeight }]}>  
+              <SvgComponents.Svg width={Y_AXIS_WIDTH} height={chartHeight}>
+                {/* Y-axis label (rotated) */}
+                <SvgComponents.Text
+                  x={11}
+                  y={PADDING.top + plotH / 2}
+                  fontSize={10}
+                  fill="#6B7280"
+                  textAnchor="middle"
+                  fontWeight="500"
+                  rotation={-90}
+                  originX={11}
+                  originY={PADDING.top + plotH / 2}
+                >
+                  {metricName}{unitCode ? ` (${unitCode})` : ""}
+                </SvgComponents.Text>
+                {/* Y-axis line */}
+                <SvgComponents.Line x1={Y_AXIS_WIDTH - 1} y1={PADDING.top} x2={Y_AXIS_WIDTH - 1} y2={chartHeight - PADDING.bottom} stroke="#d1d5db" strokeWidth={1} />
+                {/* Tick marks & labels */}
+                {yTicks.map((tick, i) => {
+                  const y = toY(tick);
+                  return (
+                    <React.Fragment key={i}>
+                      <SvgComponents.Line x1={Y_AXIS_WIDTH - 5} y1={y} x2={Y_AXIS_WIDTH - 1} y2={y} stroke="#9ca3af" strokeWidth={1} />
+                      <SvgComponents.Text x={Y_AXIS_WIDTH - 8} y={y} fontSize={10} fill="#6B7280" textAnchor="end" dominantBaseline="central">
+                        {formatVal(tick)}
+                      </SvgComponents.Text>
+                    </React.Fragment>
+                  );
+                })}
+              </SvgComponents.Svg>
+            </View>
+          ) : (
+            <View style={{ width: Y_AXIS_WIDTH }} />
           )}
+
+          {/* Scrollable chart area */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator
+            style={svgStyles.chartScrollView}
+            contentContainerStyle={{ flexGrow: 0 }}
+          >
+            <BucketsLineChart
+              buckets={buckets}
+              metricName={metricName}
+              unitCode={unitCode}
+              chartWidth={scrollableWidth}
+              chartHeight={chartHeight}
+            />
+          </ScrollView>
         </View>
       </View>
     );
@@ -1165,28 +1380,15 @@ export default function StudyDetail() {
                               {seg.metrics?.map((m: any, mi: number) => {
                                 const buckets = m.computedJson?.buckets;
                                 if (!Array.isArray(buckets) || buckets.length === 0) return null;
-                                const minWidthPerPoint = 12;
-                                const widthFromPoints = buckets.length * minWidthPerPoint;
-                                const chartWidth = Math.max(
-                                  Math.max(320, Math.min(width - 48, 900)),
-                                  widthFromPoints
-                                );
+                                const containerW = Math.max(320, Math.min(width - 48, 900));
                                 return (
-                                  <ScrollView
-                                    key={(m.metricId ?? mi) + "-buckets-scroll"}
-                                    horizontal
-                                    showsHorizontalScrollIndicator
-                                    style={styles.bucketsChartScroll}
-                                    contentContainerStyle={styles.bucketsChartScrollContent}
-                                  >
-                                    <BucketsLineChart
-                                      key={(m.metricId ?? mi) + "-buckets"}
-                                      buckets={buckets}
-                                      metricName={m.metricName ?? `Metric ${m.metricId}`}
-                                      unitCode={m.unitCode}
-                                      chartWidth={chartWidth}
-                                    />
-                                  </ScrollView>
+                                  <StickyYAxisChart
+                                    key={(m.metricId ?? mi) + "-chart"}
+                                    buckets={buckets}
+                                    metricName={m.metricName ?? `Metric ${m.metricId}`}
+                                    unitCode={m.unitCode}
+                                    containerWidth={containerW}
+                                  />
                                 );
                               })}
                             </View>
@@ -1706,63 +1908,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  bucketsChartScroll: {
-    marginTop: 12,
-    width: "100%",
-  },
-  bucketsChartScrollContent: {
-    flexGrow: 0,
-  },
-  bucketsChartCard: {
-    marginTop: 0,
-    padding: 10,
-    backgroundColor: Colors.light.background,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  bucketsChartTitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.light.text,
-    marginBottom: 6,
-  },
-  bucketsChartPlot: {
-    position: "relative",
-  },
-  bucketsChartYAxis: {
-    position: "absolute",
-    justifyContent: "space-between",
-    paddingRight: 4,
-  },
-  bucketsChartAxisLabel: {
-    fontSize: 10,
-    color: palette.light.text.muted,
-  },
-  bucketsChartLineSegment: {
-    backgroundColor: palette.light.primary,
-  },
-  bucketsChartDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: palette.light.primary,
-  },
-  bucketsChartDotLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.light.text,
-    backgroundColor: "rgba(255,255,255,0.95)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    textAlign: "center",
-  },
-  bucketsChartXLabel: {
-    position: "absolute",
-    fontSize: 10,
-    color: palette.light.text.muted,
-  },
   
   /* Progress Badges */
   badgeContainer: {
@@ -1789,4 +1934,38 @@ const styles = StyleSheet.create({
   badgeSuccess: { backgroundColor: "#DCFCE7" },
   badgeSuccessDot: { backgroundColor: "#16A34A" },
   badgeSuccessText: { color: "#166534" },
+});
+
+const svgStyles = StyleSheet.create({
+  outerWrapper: {
+    marginTop: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    backgroundColor: Colors.light.background,
+    overflow: "hidden",
+  },
+  stickyWrapper: {
+    flexDirection: "row",
+  },
+  yAxisColumn: {
+    backgroundColor: Colors.light.background,
+    zIndex: 2,
+    borderRightWidth: 0,
+  },
+  chartScrollView: {
+    flex: 1,
+  },
+  chartContainer: {
+    paddingTop: 0,
+    paddingRight: 8,
+  },
+  chartTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: Colors.light.text,
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    marginBottom: 2,
+  },
 });
