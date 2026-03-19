@@ -96,6 +96,9 @@ export type DispatchBody = {
   user_ids: number[];
   mode: DispatchMode;
   dry_run?: boolean;
+  include_link?: boolean;
+  include_message?: boolean;
+  message_text?: string;
 };
 
 export type DispatchResults = {
@@ -119,6 +122,97 @@ export type DispatchResponse = {
   dry_run: boolean;
   results: DispatchResults;
   errors: { code: string; message: string; details: any }[];
+};
+
+export type MessageRecipientOutcome = {
+  participant_id: string;
+  survey_id?: number | null;
+  outcome_status: string;
+  skip_reason?: string | null;
+  attempted_on?: string | null;
+  completed_on?: string | null;
+  failure_code?: string | null;
+};
+
+export type MessageEventDetail = {
+  message_event_id: number;
+  posting_id: number;
+  created_on: string;
+  created_by?: number | null;
+  created_by_name?: string | null;
+  event_source: string;
+  dispatch_mode?: string | null;
+  survey_id?: number | null;
+  survey_title?: string | null;
+  include_link?: boolean;
+  include_message?: boolean;
+  message_text?: string | null;
+  summary: {
+    targeted: number;
+    sent: number;
+    failed: number;
+    skipped: number;
+  };
+  recipients: MessageRecipientOutcome[];
+};
+
+export type MessageEventDetailResponse = {
+  ok: boolean;
+  event: MessageEventDetail;
+};
+
+export type MessageEvent = {
+  message_event_id: number;
+  created_on: string;
+  created_by?: number;
+  event_source: 'SURVEY_SEND' | 'DISPATCH_CENTER' | 'CUSTOM_MESSAGE' | string;
+  dispatch_mode?: string | null;
+  survey_id?: number | null;
+  survey_title?: string | null;
+  include_link?: boolean;
+  include_message?: boolean;
+  message_preview?: string | null;
+  summary: {
+    targeted: number;
+    sent: number;
+    failed: number;
+    skipped: number;
+  };
+};
+
+export type MessageHistoryResponse = {
+  ok: boolean;
+  posting_id: number;
+  page: number;
+  page_size: number;
+  total: number;
+  events: MessageEvent[];
+};
+
+export type SurveySendBody = {
+  include_message?: boolean;
+  message_text?: string;
+  dry_run?: boolean;
+  force_resend?: boolean;
+  limit?: number;
+};
+
+export type SurveySendResults = {
+  participants_found: number;
+  recipients_created: number;
+  recipients_existing: number;
+  message_recipients_created: number;
+  emails_attempted: number;
+  emails_succeeded: number;
+  emails_failed: number;
+};
+
+export type SurveySendResponse = {
+  ok: boolean;
+  survey_id: number;
+  message_event_id?: number;
+  results: SurveySendResults;
+  errors: { code: string; message: string; details?: any }[];
 };
 
 export type ApiError = {

@@ -54,6 +54,9 @@ export default function CreateSurveyPage() {
   const [title, setTitle] = useState("");
   const [prefillUrl, setPrefillUrl] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [confirmedEmail, setConfirmedEmail] = useState(false);
+  const [includeMessage, setIncludeMessage] = useState(false);
+  const [messageText, setMessageText] = useState("");
 
   const [titleError, setTitleError] = useState<string | null>(null);
   const [urlError, setUrlError] = useState<string | null>(null);
@@ -107,6 +110,8 @@ export default function CreateSurveyPage() {
     title.trim().length > 0 &&
     prefillUrl.trim().length > 0 &&
     confirmed &&
+    confirmedEmail &&
+    (!includeMessage || messageText.trim().length > 0) &&
     !submitting;
 
   return (
@@ -215,7 +220,7 @@ export default function CreateSurveyPage() {
             )}
           </View>
 
-          {/* Compliance Checkbox */}
+          {/* Compliance Checkbox 1 */}
           <TouchableOpacity
             style={styles.checkboxRow}
             onPress={() => setConfirmed((c) => !c)}
@@ -236,6 +241,87 @@ export default function CreateSurveyPage() {
                 "Get pre-filled link"
               </Text>{" "}
               option in Google Forms.
+            </Text>
+          </TouchableOpacity>
+
+          {/* Email Options */}
+          <Text style={styles.formSectionTitle}>Email Options</Text>
+          <Text style={styles.sectionNote}>
+            These settings apply when you dispatch this survey to participants.
+            You can change them at any time on the Dispatch page.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => setIncludeMessage((v) => !v)}
+          >
+            <View style={[styles.checkbox, includeMessage && styles.checkboxChecked]}>
+              {includeMessage && <Text style={styles.checkboxMark}>✓</Text>}
+            </View>
+            <Text style={styles.checkboxLabel}>
+              Include a custom message in the survey invite email
+            </Text>
+          </TouchableOpacity>
+
+          {includeMessage && (
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Custom Message</Text>
+              <TextInput
+                style={[styles.input, styles.inputMultiline]}
+                placeholder="e.g. Thank you for participating. Please complete this short survey at your earliest convenience."
+                placeholderTextColor={palette.light.text.muted}
+                value={messageText}
+                onChangeText={setMessageText}
+                multiline
+                numberOfLines={4}
+              />
+              <Text style={styles.fieldHint}>
+                Keep your message professional and free of personal identifiers.
+              </Text>
+            </View>
+          )}
+
+          {/* Email Preview */}
+          <Text style={styles.formSectionTitle}>Email Preview</Text>
+          <Text style={styles.sectionNote}>
+            This is how your survey invite email will appear to participants.
+          </Text>
+          <View style={styles.emailPreviewCard}>
+            <View style={styles.emailPreviewRow}>
+              <Text style={styles.emailPreviewField}>Subject</Text>
+              <Text style={styles.emailPreviewValue}>
+                {title.trim() ? `${title.trim()} – Survey Invite` : "[Survey Title] – Survey Invite"}
+              </Text>
+            </View>
+            <View style={styles.emailPreviewDivider} />
+            <Text style={styles.emailPreviewBody}>
+              {"Hi,\n\nYou have been invited to participate in a survey as part of a research study.\n\n"}
+              {includeMessage && messageText.trim()
+                ? `${messageText.trim()}\n\n`
+                : ""}
+              {"Please click the link below to access your personalised survey:\n\n"}
+              <Text style={styles.emailPreviewLink}>[Your unique survey link]</Text>
+              {"\n\nThis link is unique to you. Do not share it with others.\n\nThank you for your participation."}
+            </Text>
+            <View style={styles.emailPreviewNote}>
+              <Text style={styles.emailPreviewNoteText}>
+                Participant pseudonymous IDs are embedded in the link — they will not appear in the email body.
+              </Text>
+            </View>
+          </View>
+
+          {/* Compliance Checkbox 2 */}
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => setConfirmedEmail((c) => !c)}
+          >
+            <View style={[styles.checkbox, confirmedEmail && styles.checkboxChecked]}>
+              {confirmedEmail && <Text style={styles.checkboxMark}>✓</Text>}
+            </View>
+            <Text style={styles.checkboxLabel}>
+              I confirm that the email content is appropriate for participants and contains{" "}
+              <Text style={{ fontWeight: "700" }}>no sensitive or identifying information</Text>{" "}
+              beyond what is shown in the preview above.
             </Text>
           </TouchableOpacity>
 
@@ -504,6 +590,67 @@ const styles = StyleSheet.create({
 
   backBtn: { alignSelf: "flex-start", paddingVertical: 8 },
   backBtnText: { fontSize: 14, color: palette.light.text.muted, fontWeight: "600" },
+
+  sectionNote: {
+    fontSize: 13,
+    color: palette.light.text.muted,
+    lineHeight: 18,
+    marginTop: -8,
+  },
+
+  emailPreviewCard: {
+    borderWidth: 1,
+    borderColor: palette.light.border,
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: palette.light.surface,
+  },
+  emailPreviewRow: {
+    flexDirection: "row",
+    gap: 8,
+    padding: 12,
+    backgroundColor: Colors.light.background,
+    alignItems: "flex-start",
+  },
+  emailPreviewField: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: palette.light.text.muted,
+    width: 54,
+    paddingTop: 1,
+  },
+  emailPreviewValue: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.light.text,
+    fontWeight: "600",
+  },
+  emailPreviewDivider: {
+    height: 1,
+    backgroundColor: palette.light.border,
+  },
+  emailPreviewBody: {
+    padding: 14,
+    fontSize: 13,
+    color: Colors.light.text,
+    lineHeight: 20,
+  },
+  emailPreviewLink: {
+    color: palette.light.primary,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
+  emailPreviewNote: {
+    backgroundColor: "#FEF9C3",
+    borderTopWidth: 1,
+    borderTopColor: "#FDE68A",
+    padding: 10,
+  },
+  emailPreviewNoteText: {
+    fontSize: 12,
+    color: "#92400E",
+    lineHeight: 16,
+  },
 
   /* Modal */
   modalOverlay: {

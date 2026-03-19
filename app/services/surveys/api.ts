@@ -11,6 +11,10 @@ import type {
   DispatchViewResponse,
   DispatchBody,
   DispatchResponse,
+  SurveySendBody,
+  SurveySendResponse,
+  MessageHistoryResponse,
+  MessageEventDetailResponse,
 } from './types';
 
 declare const __DEV__: boolean;
@@ -183,6 +187,52 @@ export async function surveyDispatchView(
     ...data,
     surveys: (data.surveys ?? []).map(normalizeSurvey),
   };
+}
+
+// ---------------------------------------------------------------------------
+// API: survey_dispatch (POST)
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// API: message_history_by_posting/{postingId}
+// ---------------------------------------------------------------------------
+
+export async function messageHistoryGet(
+  messageEventId: number | string
+): Promise<MessageEventDetailResponse> {
+  const u = buildUrl(`message_history_get/${messageEventId}`);
+  if (__DEV__) console.log('[messageHistoryGet] GET', u);
+  const res = await fetchWithAuth(u, { method: 'GET' });
+  return handleResponse<MessageEventDetailResponse>(res, 'messageHistoryGet');
+}
+
+export async function messageHistoryByPosting(
+  postingId: number | string,
+  params?: {
+    survey_id?: number | string;
+    event_source?: string;
+    page?: number;
+    page_size?: number;
+  }
+): Promise<MessageHistoryResponse> {
+  const u = buildUrl(`message_history_by_posting/${postingId}`, params as Record<string, unknown>);
+  if (__DEV__) console.log('[messageHistoryByPosting] GET', u);
+  const res = await fetchWithAuth(u, { method: 'GET' });
+  return handleResponse<MessageHistoryResponse>(res, 'messageHistoryByPosting');
+}
+
+// ---------------------------------------------------------------------------
+// API: survey_send/{surveyId} (POST) — bulk send to all enrolled
+// ---------------------------------------------------------------------------
+
+export async function surveySend(
+  surveyId: number | string,
+  body: SurveySendBody
+): Promise<SurveySendResponse> {
+  const u = buildUrl(`survey_send/${surveyId}`);
+  if (__DEV__) console.log('[surveySend] POST', u, body);
+  const res = await fetchWithAuth(u, { method: 'POST', body: JSON.stringify(body) });
+  return handleResponse<SurveySendResponse>(res, 'surveySend');
 }
 
 // ---------------------------------------------------------------------------

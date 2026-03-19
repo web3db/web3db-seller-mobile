@@ -14,11 +14,13 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useAuth } from "@/hooks/AuthContext";
 import {
   surveyListByPosting,
   surveyDispatchView,
   surveyDispatch,
 } from "../../../services/surveys/api";
+import { getTrnPostingDetail } from "../../../services/postings/api";
 import type {
   Survey,
   DispatchViewResponse,
@@ -73,6 +75,16 @@ export default function DispatchCenterPage() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isNarrow = width < 720;
+  const { user } = useAuth();
+
+  // ── Study name (for email preview) ─────────────────────────────
+  const [studyName, setStudyName] = useState<string>("");
+  useEffect(() => {
+    if (!studyId || !user?.id) return;
+    getTrnPostingDetail(user.id, studyId)
+      .then((d) => { if (d?.title) setStudyName(d.title); })
+      .catch(() => {});
+  }, [studyId, user?.id]);
 
   // ── Surveys ────────────────────────────────────────────────────
   const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -100,6 +112,11 @@ export default function DispatchCenterPage() {
 
   // ── Search ────────────────────────────────────────────────────
   const [participantSearch, setParticipantSearch] = useState("");
+
+  // ── Email options ─────────────────────────────────────────────
+  const [includeLink, setIncludeLink] = useState(true);
+  const [includeMessage, setIncludeMessage] = useState(false);
+  const [messageText, setMessageText] = useState("");
 
   // ── Dispatch state ────────────────────────────────────────────
   const [showConfirm, setShowConfirm] = useState(false);
@@ -240,10 +257,12 @@ export default function DispatchCenterPage() {
   const pairCount = selectedSurveyIds.size * selectedParticipantIds.size;
   const PAIR_CAP = 10_000;
   const overCap = pairCount > PAIR_CAP;
+  const messageValid = !includeMessage || messageText.trim().length > 0;
   const canDispatch =
     selectedSurveyIds.size > 0 &&
     selectedParticipantIds.size > 0 &&
     !overCap &&
+    messageValid &&
     !dispatching;
 
   // ── Dispatch ─────────────────────────────────────────────────
@@ -260,6 +279,11 @@ export default function DispatchCenterPage() {
         user_ids: userIds,
         mode,
         dry_run: false,
+        include_link: includeLink,
+        include_message: includeMessage,
+        ...(includeMessage && messageText.trim()
+          ? { message_text: messageText.trim() }
+          : {}),
       });
       setDispatchResult(res);
       setShowConfirm(false);
@@ -304,6 +328,12 @@ export default function DispatchCenterPage() {
               onPress={() => router.push(`/studies/${studyId}/surveys/create`)}
             >
               <Text style={dStyles.btnSecondaryText}>+ Create Survey</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={dStyles.btnGhost}
+              onPress={() => router.push(`/studies/${studyId}/message-history` as any)}
+            >
+              <Text style={dStyles.btnGhostText}>Message History</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={dStyles.btnGhost}
@@ -538,32 +568,56 @@ export default function DispatchCenterPage() {
                   {participantSearch ? "No matches." : "No enrolled participants."}
                 </Text>
               ) : (
-                filteredParticipants.map((p) => (
-                  <TouchableOpacity
-                    key={p.participant_id}
-                    style={[
-                      dStyles.checkRow,
-                      selectedParticipantIds.has(p.participant_id) &&
-                        dStyles.checkRowSelected,
-                    ]}
-                    onPress={() => toggleParticipant(p.participant_id)}
-                  >
-                    <View
+                filteredParticipants.map((p) => {
+                  const hasUserId = p.user_id != null;
+                  return (
+                    <TouchableOpacity
+                      key={p.participant_id}
                       style={[
-                        dStyles.checkBox,
+                        dStyles.checkRow,
                         selectedParticipantIds.has(p.participant_id) &&
-                          dStyles.checkBoxChecked,
+                          dStyles.checkRowSelected,
+                        !hasUserId && dStyles.checkRowDisabled,
                       ]}
+                      onPress={() => hasUserId && toggleParticipant(p.participant_id)}
+                      disabled={!hasUserId}
                     >
-                      {selectedParticipantIds.has(p.participant_id) && (
-                        <Text style={dStyles.checkMark}>✓</Text>
-                      )}
-                    </View>
-                    <Text style={dStyles.participantId} numberOfLines={1}>
-                      {p.participant_id}
-                    </Text>
-                  </TouchableOpacity>
-                ))
+                      <View
+                        style={[
+                          dStyles.checkBox,
+                          selectedParticipantIds.has(p.participant_id) &&
+                            dStyles.checkBoxChecked,
+                          !hasUserId && dStyles.checkBoxDisabled,
+                        ]}
+                      >
+                        {selectedParticipantIds.has(p.participant_id) && (
+                          <Text style={dStyles.checkMark}>✓</Text>
+                        )}
+                      </View>
+                      <View style={dStyles.checkRowContent}>
+                        <Text style={dStyles.participantId} numberOfLines={1}>
+                          {p.participant_id}
+                        </Text>
+                        <View style={dStyles.participantMeta}>
+                          {hasUserId ? (
+                            <Text style={dStyles.participantUserId}>
+                              UID: {p.user_id}
+                            </Text>
+                          ) : (
+                            <View style={dStyles.notLinkedBadge}>
+                              <Text style={dStyles.notLinkedText}>Not Linked</Text>
+                            </View>
+                          )}
+                          {hasUserId && (
+                            <View style={dStyles.enrolledBadge}>
+                              <Text style={dStyles.enrolledText}>Enrolled</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
               )}
 
               {/* Participant Pagination */}
@@ -675,6 +729,151 @@ export default function DispatchCenterPage() {
           </View>
         )}
 
+        {/* ── Email Options ── */}
+        {dataLoaded && (
+          <View style={dStyles.emailSection}>
+            <Text style={dStyles.emailSectionTitle}>Email Options</Text>
+
+            {/* Include link toggle */}
+            <TouchableOpacity
+              style={dStyles.checkRowOption}
+              onPress={() => setIncludeLink((v) => !v)}
+            >
+              <View style={[dStyles.checkBox, includeLink && dStyles.checkBoxChecked]}>
+                {includeLink && <Text style={dStyles.checkMark}>✓</Text>}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={dStyles.optionLabel}>Include survey link</Text>
+                <Text style={dStyles.optionHint}>
+                  Participants will receive a secure link to open their survey.
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Include custom message toggle */}
+            <TouchableOpacity
+              style={dStyles.checkRowOption}
+              onPress={() => {
+                setIncludeMessage((v) => !v);
+                if (includeMessage) setMessageText("");
+              }}
+            >
+              <View style={[dStyles.checkBox, includeMessage && dStyles.checkBoxChecked]}>
+                {includeMessage && <Text style={dStyles.checkMark}>✓</Text>}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={dStyles.optionLabel}>Include a custom message</Text>
+                <Text style={dStyles.optionHint}>
+                  Add a personal note to the email sent to participants.
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Message text input */}
+            {includeMessage && (
+              <View style={dStyles.messageInputWrap}>
+                <TextInput
+                  style={[
+                    dStyles.messageInput,
+                    !messageText.trim() && dStyles.messageInputError,
+                  ]}
+                  placeholder="Enter your message to participants…"
+                  placeholderTextColor={palette.light.text.muted}
+                  value={messageText}
+                  onChangeText={setMessageText}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+                {!messageText.trim() && (
+                  <Text style={dStyles.fieldError}>
+                    Message is required when "Include a custom message" is checked.
+                  </Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ── Email Preview ── */}
+        {dataLoaded && (
+          <View style={dStyles.previewSection}>
+            <Text style={dStyles.emailSectionTitle}>Email Preview</Text>
+            <Text style={dStyles.previewHint}>
+              Sample preview using placeholder values — no real participant data.
+            </Text>
+
+            {/* Show both previews for SEND_AND_RESEND, single for others */}
+            {(mode === "SEND_MISSING" || mode === "SEND_AND_RESEND") && (
+              <View style={dStyles.previewCard}>
+                <View style={dStyles.previewTemplateBadge}>
+                  <Text style={dStyles.previewTemplateBadgeText}>SURVEY_INVITE</Text>
+                </View>
+                <Text style={dStyles.previewSubjectLabel}>Subject</Text>
+                <Text style={dStyles.previewSubject}>
+                  {`Study ${studyName || studyId} – ${
+                    selectedSurveyIds.size === 1
+                      ? (surveys.find((s) => selectedSurveyIds.has(s.survey_id))?.title ?? "Selected Survey")
+                      : selectedSurveyIds.size > 1
+                      ? `Selected Survey +${selectedSurveyIds.size - 1} more`
+                      : "Selected Survey"
+                  }`}
+                </Text>
+                <Text style={dStyles.previewBodyLabel}>Body</Text>
+                <View style={dStyles.previewBody}>
+                  <Text style={dStyles.previewBodyText}>
+                    {`Hi Participant,\n\nResearcher has invited you to complete the survey:\n\n"${
+                      selectedSurveyIds.size === 1
+                        ? (surveys.find((s) => selectedSurveyIds.has(s.survey_id))?.title ?? "Selected Survey")
+                        : "Selected Survey"
+                    }"\n\nThis survey is part of:\nStudy ${studyName || studyId}`}
+                    {includeMessage && messageText.trim()
+                      ? `\n\n${messageText.trim()}`
+                      : ""}
+                    {includeLink
+                      ? "\n\n[Survey Link Button]"
+                      : "\n\n(No survey link — include_link is off)"}
+                    {"\n\nYour participation is appreciated.\n\nThank you,\nResearcher"}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {(mode === "RESEND_EXISTING" || mode === "SEND_AND_RESEND") && (
+              <View style={[dStyles.previewCard, mode === "SEND_AND_RESEND" && { marginTop: 12 }]}>
+                <View style={[dStyles.previewTemplateBadge, dStyles.previewTemplateBadgeReminder]}>
+                  <Text style={dStyles.previewTemplateBadgeText}>SURVEY_REMINDER</Text>
+                </View>
+                <Text style={dStyles.previewSubjectLabel}>Subject</Text>
+                <Text style={dStyles.previewSubject}>
+                  {`Reminder: ${
+                    selectedSurveyIds.size === 1
+                      ? (surveys.find((s) => selectedSurveyIds.has(s.survey_id))?.title ?? "Selected Survey")
+                      : "Selected Survey"
+                  }`}
+                </Text>
+                <Text style={dStyles.previewBodyLabel}>Body</Text>
+                <View style={dStyles.previewBody}>
+                  <Text style={dStyles.previewBodyText}>
+                    {`Hi Participant,\n\nThis is a reminder from Researcher regarding:\n\n"${
+                      selectedSurveyIds.size === 1
+                        ? (surveys.find((s) => selectedSurveyIds.has(s.survey_id))?.title ?? "Selected Survey")
+                        : "Selected Survey"
+                    }"\n\nIf you have not yet completed the survey, you may access it here:`}
+                    {includeLink
+                      ? "\n\n[Survey Link Button]"
+                      : "\n\n(No survey link — include_link is off)"}
+                    {includeMessage && messageText.trim()
+                      ? `\n\n${messageText.trim()}`
+                      : ""}
+                    {"\n\nIf you have already completed it, please disregard this message.\n\nThank you,\nResearcher"}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* ── Dispatch Action Bar ── */}
         {dataLoaded && (
           <View style={dStyles.actionBar}>
@@ -698,6 +897,11 @@ export default function DispatchCenterPage() {
                 <Text style={dStyles.capWarning}>
                   Exceeds {PAIR_CAP.toLocaleString()} pair limit. Please reduce
                   selection.
+                </Text>
+              )}
+              {!messageValid && (
+                <Text style={dStyles.capWarning}>
+                  A custom message is required when "Include a custom message" is checked.
                 </Text>
               )}
             </View>
@@ -732,6 +936,8 @@ export default function DispatchCenterPage() {
               ["Participants", selectedParticipantIds.size],
               ["Total Pairs", pairCount],
               ["Mode", modeLabels[mode]],
+              ["Survey Link", includeLink ? "Included" : "Not included"],
+              ["Custom Message", includeMessage ? "Included" : "None"],
             ].map(([label, val]) => (
               <View key={String(label)} style={dStyles.modalRow}>
                 <Text style={dStyles.modalRowLabel}>{label}</Text>
@@ -898,7 +1104,28 @@ const dStyles = StyleSheet.create({
   checkRowContent: { flex: 1, gap: 3 },
   checkRowTitle: { fontSize: 14, fontWeight: "600", color: Colors.light.text },
   checkRowMeta: { fontSize: 12, color: palette.light.text.muted },
-  participantId: { flex: 1, fontSize: 13, color: Colors.light.text },
+  participantId: { fontSize: 13, color: Colors.light.text },
+  participantMeta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
+  participantUserId: { fontSize: 11, color: palette.light.text.muted },
+
+  checkRowDisabled: { opacity: 0.45 },
+  checkBoxDisabled: { borderColor: palette.light.border, backgroundColor: palette.light.muted },
+
+  enrolledBadge: {
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  enrolledText: { fontSize: 10, fontWeight: "700", color: "#166534" },
+
+  notLinkedBadge: {
+    backgroundColor: "#FEF2F2",
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  notLinkedText: { fontSize: 10, fontWeight: "700", color: "#DC2626" },
   manageLink: {
     fontSize: 12,
     color: palette.light.primary,
@@ -997,6 +1224,116 @@ const dStyles = StyleSheet.create({
   chipSentText: { color: "#854D0E" },
   chipOpened: { backgroundColor: "#DCFCE7" },
   chipOpenedText: { color: "#166534" },
+
+  // Email Options
+  emailSection: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: palette.light.border,
+    gap: 12,
+  },
+  emailSectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: Colors.light.text,
+  },
+  checkRowOption: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingVertical: 4,
+  },
+  optionLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.light.text,
+  },
+  optionHint: {
+    fontSize: 12,
+    color: palette.light.text.muted,
+    marginTop: 2,
+  },
+  messageInputWrap: { gap: 4 },
+  messageInput: {
+    borderWidth: 1,
+    borderColor: palette.light.border,
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 13,
+    color: Colors.light.text,
+    backgroundColor: Colors.light.background,
+    minHeight: 90,
+  },
+  messageInputError: { borderColor: "#DC2626" },
+  fieldError: { fontSize: 12, color: "#DC2626" },
+
+  // Email Preview
+  previewSection: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: palette.light.border,
+    gap: 12,
+  },
+  previewHint: { fontSize: 12, color: palette.light.text.muted },
+  previewCard: {
+    backgroundColor: palette.light.surface,
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: palette.light.border,
+    gap: 6,
+  },
+  previewTemplateBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#DBEAFE",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  previewTemplateBadgeReminder: { backgroundColor: "#FEF9C3" },
+  previewTemplateBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#1E40AF",
+    letterSpacing: 0.5,
+  },
+  previewSubjectLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: palette.light.text.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  previewSubject: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: Colors.light.text,
+  },
+  previewBodyLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: palette.light.text.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginTop: 6,
+  },
+  previewBody: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 6,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: palette.light.border,
+  },
+  previewBodyText: {
+    fontSize: 12,
+    color: Colors.light.text,
+    lineHeight: 18,
+  },
 
   // Mode Selector
   modeSection: {

@@ -22,7 +22,7 @@ export async function getTrnPostingDetail(
 
   const res = await fetch(u, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(),
     mode: "cors",
   });
 
@@ -131,7 +131,11 @@ export async function getTrnPostingDetail(
     healthConditions: Array.isArray(detail.healthConditions)
       ? detail.healthConditions
       : [],
-    tags: Array.isArray(detail.tags) ? detail.tags : [],
+    tags: Array.isArray(detail.tags)
+      ? detail.tags.map((t: any) =>
+          typeof t === 'string' ? t : (t.displayName ?? String(t.tagId ?? t))
+        )
+      : [],
     images: Array.isArray(detail.images) ? detail.images : [],
 
     isActive: Boolean(detail.isActive ?? true),
@@ -185,6 +189,20 @@ function buildUrl(name: string, qs?: Record<string, unknown>) {
   return `${FUNCTIONS_BASE}/${clean}${buildQuery(qs)}`;
 }
 
+const SUPABASE_ANON_KEY =
+  (typeof process !== "undefined" &&
+    process.env?.EXPO_PUBLIC_SUPABASE_ANON_KEY) ||
+  "";
+
+function authHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    ...(SUPABASE_ANON_KEY
+      ? { Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      : {}),
+  };
+}
+
 /**
  * Maps the raw Supabase PostgREST/Edge Function data to the application's internal 'Study' type.
  * In a real app, this would be in a separate mapper.ts file.
@@ -233,10 +251,7 @@ export async function listTrnPostings(
 
   const res = await fetch(u, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      // You would typically include Authorization headers here if required
-    },
+    headers: authHeaders(),
     // browsers will set Origin automatically on cross-origin requests; include this option for clarity
     mode: "cors",
   });
@@ -281,7 +296,7 @@ export async function updateTrnPosting(
 
   const res = await fetch(u, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(),
     // **FIX**: Send the payload directly without adding postingId to it.
     body: JSON.stringify(payload),
     mode: "cors",
@@ -309,10 +324,7 @@ export async function createTrnPosting(
 
   const res = await fetch(u, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      // You would typically include Authorization headers here if required
-    },
+    headers: authHeaders(),
     body: JSON.stringify(params),
   });
 
@@ -348,9 +360,7 @@ export async function listMetrics(): Promise<Metric[]> {
 
   const res = await fetch(u, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: authHeaders(),
     mode: "cors",
   });
 
@@ -394,7 +404,7 @@ export async function listPostingStatuses(): Promise<PostingStatus[]> {
 
   const res = await fetch(u, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(),
     mode: "cors",
   });
 
@@ -429,7 +439,7 @@ export async function listRewardTypes(): Promise<RewardType[]> {
 
   const res = await fetch(u, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(),
     mode: "cors",
   });
 
@@ -464,7 +474,7 @@ export async function listHealthConditions(): Promise<HealthCondition[]> {
 
   const res = await fetch(u, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(),
     mode: "cors",
   });
 
@@ -509,7 +519,7 @@ export async function getPostingShares(
 
   const res = await fetch(u, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(),
     mode: "cors",
   });
 
