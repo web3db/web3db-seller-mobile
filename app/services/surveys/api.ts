@@ -73,7 +73,7 @@ function normalizeSurvey(s: any) {
     posting_id: s.posting_id ?? s.PostingId,
     created_by: s.created_by ?? s.CreatedBy,
     title: s.title ?? s.Title,
-    google_form_responder_url: s.google_form_responder_url ?? s.GoogleFormResponderUrl,
+    google_form_responder_url: s.google_form_responder_url ?? s.FormResponderUrl ?? s.GoogleFormResponderUrl,
     prefill_entry_key: s.prefill_entry_key ?? s.PrefillEntryKey,
     is_active: s.is_active ?? s.IsActive,
     created_on: s.created_on ?? s.CreatedOn,

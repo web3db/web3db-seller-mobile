@@ -201,7 +201,7 @@ export default function SurveyManagePage() {
             </View>
             {survey.google_form_responder_url && (
               <View style={styles.urlRow}>
-                <Text style={styles.infoKey}>Google Form URL</Text>
+                <Text style={styles.infoKey}>Form URL</Text>
                 <Text style={styles.urlVal} numberOfLines={3} selectable>
                   {survey.google_form_responder_url}
                 </Text>

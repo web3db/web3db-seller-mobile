@@ -96,7 +96,7 @@ function SurveysTabContent({
       <View style={surveyStyles.header}>
         <Text style={surveyStyles.headerTitle}>Surveys</Text>
         <Text style={surveyStyles.headerSubtitle}>
-          Send Google Form surveys to enrolled participants via email
+          Send surveys to enrolled participants via email
         </Text>
       </View>
 
@@ -135,7 +135,7 @@ function SurveysTabContent({
         <View style={surveyStyles.emptyState}>
           <Text style={surveyStyles.emptyTitle}>No surveys yet</Text>
           <Text style={surveyStyles.emptySubtitle}>
-            Create a Google Form survey to send to participants via email.
+            Create a survey to send to participants via email.
           </Text>
           <TouchableOpacity
             style={surveyStyles.actionBtnPrimary}

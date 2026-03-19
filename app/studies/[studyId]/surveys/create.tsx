@@ -19,21 +19,16 @@ import { surveyCreate } from "../../../services/surveys/api";
 declare const __DEV__: boolean;
 
 /**
- * Validates a Google pre-filled URL:
+ * Validates a pre-filled form URL:
  * - Must be a valid URL
- * - Hostname must be docs.google.com
  * - Must have exactly one entry.<digits> param
  */
 function validatePrefillUrl(url: string): string | null {
   if (!url.trim()) return "URL is required.";
-  let parsed: URL;
   try {
-    parsed = new URL(url.trim());
+    new URL(url.trim());
   } catch {
-    return "Must be a valid URL (e.g. https://docs.google.com/forms/…).";
-  }
-  if (parsed.hostname !== "docs.google.com") {
-    return "URL must be from docs.google.com.";
+    return "Must be a valid URL.";
   }
   const entryMatches = url.match(/entry\.\d+/g) ?? [];
   if (entryMatches.length === 0) {
@@ -128,20 +123,20 @@ export default function CreateSurveyPage() {
         {/* Instruction Section */}
         <View style={styles.card}>
           <Text style={styles.instructionHeading}>
-            How to set up your Google Form survey
+            How to set up your survey form
           </Text>
           {[
             {
               step: "1",
-              text: 'Open your Google Form and add a "Short answer" question titled Participant ID. Mark it as Required.',
+              text: 'In your form, add a "Short answer" question titled Participant ID. Mark it as Required.',
             },
             {
               step: "2",
-              text: 'Click the three-dot menu in the top right → "Get pre-filled link". Fill in a placeholder value (e.g. TEST) for the Participant ID question.',
+              text: 'Generate a pre-filled link for your form. Fill in a placeholder value (e.g. TEST) for the Participant ID question.',
             },
             {
               step: "3",
-              text: 'Click "Get Link" and copy the URL — it will contain entry.XXXXXXXXX=TEST in the query string.',
+              text: 'Copy the pre-filled URL — it will contain entry.XXXXXXXXX=TEST in the query string.',
             },
             {
               step: "4",
@@ -192,7 +187,7 @@ export default function CreateSurveyPage() {
           {/* Prefill URL Field */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
-              Google Pre-filled URL <Text style={styles.required}>*</Text>
+              Pre-filled Form URL <Text style={styles.required}>*</Text>
             </Text>
             <TextInput
               style={[
@@ -200,7 +195,7 @@ export default function CreateSurveyPage() {
                 styles.inputMultiline,
                 urlError ? styles.inputError : null,
               ]}
-              placeholder="https://docs.google.com/forms/d/e/.../viewform?usp=pp_url&entry.123456789=TEST"
+              placeholder="https://your-form-provider.com/form?entry.123456789=TEST"
               placeholderTextColor={palette.light.text.muted}
               value={prefillUrl}
               onChangeText={(t) => {
@@ -234,13 +229,13 @@ export default function CreateSurveyPage() {
               {confirmed && <Text style={styles.checkboxMark}>✓</Text>}
             </View>
             <Text style={styles.checkboxLabel}>
-              I confirm that my Google Form includes a required{" "}
+              I confirm that my form includes a required{" "}
               <Text style={{ fontWeight: "700" }}>Participant ID</Text> field
-              and that I generated this link using the{" "}
+              and that I generated this link using my form builder's{" "}
               <Text style={{ fontStyle: "italic" }}>
-                "Get pre-filled link"
+                pre-filled link
               </Text>{" "}
-              option in Google Forms.
+              feature.
             </Text>
           </TouchableOpacity>
 
@@ -388,7 +383,7 @@ export default function CreateSurveyPage() {
               <Text style={styles.modalDetailValue}>#{studyId}</Text>
             </View>
             <Text style={styles.modalNote}>
-              The Google Form URL will be stored and used to generate
+              The form URL will be stored and used to generate
               personalised links for each participant when you dispatch.
             </Text>
             <View style={styles.modalActions}>
