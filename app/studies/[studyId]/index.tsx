@@ -96,7 +96,7 @@ function SurveysTabContent({
       <View style={surveyStyles.header}>
         <Text style={surveyStyles.headerTitle}>Surveys</Text>
         <Text style={surveyStyles.headerSubtitle}>
-          Send surveys to enrolled participants via email
+          Manage surveys for this study. Create, dispatch, and monitor survey participation.
         </Text>
       </View>
 

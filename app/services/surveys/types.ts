@@ -221,3 +221,23 @@ export type ApiError = {
   message: string;
   details: any;
 };
+
+export type SurveyEmailPreviewBody = {
+  template_key: 'SURVEY_INVITE' | 'SURVEY_REMINDER';
+  posting_id: number;
+  survey_id?: number;
+  include_link?: boolean;
+  include_message?: boolean;
+  message_text?: string;
+  preview_user_id?: number;
+};
+
+export type SurveyEmailPreviewResponse = {
+  ok: boolean;
+  preview: {
+    subject: string;
+    html_body: string;
+    text_body: string;
+  };
+  placeholders?: Record<string, string>;
+};

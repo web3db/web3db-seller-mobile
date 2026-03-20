@@ -599,11 +599,7 @@ export default function DispatchCenterPage() {
                           {p.participant_id}
                         </Text>
                         <View style={dStyles.participantMeta}>
-                          {hasUserId ? (
-                            <Text style={dStyles.participantUserId}>
-                              UID: {p.user_id}
-                            </Text>
-                          ) : (
+                          {!hasUserId && (
                             <View style={dStyles.notLinkedBadge}>
                               <Text style={dStyles.notLinkedText}>Not Linked</Text>
                             </View>
@@ -803,7 +799,6 @@ export default function DispatchCenterPage() {
               Sample preview using placeholder values — no real participant data.
             </Text>
 
-            {/* Show both previews for SEND_AND_RESEND, single for others */}
             {(mode === "SEND_MISSING" || mode === "SEND_AND_RESEND") && (
               <View style={dStyles.previewCard}>
                 <View style={dStyles.previewTemplateBadge}>
@@ -1106,7 +1101,6 @@ const dStyles = StyleSheet.create({
   checkRowMeta: { fontSize: 12, color: palette.light.text.muted },
   participantId: { fontSize: 13, color: Colors.light.text },
   participantMeta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
-  participantUserId: { fontSize: 11, color: palette.light.text.muted },
 
   checkRowDisabled: { opacity: 0.45 },
   checkBoxDisabled: { borderColor: palette.light.border, backgroundColor: palette.light.muted },

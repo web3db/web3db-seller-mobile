@@ -159,7 +159,7 @@ export default function SurveysListPage() {
         {/* Table / Card List */}
         {!loading && filteredSurveys.length === 0 && !error && (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No surveys found</Text>
+            <Text style={styles.emptyTitle}>No surveys created for this study.</Text>
             <Text style={styles.emptySubtitle}>
               {searchText
                 ? "Try a different search term."

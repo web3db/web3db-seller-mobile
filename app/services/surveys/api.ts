@@ -15,6 +15,8 @@ import type {
   SurveySendResponse,
   MessageHistoryResponse,
   MessageEventDetailResponse,
+  SurveyEmailPreviewBody,
+  SurveyEmailPreviewResponse,
 } from './types';
 
 declare const __DEV__: boolean;
@@ -238,6 +240,17 @@ export async function surveySend(
 // ---------------------------------------------------------------------------
 // API: survey_dispatch (POST)
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// API: survey_email_preview (POST) — read-only preview, no emails sent
+// ---------------------------------------------------------------------------
+
+export async function surveyEmailPreview(body: SurveyEmailPreviewBody): Promise<SurveyEmailPreviewResponse> {
+  const u = buildUrl('survey_email_preview');
+  if (__DEV__) console.log('[surveyEmailPreview] POST', u, { template_key: body.template_key });
+  const res = await fetchWithAuth(u, { method: 'POST', body: JSON.stringify(body) });
+  return handleResponse<SurveyEmailPreviewResponse>(res, 'surveyEmailPreview');
+}
 
 export async function surveyDispatch(body: DispatchBody): Promise<DispatchResponse> {
   const u = buildUrl('survey_dispatch');
