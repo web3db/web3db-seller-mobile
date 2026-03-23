@@ -23,7 +23,7 @@ export async function getTrnPostingDetail(
 
   const res = await fetch(u, {
     method: "GET",
-    headers: authHeaders(),
+    headers: { "Content-Type": "application/json" },
     mode: "cors",
   });
 
@@ -132,11 +132,7 @@ export async function getTrnPostingDetail(
     healthConditions: Array.isArray(detail.healthConditions)
       ? detail.healthConditions
       : [],
-    tags: Array.isArray(detail.tags)
-      ? detail.tags.map((t: any) =>
-          typeof t === 'string' ? t : (t.displayName ?? String(t.tagId ?? t))
-        )
-      : [],
+    tags: Array.isArray(detail.tags) ? detail.tags : [],
     images: Array.isArray(detail.images) ? detail.images : [],
 
     isActive: Boolean(detail.isActive ?? true),
@@ -190,20 +186,6 @@ function buildUrl(name: string, qs?: Record<string, unknown>) {
   return `${FUNCTIONS_BASE}/${clean}${buildQuery(qs)}`;
 }
 
-const SUPABASE_ANON_KEY =
-  (typeof process !== "undefined" &&
-    process.env?.EXPO_PUBLIC_SUPABASE_ANON_KEY) ||
-  "";
-
-function authHeaders(): Record<string, string> {
-  return {
-    "Content-Type": "application/json",
-    ...(SUPABASE_ANON_KEY
-      ? { Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
-      : {}),
-  };
-}
-
 /**
  * Maps the raw Supabase PostgREST/Edge Function data to the application's internal 'Study' type.
  * In a real app, this would be in a separate mapper.ts file.
@@ -222,16 +204,45 @@ function mapRawToStudy(raw: PostingDTO): StudySummary {
     anyRaw.PostingStatusID ??
     0;
 
+  // Normalize metrics: API returns [{id, displayName}]
+  const rawMetrics = Array.isArray(anyRaw.metrics) ? anyRaw.metrics : [];
+  const metrics = rawMetrics.map((m: any) => ({
+    id: Number(m.id ?? m.metricId ?? 0),
+    displayName: String(m.displayName ?? m.display_name ?? ""),
+  }));
+
+  // Normalize health conditions: API returns [{id, displayName}]
+  const rawHC = Array.isArray(anyRaw.healthConditions) ? anyRaw.healthConditions : [];
+  const healthConditions = rawHC.map((hc: any) => ({
+    id: Number(hc.id ?? hc.healthConditionId ?? 0),
+    displayName: String(hc.displayName ?? hc.display_name ?? ""),
+  }));
+
+  // Normalize tags: API returns string[] or [{displayName}]
+  const rawTags = Array.isArray(anyRaw.tags) ? anyRaw.tags : [];
+  const tags = rawTags.map((t: any) =>
+    typeof t === "string" ? t : String(t.displayName ?? t.display_name ?? t.name ?? "")
+  ).filter((s: string) => s.length > 0);
+
   return {
     id,
     title,
     summary,
     description,
     statusId,
-    // Mocking display fields as they are not available from the raw PostgREST data here
+    statusDisplayName: String(anyRaw.postingStatusDisplayName ?? anyRaw.PostingStatusDisplayName ?? ""),
     organizer: anyRaw.buyerDisplayName ?? "Web3Health",
-    // 'spots' doesn't exist on the API response; keep a reasonable default so UI math works
     spots: typeof anyRaw.spots === "number" ? anyRaw.spots : 0,
+
+    rewardTypeDisplayName: anyRaw.rewardTypeDisplayName ?? null,
+    dataCoverageDaysRequired:
+      anyRaw.dataCoverageDaysRequired != null ? Number(anyRaw.dataCoverageDaysRequired) : null,
+    minAge: anyRaw.minAge != null ? Number(anyRaw.minAge) : null,
+    applyOpenAt: anyRaw.applyOpenAt ?? null,
+    applyCloseAt: anyRaw.applyCloseAt ?? null,
+    metrics,
+    healthConditions,
+    tags,
   };
 }
 
@@ -252,7 +263,10 @@ export async function listTrnPostings(
 
   const res = await fetch(u, {
     method: "GET",
-    headers: authHeaders(),
+    headers: {
+      "Content-Type": "application/json",
+      // You would typically include Authorization headers here if required
+    },
     // browsers will set Origin automatically on cross-origin requests; include this option for clarity
     mode: "cors",
   });
@@ -297,7 +311,7 @@ export async function updateTrnPosting(
 
   const res = await fetch(u, {
     method: "PATCH",
-    headers: authHeaders(),
+    headers: { "Content-Type": "application/json" },
     // **FIX**: Send the payload directly without adding postingId to it.
     body: JSON.stringify(payload),
     mode: "cors",
@@ -325,7 +339,10 @@ export async function createTrnPosting(
 
   const res = await fetch(u, {
     method: "POST",
-    headers: authHeaders(),
+    headers: {
+      "Content-Type": "application/json",
+      // You would typically include Authorization headers here if required
+    },
     body: JSON.stringify(payload),
   });
 
@@ -361,7 +378,9 @@ export async function listMetrics(): Promise<Metric[]> {
 
   const res = await fetch(u, {
     method: "GET",
-    headers: authHeaders(),
+    headers: {
+      "Content-Type": "application/json",
+    },
     mode: "cors",
   });
 
@@ -405,7 +424,7 @@ export async function listPostingStatuses(): Promise<PostingStatus[]> {
 
   const res = await fetch(u, {
     method: "GET",
-    headers: authHeaders(),
+    headers: { "Content-Type": "application/json" },
     mode: "cors",
   });
 
@@ -440,7 +459,7 @@ export async function listRewardTypes(): Promise<RewardType[]> {
 
   const res = await fetch(u, {
     method: "GET",
-    headers: authHeaders(),
+    headers: { "Content-Type": "application/json" },
     mode: "cors",
   });
 
@@ -476,7 +495,7 @@ export async function listViewPolicies(): Promise<ViewPolicy[]> {
 
   const res = await fetch(u, {
     method: "GET",
-    headers: authHeaders(),
+    headers: { "Content-Type": "application/json" },
     mode: "cors",
   });
 
@@ -517,7 +536,7 @@ export async function listHealthConditions(): Promise<HealthCondition[]> {
 
   const res = await fetch(u, {
     method: "GET",
-    headers: authHeaders(),
+    headers: { "Content-Type": "application/json" },
     mode: "cors",
   });
 
@@ -562,7 +581,7 @@ export async function getPostingShares(
 
   const res = await fetch(u, {
     method: "GET",
-    headers: authHeaders(),
+    headers: { "Content-Type": "application/json" },
     mode: "cors",
   });
 
