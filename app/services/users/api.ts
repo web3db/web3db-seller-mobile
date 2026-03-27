@@ -288,7 +288,21 @@ export async function updateUser(
   const res = await fetch(u, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      userId: Number(userId),
+      ...(payload.name !== undefined && { Name: payload.name }),
+      ...(payload.email !== undefined && { Email: payload.email }),
+      ...(payload.birthYear !== undefined && { BirthYear: payload.birthYear }),
+      ...(payload.raceId !== undefined && { RaceId: payload.raceId }),
+      ...(payload.sexId !== undefined && { SexId: payload.sexId }),
+      ...(payload.heightNum !== undefined && { HeightNum: payload.heightNum }),
+      ...(payload.heightUnitId !== undefined && { HeightUnitId: payload.heightUnitId }),
+      ...(payload.weightNum !== undefined && { WeightNum: payload.weightNum }),
+      ...(payload.weightUnitId !== undefined && { WeightUnitId: payload.weightUnitId }),
+      ...(payload.measurementSystemId !== undefined && { MeasurementSystemId: payload.measurementSystemId }),
+      ...(payload.roleId !== undefined && { RoleId: payload.roleId }),
+      ...(payload.isActive !== undefined && { IsActive: payload.isActive }),
+    }),
   });
 
   if (!res.ok) {
@@ -303,7 +317,8 @@ export async function updateUser(
   const json = await res.json().catch(() => null);
   if (!json) throw new Error('users_update API returned no data');
 
-  return mapDtoToUser(json);
+  const dto = json.user ?? json.data ?? json;
+  return mapDtoToUser(dto);
 }
 
 
