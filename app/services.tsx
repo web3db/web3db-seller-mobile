@@ -809,16 +809,28 @@ export default function HowItWorks() {
                 <span style={webStyles.ctaCardBody}>
                   Web3Health is a mobile app for iOS and Android. Download it to connect your health data, browse active studies, and participate entirely on your own terms.
                 </span>
-                <a
-                  className="hiw-cta-btn-primary"
-                  style={{ ...webStyles.ctaButtonPrimary, display: 'inline-flex', alignItems: 'center', gap: 8 }}
-                  href="https://apps.apple.com/us/app/web3health-sensorweb/id6756590982"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Ionicons name="logo-apple" size={18} color="#FFFFFF" />
-                  Download on the App Store
-                </a>
+                <div style={{ display: 'flex', flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+                  <a
+                    className="hiw-cta-btn-primary"
+                    style={{ ...webStyles.ctaButtonPrimary, display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                    href="https://apps.apple.com/us/app/web3health-sensorweb/id6756590982"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Ionicons name="logo-apple" size={18} color="#FFFFFF" />
+                    App Store
+                  </a>
+                  <a
+                    className="hiw-cta-btn-primary"
+                    style={{ ...webStyles.ctaButtonPrimary, display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                    href="https://play.google.com/store/apps/details?id=org.sensorweb.Web3Health"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Ionicons name="logo-google-playstore" size={18} color="#FFFFFF" />
+                    Google Play
+                  </a>
+                </div>
               </div>
 
               {/* Institution CTA */}

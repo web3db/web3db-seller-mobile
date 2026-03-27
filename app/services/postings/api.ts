@@ -300,6 +300,32 @@ export async function listTrnPostings(
   return items; // Returns the mapped array of Study objects
 }
 
+/** DELETE (soft) - sets IsActive = false via the Edge Function 'buyers_postings_delete' */
+export async function deleteTrnPosting(
+  buyerId: number,
+  postingId: number | string
+): Promise<void> {
+  const u = buildUrl(`buyers_postings_delete/${buyerId}/${postingId}`);
+  if (__DEV__) console.log("[deleteTrnPosting] DELETE", u);
+
+  const res = await fetch(u, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    mode: "cors",
+  });
+
+  if (!res.ok && res.status !== 204) {
+    const txt = await res.text().catch(() => "");
+    if (__DEV__)
+      console.warn("[deleteTrnPosting] ✗", res.status, res.statusText, txt);
+    throw new Error(
+      `buyers_postings_delete API failed: ${res.status} ${res.statusText} ${txt}`
+    );
+  }
+
+  if (__DEV__) console.log("[deleteTrnPosting] ✓ soft-deleted", postingId);
+}
+
 /** UPDATE - sends an update payload for a posting to the Edge Function 'buyers_postings_update' */
 export async function updateTrnPosting(
   buyerId: number,

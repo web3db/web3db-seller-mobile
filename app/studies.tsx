@@ -316,7 +316,8 @@ const StudiesScreen: React.FC = () => {
   useFocusEffect(
     useCallback(() => {
       const loadStudies = async () => {
-        setIsLoading(true);
+        // Only show full loading spinner on first load; silent refresh on re-focus
+        if (studies.length === 0) setIsLoading(true);
         setError(null);
         try {
           if (!user?.id) {
