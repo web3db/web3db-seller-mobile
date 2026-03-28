@@ -24,7 +24,7 @@ declare const __DEV__: boolean;
 // Supabase anon key — required by Edge Functions with verify_jwt = true.
 // Add EXPO_PUBLIC_SUPABASE_ANON_KEY=<your_anon_key> to your .env file.
 const SUPABASE_ANON_KEY: string =
-  (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_SUPABASE_ANON_KEY) || '';
+  (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) || '';
 
 // ---------------------------------------------------------------------------
 // Helpers
