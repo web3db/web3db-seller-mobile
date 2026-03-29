@@ -17,10 +17,386 @@ import {
   Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { getPostingShares, getTrnPostingDetail } from "../../services/postings/api";
+import {
+  getPostingShares,
+  getTrnPostingDetail,
+} from "../../services/postings/api";
 import { useAuth } from "@/hooks/AuthContext";
 import type { StudyDetail } from "../../services/postings/types";
 
+import { surveyListByPosting } from "../../services/surveys/api";
+import type { Survey } from "../../services/surveys/types";
+
+// ---------------------------------------------------------------------------
+// Survey stat card (used in SurveysTabContent)
+// ---------------------------------------------------------------------------
+
+function SurveyStatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <View style={surveyStyles.statCard}>
+      <Text style={surveyStyles.statCardValue}>{value}</Text>
+      <Text style={surveyStyles.statCardLabel}>{label}</Text>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Surveys Tab Content (renders inside the Surveys tab of StudyDetail)
+// ---------------------------------------------------------------------------
+
+function SurveysTabContent({
+  studyId,
+  isNarrow,
+}: {
+  studyId: string;
+  isNarrow: boolean;
+}) {
+  const router = useRouter();
+  const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await surveyListByPosting(studyId, {
+          include_stats: true,
+          page: 1,
+          page_size: 5,
+        });
+        if (!cancelled) {
+          setSurveys(res.surveys);
+          setTotal(res.total);
+        }
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message ?? "Failed to load surveys");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [studyId, retryCount]);
+
+  const activeSurveys = surveys.filter((s) => s.is_active).length;
+  const recipientsTotal = surveys.reduce(
+    (sum, s) => sum + (s.stats?.recipients_total ?? 0),
+    0,
+  );
+  const openedTotal = surveys.reduce(
+    (sum, s) => sum + (s.stats?.opened_total ?? 0),
+    0,
+  );
+
+  return (
+    <View style={surveyStyles.container}>
+      {/* Header */}
+      <View style={surveyStyles.header}>
+        <Text style={surveyStyles.headerTitle}>Surveys</Text>
+        <Text style={surveyStyles.headerSubtitle}>
+          Manage surveys for this study. Create, dispatch, and monitor survey
+          participation.
+        </Text>
+      </View>
+
+      {/* Summary Stats Strip */}
+      <View style={surveyStyles.statStrip}>
+        <SurveyStatCard label="Total" value={total} />
+        <SurveyStatCard label="Active" value={activeSurveys} />
+        {recipientsTotal > 0 && (
+          <SurveyStatCard label="Recipients" value={recipientsTotal} />
+        )}
+        {openedTotal > 0 && (
+          <SurveyStatCard label="Opened" value={openedTotal} />
+        )}
+      </View>
+
+      {/* Error Banner */}
+      {error && (
+        <View style={surveyStyles.errorBanner}>
+          <Text style={surveyStyles.errorText}>{error}</Text>
+          <TouchableOpacity onPress={() => setRetryCount((c) => c + 1)}>
+            <Text style={surveyStyles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <ActivityIndicator
+          color={palette.light.primary}
+          style={{ marginTop: 24, marginBottom: 8 }}
+        />
+      )}
+
+      {/* Empty State */}
+      {!loading && !error && surveys.length === 0 && (
+        <View style={surveyStyles.emptyState}>
+          <Text style={surveyStyles.emptyTitle}>No surveys yet</Text>
+          <Text style={surveyStyles.emptySubtitle}>
+            Create a survey to send to participants via email.
+          </Text>
+          <TouchableOpacity
+            style={surveyStyles.actionBtnPrimary}
+            onPress={() => router.push(`/studies/${studyId}/surveys/create`)}
+          >
+            <Text style={surveyStyles.actionBtnPrimaryText}>Create Survey</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Recent Surveys List */}
+      {!loading && surveys.length > 0 && (
+        <View style={surveyStyles.surveyList}>
+          {surveys.map((survey) => (
+            <TouchableOpacity
+              key={survey.survey_id}
+              style={surveyStyles.surveyRow}
+              onPress={() =>
+                router.push(`/studies/${studyId}/surveys/${survey.survey_id}`)
+              }
+            >
+              <View style={surveyStyles.surveyRowLeft}>
+                <Text style={surveyStyles.surveyTitle} numberOfLines={1}>
+                  {survey.title}
+                </Text>
+                {survey.stats && (
+                  <Text style={surveyStyles.surveyMeta}>
+                    {survey.stats.recipients_total} recipients ·{" "}
+                    {survey.stats.opened_total} opened
+                  </Text>
+                )}
+                <Text style={surveyStyles.surveyDate}>
+                  Created {new Date(survey.created_on).toLocaleDateString()}
+                </Text>
+              </View>
+              <View
+                style={[
+                  surveyStyles.surveyBadge,
+                  survey.is_active
+                    ? surveyStyles.surveyBadgeActive
+                    : surveyStyles.surveyBadgeInactive,
+                ]}
+              >
+                <Text
+                  style={[
+                    surveyStyles.surveyBadgeText,
+                    survey.is_active
+                      ? surveyStyles.surveyBadgeActiveText
+                      : surveyStyles.surveyBadgeInactiveText,
+                  ]}
+                >
+                  {survey.is_active ? "Active" : "Inactive"}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+          {total > 5 && (
+            <Text style={surveyStyles.moreText}>
+              +{total - 5} more · tap "View All Surveys" below
+            </Text>
+          )}
+        </View>
+      )}
+
+      {/* Action Buttons */}
+      <View
+        style={[
+          surveyStyles.actions,
+          isNarrow ? surveyStyles.actionsColumn : surveyStyles.actionsRow,
+        ]}
+      >
+        <TouchableOpacity
+          style={[surveyStyles.actionBtnPrimary, isNarrow && { flex: 1 }]}
+          onPress={() => router.push(`/studies/${studyId}/surveys`)}
+        >
+          <Text style={surveyStyles.actionBtnPrimaryText}>
+            View All Surveys
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[surveyStyles.actionBtnSecondary, isNarrow && { flex: 1 }]}
+          onPress={() => router.push(`/studies/${studyId}/surveys/create`)}
+        >
+          <Text style={surveyStyles.actionBtnSecondaryText}>Create Survey</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[surveyStyles.actionBtnSecondary, isNarrow && { flex: 1 }]}
+          onPress={() => router.push(`/studies/${studyId}/surveys/dispatch`)}
+        >
+          <Text style={surveyStyles.actionBtnSecondaryText}>
+            Dispatch Center
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// surveyStyles — module-level so SurveysTabContent can reference them
+// ---------------------------------------------------------------------------
+
+const surveyStyles = StyleSheet.create({
+  container: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: palette.light.border,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+      },
+      android: { elevation: 4 },
+      default: { boxShadow: "0 4px 20px rgba(0,0,0,0.06)" } as any,
+    }),
+  },
+  header: { marginBottom: 20 },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: palette.light.text.muted,
+  },
+  statStrip: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 20,
+    flexWrap: "wrap",
+  },
+  statCard: {
+    flex: 1,
+    minWidth: 70,
+    backgroundColor: palette.light.surface,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: palette.light.border,
+  },
+  statCardValue: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: palette.light.primary,
+  },
+  statCardLabel: {
+    fontSize: 12,
+    color: palette.light.text.muted,
+    marginTop: 4,
+    textAlign: "center",
+  },
+  surveyList: { gap: 8, marginBottom: 20 },
+  surveyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 14,
+    backgroundColor: palette.light.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: palette.light.border,
+  },
+  surveyRowLeft: { flex: 1, marginRight: 12 },
+  surveyTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: Colors.light.text,
+    marginBottom: 2,
+  },
+  surveyMeta: { fontSize: 12, color: palette.light.text.muted, marginTop: 2 },
+  surveyDate: { fontSize: 12, color: palette.light.text.muted, marginTop: 2 },
+  surveyBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  surveyBadgeActive: { backgroundColor: "#DCFCE7" },
+  surveyBadgeActiveText: { color: "#166534" },
+  surveyBadgeInactive: { backgroundColor: palette.light.muted },
+  surveyBadgeInactiveText: { color: palette.light.text.secondary },
+  surveyBadgeText: { fontSize: 12, fontWeight: "600" },
+  moreText: {
+    fontSize: 13,
+    color: palette.light.text.muted,
+    textAlign: "center",
+    marginTop: 4,
+  },
+  actions: { gap: 10, marginTop: 4 },
+  actionsRow: { flexDirection: "row", flexWrap: "wrap" },
+  actionsColumn: { flexDirection: "column" },
+  actionBtnPrimary: {
+    backgroundColor: palette.light.primary,
+    paddingVertical: 11,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  actionBtnPrimaryText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  actionBtnSecondary: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: palette.light.primary,
+    paddingVertical: 11,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  actionBtnSecondaryText: {
+    color: palette.light.primary,
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  emptyState: { alignItems: "center", paddingVertical: 32 },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Colors.light.text,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: palette.light.text.muted,
+    textAlign: "center",
+    marginBottom: 20,
+    paddingHorizontal: 16,
+  },
+  errorBanner: {
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  errorText: { color: "#DC2626", flex: 1 },
+  retryText: {
+    color: palette.light.primary,
+    fontWeight: "600",
+    marginLeft: 12,
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Main StudyDetail component
+// ---------------------------------------------------------------------------
 export default function StudyDetail() {
   const { studyId, saved, draft } = useLocalSearchParams() as {
     studyId?: string;
@@ -32,24 +408,35 @@ export default function StudyDetail() {
   const isNarrow = width < 720;
 
   const [showSaved, setShowSaved] = useState<boolean>(
-    saved === "1" || saved === "true" || draft === "1" || draft === "true"
+    saved === "1" || saved === "true" || draft === "1" || draft === "true",
   );
   const [bannerOpacity] = useState(new Animated.Value(showSaved ? 1 : 0));
   const [study, setStudy] = useState<StudyDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+  // Tab state
+  // const [activeTab, setActiveTab] = useState<
+  //   "overview" | "participants" | "surveys"
+  // >("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "surveys">(
+    "overview",
+  );
   // Shares (participant/session) UI
   const [sharesData, setSharesData] = useState<any | null>(null);
   const [sharesLoading, setSharesLoading] = useState(false);
   const [sharesError, setSharesError] = useState<string | null>(null);
   const [expandedShares, setExpandedShares] = useState<Record<number, boolean>>(
-    {}
+    {},
   );
   const [xlsxDownloading, setXlsxDownloading] = useState(false);
   /** Per-metric chart data: dates (X) and average value per date (Y). */
   const [metricCharts, setMetricCharts] = useState<
-    { metricId: number; metricName: string; dates: string[]; averages: number[] }[]
+    {
+      metricId: number;
+      metricName: string;
+      dates: string[];
+      averages: number[];
+    }[]
   >([]);
   /** Active bar for hover/press: show value and expand. */
   const [activeBar, setActiveBar] = useState<{
@@ -64,7 +451,7 @@ export default function StudyDetail() {
    * Columns: Research Participant ID, Age, Gender, Height, Weight, Health Conditions
    */
   function buildUserSheetRows(
-    shares: any[]
+    shares: any[],
   ): (string | number | null | undefined)[][] {
     const rows: (string | number | null | undefined)[][] = [
       [
@@ -79,19 +466,15 @@ export default function StudyDetail() {
 
     for (const sh of shares ?? []) {
       const userId =
-        sh.participantId ??
-        sh.participant_id ??
-        sh.userId ??
-        sh.user_id ??
-        "";
+        sh.participantId ?? sh.participant_id ?? sh.userId ?? sh.user_id ?? "";
       const meta = sh.participantMeta ?? sh.participant_meta ?? {};
       const birthyear = meta.birthYear ?? meta.birth_year;
       const birthYearNum =
         typeof birthyear === "number"
           ? birthyear
           : birthyear != null && !Number.isNaN(Number(birthyear))
-          ? Number(birthyear)
-          : null;
+            ? Number(birthyear)
+            : null;
       const currentYear = new Date().getFullYear();
       const age =
         birthYearNum != null && birthYearNum > 0 && birthYearNum <= currentYear
@@ -100,7 +483,7 @@ export default function StudyDetail() {
 
       const sex =
         typeof meta.sex === "object"
-          ? meta.sex?.name ?? meta.sex?.displayName ?? meta.sex?.code ?? ""
+          ? (meta.sex?.name ?? meta.sex?.displayName ?? meta.sex?.code ?? "")
           : String(meta.sex ?? "");
       const heightObj = meta.height;
       const height =
@@ -123,11 +506,7 @@ export default function StudyDetail() {
             if (hc == null) return "";
             if (typeof hc === "string") return hc;
             return (
-              hc.displayName ??
-              hc.display_name ??
-              hc.name ??
-              hc.code ??
-              ""
+              hc.displayName ?? hc.display_name ?? hc.name ?? hc.code ?? ""
             );
           })
           .filter(Boolean)
@@ -147,7 +526,7 @@ export default function StudyDetail() {
    * Columns: Research Participant ID, Metric Name, Date, Time Granularity, Metric Value, Units
    */
   function buildUserDataSheetRows(
-    shares: any[]
+    shares: any[],
   ): (string | number | null | undefined)[][] {
     const rows: (string | number | null | undefined)[][] = [
       [
@@ -162,11 +541,7 @@ export default function StudyDetail() {
 
     for (const sh of shares ?? []) {
       const userId =
-        sh.participantId ??
-        sh.participant_id ??
-        sh.userId ??
-        sh.user_id ??
-        "";
+        sh.participantId ?? sh.participant_id ?? sh.userId ?? sh.user_id ?? "";
 
       const segs = sh.segments ?? [];
       for (const seg of segs) {
@@ -176,8 +551,7 @@ export default function StudyDetail() {
             m.metricName ??
             m.metric_name ??
             (m.metricId != null ? `Metric ${m.metricId}` : "");
-          const unitCode =
-            m.unitCode ?? m.unit_code ?? "";
+          const unitCode = m.unitCode ?? m.unit_code ?? "";
 
           const buckets =
             m.computedJson?.buckets ?? m.computed_json?.buckets ?? null;
@@ -202,14 +576,7 @@ export default function StudyDetail() {
               "";
             const value = b.value ?? b.val ?? b.data ?? "";
 
-            rows.push([
-              userId,
-              metricName,
-              start,
-              end,
-              value,
-              unitCode,
-            ]);
+            rows.push([userId, metricName, start, end, value, unitCode]);
           }
         }
       }
@@ -222,7 +589,7 @@ export default function StudyDetail() {
     if (!sharesData?.shares || sharesData.shares.length === 0) {
       Alert.alert(
         "No data",
-        "There is no share data available to download for this study."
+        "There is no share data available to download for this study.",
       );
       return;
     }
@@ -231,7 +598,7 @@ export default function StudyDetail() {
       if (Platform.OS !== "web") {
         Alert.alert(
           "Download not available",
-          "Downloading the Excel file is only supported on web right now."
+          "Downloading the Excel file is only supported on web right now.",
         );
         return;
       }
@@ -245,11 +612,7 @@ export default function StudyDetail() {
 
       const wb = XLSX.utils.book_new();
       const usersSheet = XLSX.utils.aoa_to_sheet(userRows);
-      XLSX.utils.book_append_sheet(
-        wb,
-        usersSheet,
-        "Participant Demographics"
-      );
+      XLSX.utils.book_append_sheet(wb, usersSheet, "Participant Demographics");
 
       const userDataSheet = XLSX.utils.aoa_to_sheet(userDataRows);
       XLSX.utils.book_append_sheet(wb, userDataSheet, "Metrics Data");
@@ -267,7 +630,7 @@ export default function StudyDetail() {
     } catch (err: any) {
       Alert.alert(
         "Download failed",
-        err?.message ?? "Could not download Excel file"
+        err?.message ?? "Could not download Excel file",
       );
     } finally {
       setXlsxDownloading(false);
@@ -312,7 +675,7 @@ export default function StudyDetail() {
   /** Returns the study's configured duration in days. */
   function getShareExpectedDays(
     study: StudyDetail | null,
-    _share: any
+    _share: any,
   ): number | null {
     const days = study?.dataCoverageDaysRequired;
     if (days == null || days <= 0) return null;
@@ -370,7 +733,10 @@ export default function StudyDetail() {
   /** Format a timestamp for X-axis tick labels. */
   function formatTickTime(ms: number): string {
     const d = new Date(ms);
-    return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   function formatTickDate(ms: number): string {
@@ -441,8 +807,17 @@ export default function StudyDetail() {
         return { tMin: 0, tMax: 1, yTicks: [0, 1], vMin: 0, vMax: 1 };
       const ts = points.map((p) => p.t);
       const vs = points.map((p) => p.v);
-      const { vMin, vMax, yTicks } = computeYTicks(Math.min(...vs), Math.max(...vs));
-      return { tMin: Math.min(...ts), tMax: Math.max(...ts), yTicks, vMin, vMax };
+      const { vMin, vMax, yTicks } = computeYTicks(
+        Math.min(...vs),
+        Math.max(...vs),
+      );
+      return {
+        tMin: Math.min(...ts),
+        tMax: Math.max(...ts),
+        yTicks,
+        vMin,
+        vMax,
+      };
     }, [points]);
 
     const xTicks = React.useMemo(() => {
@@ -460,7 +835,8 @@ export default function StudyDetail() {
 
       const firstTick = Math.ceil(tMin / interval) * interval;
       const ticks: number[] = [];
-      for (let tick = firstTick; tick <= tMax; tick += interval) ticks.push(tick);
+      for (let tick = firstTick; tick <= tMax; tick += interval)
+        ticks.push(tick);
       if (ticks.length === 0) ticks.push(tMin);
       return ticks;
     }, [points, tMin, tMax]);
@@ -513,17 +889,36 @@ export default function StudyDetail() {
       );
     }
 
-    const { Svg, Path, Line: SvgLine, Text: SvgText, Circle, G, Defs, LinearGradient, Stop, Rect } = SvgComponents;
+    const {
+      Svg,
+      Path,
+      Line: SvgLine,
+      Text: SvgText,
+      Circle,
+      G,
+      Defs,
+      LinearGradient,
+      Stop,
+      Rect,
+    } = SvgComponents;
     const HOUR = 3_600_000;
-    const showDate = (tMax - tMin) > 24 * HOUR;
+    const showDate = tMax - tMin > 24 * HOUR;
 
     return (
       <View style={svgStyles.chartContainer}>
         <Svg width={chartWidth} height={chartHeight}>
           <Defs>
             <LinearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor={palette.light.primary} stopOpacity="0.18" />
-              <Stop offset="100%" stopColor={palette.light.primary} stopOpacity="0.01" />
+              <Stop
+                offset="0%"
+                stopColor={palette.light.primary}
+                stopOpacity="0.18"
+              />
+              <Stop
+                offset="100%"
+                stopColor={palette.light.primary}
+                stopOpacity="0.01"
+              />
             </LinearGradient>
           </Defs>
 
@@ -559,12 +954,31 @@ export default function StudyDetail() {
             const x = toX(tick);
             return (
               <G key={`xt-${i}`}>
-                <SvgLine x1={x} y1={chartHeight - PADDING.bottom} x2={x} y2={chartHeight - PADDING.bottom + 5} stroke="#9ca3af" strokeWidth={1} />
-                <SvgText x={x} y={chartHeight - PADDING.bottom + 18} fontSize={10} fill="#6B7280" textAnchor="middle">
+                <SvgLine
+                  x1={x}
+                  y1={chartHeight - PADDING.bottom}
+                  x2={x}
+                  y2={chartHeight - PADDING.bottom + 5}
+                  stroke="#9ca3af"
+                  strokeWidth={1}
+                />
+                <SvgText
+                  x={x}
+                  y={chartHeight - PADDING.bottom + 18}
+                  fontSize={10}
+                  fill="#6B7280"
+                  textAnchor="middle"
+                >
                   {formatTickTime(tick)}
                 </SvgText>
                 {showDate && (
-                  <SvgText x={x} y={chartHeight - PADDING.bottom + 30} fontSize={9} fill="#9ca3af" textAnchor="middle">
+                  <SvgText
+                    x={x}
+                    y={chartHeight - PADDING.bottom + 30}
+                    fontSize={9}
+                    fill="#9ca3af"
+                    textAnchor="middle"
+                  >
                     {formatTickDate(tick)}
                   </SvgText>
                 )}
@@ -600,23 +1014,59 @@ export default function StudyDetail() {
           ) : null}
 
           {/* Active point indicator (rendered inside SVG) */}
-          {activeIdx != null && activeIdx >= 0 && activeIdx < points.length && (() => {
-            const p = points[activeIdx];
-            const x = toX(p.t);
-            const y = toY(p.v);
-            const label = (Number.isInteger(p.v) ? String(p.v) : p.v.toFixed(2)) + (unitCode ? ` ${unitCode}` : "");
-            const tooltipW = Math.max(72, label.length * 8);
-            return (
-              <G>
-                <SvgLine x1={x} y1={PADDING.top} x2={x} y2={chartHeight - PADDING.bottom} stroke={palette.light.primary} strokeWidth={1} strokeOpacity={0.35} strokeDasharray="3,3" />
-                <Circle cx={x} cy={y} r={4} fill="#fff" stroke={palette.light.primary} strokeWidth={2} />
-                <Rect x={x - tooltipW / 2} y={y - 30} width={tooltipW} height={22} rx={6} fill="rgba(0,0,0,0.78)" />
-                <SvgText x={x} y={y - 15} fontSize={11} fill="#fff" textAnchor="middle" fontWeight="600" dominantBaseline="central">
-                  {label}
-                </SvgText>
-              </G>
-            );
-          })()}
+          {activeIdx != null &&
+            activeIdx >= 0 &&
+            activeIdx < points.length &&
+            (() => {
+              const p = points[activeIdx];
+              const x = toX(p.t);
+              const y = toY(p.v);
+              const label =
+                (Number.isInteger(p.v) ? String(p.v) : p.v.toFixed(2)) +
+                (unitCode ? ` ${unitCode}` : "");
+              const tooltipW = Math.max(72, label.length * 8);
+              return (
+                <G>
+                  <SvgLine
+                    x1={x}
+                    y1={PADDING.top}
+                    x2={x}
+                    y2={chartHeight - PADDING.bottom}
+                    stroke={palette.light.primary}
+                    strokeWidth={1}
+                    strokeOpacity={0.35}
+                    strokeDasharray="3,3"
+                  />
+                  <Circle
+                    cx={x}
+                    cy={y}
+                    r={4}
+                    fill="#fff"
+                    stroke={palette.light.primary}
+                    strokeWidth={2}
+                  />
+                  <Rect
+                    x={x - tooltipW / 2}
+                    y={y - 30}
+                    width={tooltipW}
+                    height={22}
+                    rx={6}
+                    fill="rgba(0,0,0,0.78)"
+                  />
+                  <SvgText
+                    x={x}
+                    y={y - 15}
+                    fontSize={11}
+                    fill="#fff"
+                    textAnchor="middle"
+                    fontWeight="600"
+                    dominantBaseline="central"
+                  >
+                    {label}
+                  </SvgText>
+                </G>
+              );
+            })()}
         </Svg>
         {/* Transparent hit areas overlaid on top of SVG for hover + press */}
         {points.map((p, idx) => {
@@ -680,8 +1130,7 @@ export default function StudyDetail() {
       const parsed = buckets
         .map((b) => Number(b.value))
         .filter((v) => !Number.isNaN(v));
-      if (parsed.length === 0)
-        return { yTicks: [0, 1], vMin: 0, vMax: 1 };
+      if (parsed.length === 0) return { yTicks: [0, 1], vMin: 0, vMax: 1 };
       return computeYTicks(Math.min(...parsed), Math.max(...parsed));
     }, [buckets]);
 
@@ -693,17 +1142,26 @@ export default function StudyDetail() {
 
     const minWidthPerPoint = 14;
     const naturalWidth = containerWidth - Y_AXIS_WIDTH;
-    const scrollableWidth = Math.max(naturalWidth, buckets.length * minWidthPerPoint);
+    const scrollableWidth = Math.max(
+      naturalWidth,
+      buckets.length * minWidthPerPoint,
+    );
 
     return (
       <View style={svgStyles.outerWrapper}>
         <Text style={svgStyles.chartTitle}>
-          {metricName}{unitCode ? ` (${unitCode})` : ""} — over time
+          {metricName}
+          {unitCode ? ` (${unitCode})` : ""} — over time
         </Text>
         <View style={svgStyles.stickyWrapper}>
           {/* Fixed Y-axis column */}
           {SvgComponents ? (
-            <View style={[svgStyles.yAxisColumn, { width: Y_AXIS_WIDTH, height: chartHeight }]}>  
+            <View
+              style={[
+                svgStyles.yAxisColumn,
+                { width: Y_AXIS_WIDTH, height: chartHeight },
+              ]}
+            >
               <SvgComponents.Svg width={Y_AXIS_WIDTH} height={chartHeight}>
                 {/* Y-axis label (rotated) */}
                 <SvgComponents.Text
@@ -717,17 +1175,39 @@ export default function StudyDetail() {
                   originX={11}
                   originY={PADDING.top + plotH / 2}
                 >
-                  {metricName}{unitCode ? ` (${unitCode})` : ""}
+                  {metricName}
+                  {unitCode ? ` (${unitCode})` : ""}
                 </SvgComponents.Text>
                 {/* Y-axis line */}
-                <SvgComponents.Line x1={Y_AXIS_WIDTH - 1} y1={PADDING.top} x2={Y_AXIS_WIDTH - 1} y2={chartHeight - PADDING.bottom} stroke="#d1d5db" strokeWidth={1} />
+                <SvgComponents.Line
+                  x1={Y_AXIS_WIDTH - 1}
+                  y1={PADDING.top}
+                  x2={Y_AXIS_WIDTH - 1}
+                  y2={chartHeight - PADDING.bottom}
+                  stroke="#d1d5db"
+                  strokeWidth={1}
+                />
                 {/* Tick marks & labels */}
                 {yTicks.map((tick, i) => {
                   const y = toY(tick);
                   return (
                     <React.Fragment key={i}>
-                      <SvgComponents.Line x1={Y_AXIS_WIDTH - 5} y1={y} x2={Y_AXIS_WIDTH - 1} y2={y} stroke="#9ca3af" strokeWidth={1} />
-                      <SvgComponents.Text x={Y_AXIS_WIDTH - 8} y={y} fontSize={10} fill="#6B7280" textAnchor="end" dominantBaseline="central">
+                      <SvgComponents.Line
+                        x1={Y_AXIS_WIDTH - 5}
+                        y1={y}
+                        x2={Y_AXIS_WIDTH - 1}
+                        y2={y}
+                        stroke="#9ca3af"
+                        strokeWidth={1}
+                      />
+                      <SvgComponents.Text
+                        x={Y_AXIS_WIDTH - 8}
+                        y={y}
+                        fontSize={10}
+                        fill="#6B7280"
+                        textAnchor="end"
+                        dominantBaseline="central"
+                      >
                         {formatVal(tick)}
                       </SvgComponents.Text>
                     </React.Fragment>
@@ -767,7 +1247,7 @@ export default function StudyDetail() {
    */
   function groupMetricDataByDate(
     shares: any[],
-    metric: number | string
+    metric: number | string,
   ): Record<string, any[]> {
     const byDate: Record<string, any[]> = {};
     const matchByMetricId = typeof metric === "number";
@@ -779,10 +1259,10 @@ export default function StudyDetail() {
           : `day-${seg.dayIndex ?? "?"}`;
         const metrics = seg.metrics ?? [];
         for (const m of metrics) {
-          const matches =
-            matchByMetricId
-              ? (m.metricId ?? m.metric_id) === metric
-              : (m.metricName ?? m.metric_name ?? "").toString() === String(metric);
+          const matches = matchByMetricId
+            ? (m.metricId ?? m.metric_id) === metric
+            : (m.metricName ?? m.metric_name ?? "").toString() ===
+              String(metric);
           if (!matches) continue;
           if (!byDate[dateKey]) byDate[dateKey] = [];
           byDate[dateKey].push({
@@ -827,7 +1307,7 @@ export default function StudyDetail() {
       }
     }
     fetchStudyDetail();
-  }, [studyId]);
+  }, [studyId, user?.id]);
 
   useEffect(() => {
     if (showSaved && study) {
@@ -865,7 +1345,8 @@ export default function StudyDetail() {
       setSharesError(null);
       try {
         const res = await getPostingShares(Number(studyId));
-        if (__DEV__) console.log("[StudyDetail] getPostingShares return value:", res);
+        if (__DEV__)
+          console.log("[StudyDetail] getPostingShares return value:", res);
         // save full response (postingId, postingTitle, shares[])
         setSharesData(res);
       } catch (err: any) {
@@ -895,7 +1376,12 @@ export default function StudyDetail() {
         }
       }
     }
-    const charts: { metricId: number; metricName: string; dates: string[]; averages: number[] }[] = [];
+    const charts: {
+      metricId: number;
+      metricName: string;
+      dates: string[];
+      averages: number[];
+    }[] = [];
     for (const [metricId, metricName] of metricsSeen) {
       const byDate = groupMetricDataByDate(shares, metricId);
       const dates = Object.keys(byDate).sort();
@@ -904,15 +1390,16 @@ export default function StudyDetail() {
         const arr = byDate[date] ?? [];
         data[date] = arr.map((d: any) => {
           const total = d.totalValue ?? d.total ?? d.total_value;
-          if (total != null && !Number.isNaN(Number(total))) return Number(total);
+          if (total != null && !Number.isNaN(Number(total)))
+            return Number(total);
           const avg = d.avgValue ?? d.avg_value;
-          return (avg != null && !Number.isNaN(Number(avg))) ? Number(avg) : 0;
+          return avg != null && !Number.isNaN(Number(avg)) ? Number(avg) : 0;
         });
       }
-      if (__DEV__) console.log(`[Metric ${metricId}] ${metricName}:`, { dates, data });
+      if (__DEV__)
+        console.log(`[Metric ${metricId}] ${metricName}:`, { dates, data });
       const averages = dates.map(
-        (d) =>
-          (data[d].reduce((a, b) => a + b, 0) / (data[d].length || 1))
+        (d) => data[d].reduce((a, b) => a + b, 0) / (data[d].length || 1),
       );
       charts.push({ metricId, metricName, dates, averages });
     }
@@ -969,508 +1456,632 @@ export default function StudyDetail() {
           </Animated.View>
         )}
 
-        <View
-          style={[
-            styles.contentRow,
-            isNarrow ? styles.columnLayout : styles.rowLayout,
-          ]}
-        >
-          {/* LEFT: Read-only Info Card */}
+        {/* ── Tab Bar ── */}
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={[
+              styles.tabBtn,
+              activeTab === "overview" && styles.tabBtnActive,
+            ]}
+            onPress={() => setActiveTab("overview")}
+          >
+            <Text
+              style={[
+                styles.tabBtnText,
+                activeTab === "overview" && styles.tabBtnTextActive,
+              ]}
+            >
+              Overview
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.tabBtn,
+              activeTab === "surveys" && styles.tabBtnActive,
+            ]}
+            onPress={() => setActiveTab("surveys")}
+          >
+            <Text
+              style={[
+                styles.tabBtnText,
+                activeTab === "surveys" && styles.tabBtnTextActive,
+              ]}
+            >
+              Surveys
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Overview Tab ── */}
+        {activeTab === "overview" && (
           <View
             style={[
-              styles.card,
-              isNarrow ? styles.fullWidth : styles.leftColumn,
+              styles.contentRow,
+              isNarrow ? styles.columnLayout : styles.rowLayout,
             ]}
           >
-            <View style={styles.detailHero}>
-              <Text style={styles.detailHeroLabel}>Study Details</Text>
-              <Text style={styles.detailHeroTitle}>{study.title}</Text>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusBadgeText}>
-                  {study.postingStatusDisplayName}
+            {/* LEFT: Read-only Info Card */}
+            <View
+              style={[
+                styles.card,
+                isNarrow ? styles.fullWidth : styles.leftColumn,
+              ]}
+            >
+              <View style={styles.detailHero}>
+                <Text style={styles.detailHeroLabel}>Study Details</Text>
+                <Text style={styles.detailHeroTitle}>{study.title}</Text>
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusBadgeText}>
+                    {study.postingStatusDisplayName}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.sectionTitle}>Overview</Text>
+                <Text style={styles.detailSummary}>{study.summary}</Text>
+                <Text style={[styles.detailDescription, styles.multilineValue]}>
+                  {study.description}
                 </Text>
               </View>
-            </View>
 
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Overview</Text>
-              <Text style={styles.detailSummary}>{study.summary}</Text>
-              <Text style={[styles.detailDescription, styles.multilineValue]}>
-                {study.description}
-              </Text>
-            </View>
+              <View style={styles.detailSection}>
+                <Text style={styles.sectionTitle}>Eligibility</Text>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Min Age</Text>
+                  <Text style={styles.infoValue}>{study.minAge ?? "-"}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>
+                    Data Coverage Days Required
+                  </Text>
+                  <Text style={styles.infoValue}>
+                    {study.dataCoverageDaysRequired ?? "-"}
+                  </Text>
+                </View>
+              </View>
 
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Eligibility</Text>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Min Age</Text>
-                <Text style={styles.infoValue}>{study.minAge ?? "-"}</Text>
+              <View style={styles.detailSection}>
+                <Text style={styles.sectionTitle}>Application Window</Text>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Apply Open At</Text>
+                  <Text style={styles.infoValue}>
+                    {study.applyOpenAt
+                      ? formatUtcToLocal(study.applyOpenAt)
+                      : "-"}
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Apply Close At</Text>
+                  <Text style={styles.infoValue}>
+                    {study.applyCloseAt
+                      ? formatUtcToLocal(study.applyCloseAt)
+                      : "-"}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Data Coverage Days Required</Text>
-                <Text style={styles.infoValue}>
-                  {study.dataCoverageDaysRequired ?? "-"}
-                </Text>
-              </View>
-            </View>
 
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Application Window</Text>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Apply Open At</Text>
-                <Text style={styles.infoValue}>
-                  {study.applyOpenAt ? formatUtcToLocal(study.applyOpenAt) : "-"}
-                </Text>
+              <View style={styles.detailSection}>
+                <Text style={styles.sectionTitle}>Reward</Text>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Type</Text>
+                  <Text style={styles.infoValue}>
+                    {study.rewardTypeDisplayName ?? "-"}
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Value</Text>
+                  <Text style={styles.infoValue}>
+                    {study.rewardValue !== null ? study.rewardValue : "-"}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Apply Close At</Text>
-                <Text style={styles.infoValue}>
-                  {study.applyCloseAt
-                    ? formatUtcToLocal(study.applyCloseAt)
-                    : "-"}
-                </Text>
-              </View>
-            </View>
 
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Reward</Text>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Type</Text>
-                <Text style={styles.infoValue}>
-                  {study.rewardTypeDisplayName ?? "-"}
-                </Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Value</Text>
-                <Text style={styles.infoValue}>
-                  {study.rewardValue !== null ? study.rewardValue : "-"}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Metrics</Text>
-              <View style={styles.tagList}>
-              {!study.metricDisplayName ||
-              study.metricDisplayName.length === 0 ? (
-                <Text style={styles.muted}>No metrics</Text>
-              ) : (
-                study.metricDisplayName.map((m, i) => (
-                  <View
-                    key={study.metricId![i] + "-" + i}
-                    style={styles.tagPill}
-                  >
-                    <Text style={styles.tagPillText}>{m}</Text>
-                  </View>
-                ))
-              )}
-              </View>
-            </View>
-
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Health Conditions</Text>
-              <View style={styles.tagList}>
-                {!study.healthConditions ||
-                study.healthConditions.length === 0 ? (
-                  <Text style={styles.muted}>No conditions</Text>
-                ) : (
-                  study.healthConditions.map((c, i) => (
-                    <View key={c.id + "-" + i} style={styles.tagPill}>
-                      <Text style={styles.tagPillText}>{c.displayName}</Text>
-                    </View>
-                  ))
-                )}
-              </View>
-            </View>
-
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Tags</Text>
-              <View style={styles.tagList}>
-                {!study.tags || study.tags.length === 0 ? (
-                  <Text style={styles.muted}>No tags</Text>
-                ) : (
-                  study.tags
-                    .map((tag: any) => {
-                      if (typeof tag === "string") return tag;
-                      if (!tag) return "";
-                      return (
-                        tag.displayName ??
-                        tag.display_name ??
-                        tag.name ??
-                        tag.code ??
-                        ""
-                      );
-                    })
-                    .filter(
-                      (name: any) =>
-                        typeof name === "string" && name.trim().length > 0
-                    )
-                    .map((name: string, i: number) => (
-                      <View key={`${name}-${i}`} style={styles.tagPill}>
-                        <Text style={styles.tagPillText}>{name}</Text>
+              <View style={styles.detailSection}>
+                <Text style={styles.sectionTitle}>Metrics</Text>
+                <View style={styles.tagList}>
+                  {!study.metricDisplayName ||
+                  study.metricDisplayName.length === 0 ? (
+                    <Text style={styles.muted}>No metrics</Text>
+                  ) : (
+                    study.metricDisplayName.map((m, i) => (
+                      <View
+                        key={study.metricId![i] + "-" + i}
+                        style={styles.tagPill}
+                      >
+                        <Text style={styles.tagPillText}>{m}</Text>
                       </View>
                     ))
-                )}
+                  )}
+                </View>
               </View>
-            </View>
 
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Study Info</Text>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{LABELS.INSTITUTIONAL_PARTNER}</Text>
-                <Text style={styles.infoValue}>{study.buyerDisplayName}</Text>
+              <View style={styles.detailSection}>
+                <Text style={styles.sectionTitle}>Health Conditions</Text>
+                <View style={styles.tagList}>
+                  {!study.healthConditions ||
+                  study.healthConditions.length === 0 ? (
+                    <Text style={styles.muted}>No conditions</Text>
+                  ) : (
+                    study.healthConditions.map((c, i) => (
+                      <View key={c.id + "-" + i} style={styles.tagPill}>
+                        <Text style={styles.tagPillText}>{c.displayName}</Text>
+                      </View>
+                    ))
+                  )}
+                </View>
               </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Modified On</Text>
-                <Text style={styles.infoValue}>
-                  {study.modifiedOn ? formatUtcToLocal(study.modifiedOn) : "-"}
-                </Text>
-              </View>
-            </View>
 
-            {/* <Text style={styles.label}>Created On</Text>
+              <View style={styles.detailSection}>
+                <Text style={styles.sectionTitle}>Tags</Text>
+                <View style={styles.tagList}>
+                  {!study.tags || study.tags.length === 0 ? (
+                    <Text style={styles.muted}>No tags</Text>
+                  ) : (
+                    study.tags
+                      .map((tag: any) => {
+                        if (typeof tag === "string") return tag;
+                        if (!tag) return "";
+                        return (
+                          tag.displayName ??
+                          tag.display_name ??
+                          tag.name ??
+                          tag.code ??
+                          ""
+                        );
+                      })
+                      .filter(
+                        (name: any) =>
+                          typeof name === "string" && name.trim().length > 0,
+                      )
+                      .map((name: string, i: number) => (
+                        <View key={`${name}-${i}`} style={styles.tagPill}>
+                          <Text style={styles.tagPillText}>{name}</Text>
+                        </View>
+                      ))
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.sectionTitle}>Study Info</Text>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>
+                    {LABELS.INSTITUTIONAL_PARTNER}
+                  </Text>
+                  <Text style={styles.infoValue}>{study.buyerDisplayName}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Modified On</Text>
+                  <Text style={styles.infoValue}>
+                    {study.modifiedOn
+                      ? formatUtcToLocal(study.modifiedOn)
+                      : "-"}
+                  </Text>
+                </View>
+              </View>
+
+              {/* <Text style={styles.label}>Created On</Text>
             <Text style={styles.value}>{study.createdOn ?? "-"}</Text> */}
 
-            {/* Metric Trends chart removed */}
+              {/* Metric Trends chart removed */}
 
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Participant Shares</Text>
+              <View style={styles.detailSection}>
+                <Text style={styles.sectionTitle}>Participant Shares</Text>
 
-            {sharesLoading ? (
-              <ActivityIndicator />
-            ) : sharesError ? (
-              <Text style={{ color: "red" }}>{sharesError}</Text>
-            ) : !sharesData?.shares || sharesData.shares.length === 0 ? (
-              <Text style={styles.muted}>No shares available</Text>
-            ) : (
-              <View style={{ marginTop: 8 }}>
-                {sharesData.shares.map((sh: any, i: number) => {
-                  const meta = sh.participantMeta ?? {};
-                  const raceName = meta.race?.name ?? "";
-                  const sexName = meta.sex?.name ?? "";
-                  const heightVal = meta.height;
-                  const heightStr =
-                    heightVal != null && heightVal.value != null
-                      ? `${heightVal.value} ${heightVal.displayName ?? ""}`.trim()
-                      : "";
-                  const weightVal = meta.weight;
-                  const weightStr =
-                    weightVal != null && weightVal.value != null
-                      ? `${weightVal.value} ${weightVal.displayName ?? ""}`.trim()
-                      : "";
-                  const participantId = sh.participantId ?? sh.userId ?? "-";
-                  const metaParts = [raceName, sexName, heightStr, weightStr].filter(Boolean);
-                  const metaLine = metaParts.length > 0 ? metaParts.join(" · ") : null;
+                {sharesLoading ? (
+                  <ActivityIndicator />
+                ) : sharesError ? (
+                  <Text style={{ color: "red" }}>{sharesError}</Text>
+                ) : !sharesData?.shares || sharesData.shares.length === 0 ? (
+                  <Text style={styles.muted}>No shares available</Text>
+                ) : (
+                  <View style={{ marginTop: 8 }}>
+                    {sharesData.shares.map((sh: any, i: number) => {
+                      const meta = sh.participantMeta ?? {};
+                      const raceName = meta.race?.name ?? "";
+                      const sexName = meta.sex?.name ?? "";
+                      const heightVal = meta.height;
+                      const heightStr =
+                        heightVal != null && heightVal.value != null
+                          ? `${heightVal.value} ${heightVal.displayName ?? ""}`.trim()
+                          : "";
+                      const weightVal = meta.weight;
+                      const weightStr =
+                        weightVal != null && weightVal.value != null
+                          ? `${weightVal.value} ${weightVal.displayName ?? ""}`.trim()
+                          : "";
+                      const participantId =
+                        sh.participantId ?? sh.userId ?? "-";
+                      const metaParts = [
+                        raceName,
+                        sexName,
+                        heightStr,
+                        weightStr,
+                      ].filter(Boolean);
+                      const metaLine =
+                        metaParts.length > 0 ? metaParts.join(" · ") : null;
 
-                  // Calculate progress
-                  const progress = getShareProgress(study, sh);
+                      // Calculate progress
+                      const progress = getShareProgress(study, sh);
 
-                  return (
-                  <View
-                    key={(sh.participantId ?? sh.userId ?? sh.sessionId ?? i) + "-" + i}
-                    style={styles.shareBox}
-                  >
-                    <TouchableOpacity
-                      onPress={() => toggleShareExpand(i)}
-                      style={styles.shareHeader}
-                    >
-                      <View>
-                        <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
-                          <Text style={styles.shareTitle}>
-                            User — {participantId}
-                          </Text>
-                          {progress && (
-                            <View
-                              style={[
-                                styles.badgeContainer,
-                                progress.onTrack ? styles.badgeSuccess : styles.badgeWarning,
-                              ]}
-                            >
+                      return (
+                        <View
+                          key={
+                            (sh.participantId ??
+                              sh.userId ??
+                              sh.sessionId ??
+                              i) +
+                            "-" +
+                            i
+                          }
+                          style={styles.shareBox}
+                        >
+                          <TouchableOpacity
+                            onPress={() => toggleShareExpand(i)}
+                            style={styles.shareHeader}
+                          >
+                            <View>
                               <View
-                                style={[
-                                  styles.badgeDot,
-                                  progress.onTrack
-                                    ? styles.badgeSuccessDot
-                                    : styles.badgeWarningDot,
-                                ]}
-                              />
-                              <Text
-                                style={[
-                                  styles.badgeText,
-                                  progress.onTrack
-                                    ? styles.badgeSuccessText
-                                    : styles.badgeWarningText,
-                                ]}
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  flexWrap: "wrap",
+                                }}
                               >
-                                {progress.completed}/{progress.expected} days submitted
+                                <Text style={styles.shareTitle}>
+                                  User — {participantId}
+                                </Text>
+                                {progress && (
+                                  <View
+                                    style={[
+                                      styles.badgeContainer,
+                                      progress.onTrack
+                                        ? styles.badgeSuccess
+                                        : styles.badgeWarning,
+                                    ]}
+                                  >
+                                    <View
+                                      style={[
+                                        styles.badgeDot,
+                                        progress.onTrack
+                                          ? styles.badgeSuccessDot
+                                          : styles.badgeWarningDot,
+                                      ]}
+                                    />
+                                    <Text
+                                      style={[
+                                        styles.badgeText,
+                                        progress.onTrack
+                                          ? styles.badgeSuccessText
+                                          : styles.badgeWarningText,
+                                      ]}
+                                    >
+                                      {progress.completed}/{progress.expected}{" "}
+                                      days submitted
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
+                              <Text style={styles.shareSubtitle}>
+                                Session:{" "}
+                                {sh.sessionNumber ?? sh.sessionId ?? "-"} ·{" "}
+                                {sh.statusName ?? ""}
                               </Text>
+                              {metaLine ? (
+                                <Text style={styles.shareSubtitle}>
+                                  {metaLine}
+                                </Text>
+                              ) : null}
+                            </View>
+                            <Text style={styles.shareChevron}>
+                              {expandedShares[i] ? "▴" : "▾"}
+                            </Text>
+                          </TouchableOpacity>
+
+                          {expandedShares[i] && (
+                            <View style={styles.shareDetails}>
+                              {!sh.segments || sh.segments.length === 0 ? (
+                                <Text style={styles.muted}>No segments</Text>
+                              ) : (
+                                sh.segments.map((seg: any, si: number) => (
+                                  <View
+                                    key={(seg.segmentId ?? si) + "-" + si}
+                                    style={styles.segmentBox}
+                                  >
+                                    <Text style={styles.segmentHeader}>
+                                      Segment{" "}
+                                      {seg.segmentNumber ?? seg.segmentId ?? si}{" "}
+                                      — Day{" "}
+                                      {seg.dayNumber ?? seg.dayIndex ?? "-"}
+                                    </Text>
+                                    <Text style={styles.segmentSubheader}>
+                                      From: {formatUtcToLocal(seg.fromUtc)} ·
+                                      To: {formatUtcToLocal(seg.toUtc)}
+                                    </Text>
+
+                                    {!seg.metrics ||
+                                    seg.metrics.length === 0 ? (
+                                      <Text
+                                        style={[
+                                          styles.muted,
+                                          { paddingVertical: 8 },
+                                        ]}
+                                      >
+                                        No metrics
+                                      </Text>
+                                    ) : (
+                                      <View style={styles.tableContainer}>
+                                        {/* Table Header */}
+                                        <View style={styles.tableHeaderRow}>
+                                          <Text
+                                            style={[
+                                              styles.tableHeaderCell,
+                                              { flex: 1.5 },
+                                            ]}
+                                          >
+                                            Metric
+                                          </Text>
+                                          <Text
+                                            style={[
+                                              styles.tableHeaderCell,
+                                              { flex: 0.7, textAlign: "right" },
+                                            ]}
+                                          >
+                                            Unit
+                                          </Text>
+                                          <Text
+                                            style={[
+                                              styles.tableHeaderCell,
+                                              { flex: 0.8, textAlign: "right" },
+                                            ]}
+                                          >
+                                            Avg
+                                          </Text>
+                                          <Text
+                                            style={[
+                                              styles.tableHeaderCell,
+                                              { flex: 0.8, textAlign: "right" },
+                                            ]}
+                                          >
+                                            Min
+                                          </Text>
+                                          <Text
+                                            style={[
+                                              styles.tableHeaderCell,
+                                              { flex: 0.8, textAlign: "right" },
+                                            ]}
+                                          >
+                                            Max
+                                          </Text>
+                                          <Text
+                                            style={[
+                                              styles.tableHeaderCell,
+                                              { flex: 1, textAlign: "right" },
+                                            ]}
+                                          >
+                                            Total
+                                          </Text>
+                                          <Text
+                                            style={[
+                                              styles.tableHeaderCell,
+                                              { flex: 1, textAlign: "right" },
+                                            ]}
+                                          >
+                                            Samples
+                                          </Text>
+                                        </View>
+                                        {/* Table Body */}
+                                        {seg.metrics.map(
+                                          (m: any, mi: number) => (
+                                            <View
+                                              key={
+                                                (m.metricId ?? mi) + "-" + mi
+                                              }
+                                              style={[
+                                                styles.tableRow,
+                                                mi === seg.metrics.length - 1 &&
+                                                  styles.tableRowLast,
+                                              ]}
+                                            >
+                                              <Text
+                                                style={[
+                                                  styles.tableCell,
+                                                  { flex: 1.5 },
+                                                ]}
+                                              >
+                                                {m.metricName ??
+                                                  `Metric ${m.metricId}`}
+                                              </Text>
+                                              <Text
+                                                style={[
+                                                  styles.tableCell,
+                                                  {
+                                                    flex: 0.7,
+                                                    textAlign: "right",
+                                                  },
+                                                ]}
+                                              >
+                                                {m.unitCode ?? "-"}
+                                              </Text>
+                                              <Text
+                                                style={[
+                                                  styles.tableCell,
+                                                  {
+                                                    flex: 0.8,
+                                                    textAlign: "right",
+                                                  },
+                                                ]}
+                                              >
+                                                {formatMetricValue(m.avgValue)}
+                                              </Text>
+                                              <Text
+                                                style={[
+                                                  styles.tableCell,
+                                                  {
+                                                    flex: 0.8,
+                                                    textAlign: "right",
+                                                  },
+                                                ]}
+                                              >
+                                                {formatMetricValue(m.minValue)}
+                                              </Text>
+                                              <Text
+                                                style={[
+                                                  styles.tableCell,
+                                                  {
+                                                    flex: 0.8,
+                                                    textAlign: "right",
+                                                  },
+                                                ]}
+                                              >
+                                                {formatMetricValue(m.maxValue)}
+                                              </Text>
+                                              <Text
+                                                style={[
+                                                  styles.tableCell,
+                                                  {
+                                                    flex: 1,
+                                                    textAlign: "right",
+                                                  },
+                                                ]}
+                                              >
+                                                {formatMetricValue(
+                                                  m.totalValue,
+                                                )}
+                                              </Text>
+                                              <Text
+                                                style={[
+                                                  styles.tableCell,
+                                                  {
+                                                    flex: 1,
+                                                    textAlign: "right",
+                                                  },
+                                                ]}
+                                              >
+                                                {m.samplesCount ?? "-"}
+                                              </Text>
+                                            </View>
+                                          ),
+                                        )}
+                                      </View>
+                                    )}
+                                    {seg.metrics?.map((m: any, mi: number) => {
+                                      const buckets = m.computedJson?.buckets;
+                                      if (
+                                        !Array.isArray(buckets) ||
+                                        buckets.length === 0
+                                      )
+                                        return null;
+                                      const containerW = Math.max(
+                                        320,
+                                        Math.min(width - 48, 900),
+                                      );
+                                      return (
+                                        <StickyYAxisChart
+                                          key={(m.metricId ?? mi) + "-chart"}
+                                          buckets={buckets}
+                                          metricName={
+                                            m.metricName ??
+                                            `Metric ${m.metricId}`
+                                          }
+                                          unitCode={m.unitCode}
+                                          containerWidth={containerW}
+                                        />
+                                      );
+                                    })}
+                                  </View>
+                                ))
+                              )}
                             </View>
                           )}
                         </View>
-                        <Text style={styles.shareSubtitle}>
-                          Session: {sh.sessionNumber ?? sh.sessionId ?? "-"} · {sh.statusName ?? ""}
-                        </Text>
-                        {metaLine ? (
-                          <Text style={styles.shareSubtitle}>
-                            {metaLine}
-                          </Text>
-                        ) : null}
-                      </View>
-                      <Text style={styles.shareChevron}>
-                        {expandedShares[i] ? "▴" : "▾"}
-                      </Text>
-                    </TouchableOpacity>
-
-                    {expandedShares[i] && (
-                      <View style={styles.shareDetails}>
-                        {!sh.segments || sh.segments.length === 0 ? (
-                          <Text style={styles.muted}>No segments</Text>
-                        ) : (
-                          sh.segments.map((seg: any, si: number) => (
-                            <View
-                              key={(seg.segmentId ?? si) + "-" + si}
-                              style={styles.segmentBox}
-                            >
-                              <Text style={styles.segmentHeader}>
-                                Segment {seg.segmentNumber ?? seg.segmentId ?? si} — Day{" "}
-                                {seg.dayNumber ?? seg.dayIndex ?? "-"}
-                              </Text>
-                              <Text style={styles.segmentSubheader}>
-                                From: {formatUtcToLocal(seg.fromUtc)} · To:{" "}
-                                {formatUtcToLocal(seg.toUtc)}
-                              </Text>
-
-                              {!seg.metrics || seg.metrics.length === 0 ? (
-                                <Text
-                                  style={[styles.muted, { paddingVertical: 8 }]}
-                                >
-                                  No metrics
-                                </Text>
-                              ) : (
-                                <View style={styles.tableContainer}>
-                                  {/* Table Header */}
-                                  <View style={styles.tableHeaderRow}>
-                                    <Text
-                                      style={[
-                                        styles.tableHeaderCell,
-                                        { flex: 1.5 },
-                                      ]}
-                                    >
-                                      Metric
-                                    </Text>
-                                    <Text
-                                      style={[
-                                        styles.tableHeaderCell,
-                                        { flex: 0.7, textAlign: "right" },
-                                      ]}
-                                    >
-                                      Unit
-                                    </Text>
-                                    <Text
-                                      style={[
-                                        styles.tableHeaderCell,
-                                        { flex: 0.8, textAlign: "right" },
-                                      ]}
-                                    >
-                                      Avg
-                                    </Text>
-                                    <Text
-                                      style={[
-                                        styles.tableHeaderCell,
-                                        { flex: 0.8, textAlign: "right" },
-                                      ]}
-                                    >
-                                      Min
-                                    </Text>
-                                    <Text
-                                      style={[
-                                        styles.tableHeaderCell,
-                                        { flex: 0.8, textAlign: "right" },
-                                      ]}
-                                    >
-                                      Max
-                                    </Text>
-                                    <Text
-                                      style={[
-                                        styles.tableHeaderCell,
-                                        { flex: 1, textAlign: "right" },
-                                      ]}
-                                    >
-                                      Total
-                                    </Text>
-                                    <Text
-                                      style={[
-                                        styles.tableHeaderCell,
-                                        { flex: 1, textAlign: "right" },
-                                      ]}
-                                    >
-                                      Samples
-                                    </Text>
-                                  </View>
-                                  {/* Table Body */}
-                                  {seg.metrics.map((m: any, mi: number) => (
-                                    <View
-                                      key={(m.metricId ?? mi) + "-" + mi}
-                                      style={[
-                                        styles.tableRow,
-                                        mi === seg.metrics.length - 1 &&
-                                          styles.tableRowLast,
-                                      ]}
-                                    >
-                                      <Text
-                                        style={[
-                                          styles.tableCell,
-                                          { flex: 1.5 },
-                                        ]}
-                                      >
-                                        {m.metricName ?? `Metric ${m.metricId}`}
-                                      </Text>
-                                      <Text
-                                        style={[
-                                          styles.tableCell,
-                                          { flex: 0.7, textAlign: "right" },
-                                        ]}
-                                      >
-                                        {m.unitCode ?? "-"}
-                                      </Text>
-                                      <Text
-                                        style={[
-                                          styles.tableCell,
-                                          { flex: 0.8, textAlign: "right" },
-                                        ]}
-                                      >
-                                        {formatMetricValue(m.avgValue)}
-                                      </Text>
-                                      <Text
-                                        style={[
-                                          styles.tableCell,
-                                          { flex: 0.8, textAlign: "right" },
-                                        ]}
-                                      >
-                                        {formatMetricValue(m.minValue)}
-                                      </Text>
-                                      <Text
-                                        style={[
-                                          styles.tableCell,
-                                          { flex: 0.8, textAlign: "right" },
-                                        ]}
-                                      >
-                                        {formatMetricValue(m.maxValue)}
-                                      </Text>
-                                      <Text
-                                        style={[
-                                          styles.tableCell,
-                                          { flex: 1, textAlign: "right" },
-                                        ]}
-                                      >
-                                        {formatMetricValue(m.totalValue)}
-                                      </Text>
-                                      <Text
-                                        style={[
-                                          styles.tableCell,
-                                          { flex: 1, textAlign: "right" },
-                                        ]}
-                                      >
-                                        {m.samplesCount ?? "-"}
-                                      </Text>
-                                    </View>
-                                  ))}
-                                </View>
-                              )}
-                              {seg.metrics?.map((m: any, mi: number) => {
-                                const buckets = m.computedJson?.buckets;
-                                if (!Array.isArray(buckets) || buckets.length === 0) return null;
-                                const containerW = Math.max(320, Math.min(width - 48, 900));
-                                return (
-                                  <StickyYAxisChart
-                                    key={(m.metricId ?? mi) + "-chart"}
-                                    buckets={buckets}
-                                    metricName={m.metricName ?? `Metric ${m.metricId}`}
-                                    unitCode={m.unitCode}
-                                    containerWidth={containerW}
-                                  />
-                                );
-                              })}
-                            </View>
-                          ))
-                        )}
-                      </View>
-                    )}
+                      );
+                    })}
                   </View>
-                ); })}
-              </View>
-            )}
-            </View>
-
-            <View style={styles.formActions}>
-              <TouchableOpacity
-                style={[styles.btn, styles.btnPrimary]}
-                onPress={() =>
-                  router.push(`/studies/${study.postingId}/manage`)
-                }
-              >
-                <Text style={styles.btnPrimaryText}>Manage Study</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.btn, styles.btnSecondary]}
-                onPress={handleDownloadXlsx}
-                disabled={xlsxDownloading}
-              >
-                {xlsxDownloading ? (
-                  <ActivityIndicator size="small" color={Colors.light.tint} />
-                ) : (
-                  <Text style={styles.btnSecondaryText}>
-                    Download Data as Excel (.xlsx)
-                  </Text>
                 )}
-              </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity
-                style={[styles.btn, styles.btnGhost]}
-                onPress={() => router.back()}
-              >
-                <Text style={styles.btnGhostText}>Back</Text>
-              </TouchableOpacity>
+              <View style={styles.formActions}>
+                <TouchableOpacity
+                  style={[styles.btn, styles.btnPrimary]}
+                  onPress={() =>
+                    router.push(`/studies/${study.postingId}/manage`)
+                  }
+                >
+                  <Text style={styles.btnPrimaryText}>Manage Study</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.btn, styles.btnSecondary]}
+                  onPress={handleDownloadXlsx}
+                  disabled={xlsxDownloading}
+                >
+                  {xlsxDownloading ? (
+                    <ActivityIndicator size="small" color={Colors.light.tint} />
+                  ) : (
+                    <Text style={styles.btnSecondaryText}>
+                      Download Data as Excel (.xlsx)
+                    </Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.btn, styles.btnGhost]}
+                  onPress={() => router.back()}
+                >
+                  <Text style={styles.btnGhostText}>Back</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* RIGHT: Stats Card */}
+            <View
+              style={[
+                styles.card,
+                isNarrow ? styles.fullWidth : styles.rightColumn,
+              ]}
+            >
+              <Text style={styles.statHeading}>Study Statistics</Text>
+
+              <View style={styles.statRow}>
+                <View style={styles.statBox}>
+                  <Text style={styles.statNumber}>
+                    {study.metricId?.length ?? 0}
+                  </Text>
+                  <Text style={styles.statLabel}>Metrics</Text>
+                </View>
+
+                <View style={styles.statBox}>
+                  <Text style={styles.statNumber}>
+                    {study.healthConditions?.length ?? 0}
+                  </Text>
+                  <Text style={styles.statLabel}>Health Conditions</Text>
+                </View>
+
+                <View style={styles.statBox}>
+                  <Text style={styles.statNumber}>
+                    {study.tags?.length ?? 0}
+                  </Text>
+                  <Text style={styles.statLabel}>Tags</Text>
+                </View>
+              </View>
+
+              <View style={styles.metaBlock}>
+                <Text style={styles.metaLabel}>
+                  {LABELS.INSTITUTIONAL_PARTNER}
+                </Text>
+                <Text style={styles.metaValue}>{study.buyerDisplayName}</Text>
+              </View>
             </View>
           </View>
+        )}
 
-          {/* RIGHT: Stats Card */}
-          <View
-            style={[
-              styles.card,
-              isNarrow ? styles.fullWidth : styles.rightColumn,
-            ]}
-          >
-            <Text style={styles.statHeading}>Study Statistics</Text>
-
-            <View style={styles.statRow}>
-              <View style={styles.statBox}>
-                <Text style={styles.statNumber}>
-                  {study.metricId?.length ?? 0}
-                </Text>
-                <Text style={styles.statLabel}>Metrics</Text>
-              </View>
-
-              <View style={styles.statBox}>
-                <Text style={styles.statNumber}>
-                  {study.healthConditions?.length ?? 0}
-                </Text>
-                <Text style={styles.statLabel}>Health Conditions</Text>
-              </View>
-
-              <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{study.tags?.length ?? 0}</Text>
-                <Text style={styles.statLabel}>Tags</Text>
-              </View>
-            </View>
-
-            <View style={styles.metaBlock}>
-              <Text style={styles.metaLabel}>{LABELS.INSTITUTIONAL_PARTNER}</Text>
-              <Text style={styles.metaValue}>{study.buyerDisplayName}</Text>
-            </View>
-          </View>
-        </View>
+        {/* ── Surveys Tab ── */}
+        {activeTab === "surveys" && (
+          <SurveysTabContent studyId={String(studyId)} isNarrow={isNarrow} />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -1481,6 +2092,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.light.background },
   scrollContainer: {
     padding: 20,
+    paddingTop: Platform.OS === "web" ? 80 : 20,
     paddingBottom: 48,
     backgroundColor: palette.light.surface,
   },
@@ -1908,7 +2520,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  
   /* Progress Badges */
   badgeContainer: {
     flexDirection: "row",
@@ -1934,6 +2545,36 @@ const styles = StyleSheet.create({
   badgeSuccess: { backgroundColor: "#DCFCE7" },
   badgeSuccessDot: { backgroundColor: "#16A34A" },
   badgeSuccessText: { color: "#166534" },
+
+  /* Tab Bar */
+  tabBar: {
+    flexDirection: "row",
+    backgroundColor: Colors.light.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: palette.light.border,
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    alignItems: "center",
+    borderBottomWidth: 3,
+    borderBottomColor: "transparent",
+  },
+  tabBtnActive: {
+    borderBottomColor: palette.light.primary,
+    backgroundColor: "rgba(186,12,47,0.04)",
+  },
+  tabBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: palette.light.text.muted,
+  },
+  tabBtnTextActive: {
+    color: palette.light.primary,
+  },
 });
 
 const svgStyles = StyleSheet.create({
