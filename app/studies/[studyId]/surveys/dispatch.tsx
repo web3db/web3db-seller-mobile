@@ -281,9 +281,7 @@ export default function DispatchCenterPage() {
         dry_run: false,
         include_link: includeLink,
         include_message: includeMessage,
-        ...(includeMessage && messageText.trim()
-          ? { message_text: messageText.trim() }
-          : {}),
+        message_text: includeMessage ? messageText.trim() : "",
       });
       setDispatchResult(res);
       setShowConfirm(false);
@@ -741,7 +739,7 @@ export default function DispatchCenterPage() {
               <View style={{ flex: 1 }}>
                 <Text style={dStyles.optionLabel}>Include survey link</Text>
                 <Text style={dStyles.optionHint}>
-                  Participants will receive a secure link to open their survey.
+                  Each participant will receive a pre-filled form link with their unique pseudonymous ID embedded.
                 </Text>
               </View>
             </TouchableOpacity>
@@ -939,6 +937,16 @@ export default function DispatchCenterPage() {
                 <Text style={dStyles.modalRowValue}>{val}</Text>
               </View>
             ))}
+            {includeMessage && messageText.trim() ? (
+              <View style={dStyles.modalMessagePreview}>
+                <Text style={dStyles.modalMessagePreviewLabel}>Message Preview</Text>
+                <Text style={dStyles.modalMessagePreviewText}>
+                  {messageText.trim().length > 200
+                    ? messageText.trim().slice(0, 200) + "…"
+                    : messageText.trim()}
+                </Text>
+              </View>
+            ) : null}
 
             <View style={dStyles.modalWarning}>
               <Text style={dStyles.modalWarningText}>
@@ -1518,5 +1526,25 @@ const dStyles = StyleSheet.create({
     padding: 12,
   },
   modalWarningText: { fontSize: 13, color: "#92400E", lineHeight: 18 },
+  modalMessagePreview: {
+    backgroundColor: "#F0F9FF",
+    borderWidth: 1,
+    borderColor: "#BAE6FD",
+    borderRadius: 8,
+    padding: 12,
+    gap: 4,
+  },
+  modalMessagePreviewLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#0369A1",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  modalMessagePreviewText: {
+    fontSize: 13,
+    color: "#0C4A6E",
+    lineHeight: 18,
+  },
   modalActions: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
 });

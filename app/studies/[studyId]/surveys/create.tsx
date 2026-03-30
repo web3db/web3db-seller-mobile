@@ -120,6 +120,17 @@ export default function CreateSurveyPage() {
           </Text>
         </View>
 
+        {/* Publish Warning Banner */}
+        <View style={styles.publishWarning}>
+          <Text style={styles.publishWarningTitle}>⚠ Your form MUST be published</Text>
+          <Text style={styles.publishWarningBody}>
+            Before dispatching this survey, ensure your form is{" "}
+            <Text style={{ fontWeight: "800" }}>published and accepting responses</Text>.
+            Participants will receive a direct link to your form — if the form is not
+            published, they will see an error and cannot submit their response.
+          </Text>
+        </View>
+
         {/* Instruction Section */}
         <View style={styles.card}>
           <Text style={styles.instructionHeading}>
@@ -143,15 +154,44 @@ export default function CreateSurveyPage() {
               text: "Paste that URL below. When a survey is dispatched, the placeholder will be replaced with each participant's unique pseudonymous ID.",
             },
             {
+              step: "5",
+              text: "PUBLISH your form. Go to your form settings and ensure the form is published and accepting responses before dispatching.",
+            },
+            {
               step: "⚠",
               text: "Only one Participant ID entry field is supported. Do not use the same form for multiple separate participant identifiers.",
             },
           ].map((item) => (
-            <View key={item.step} style={styles.instructionRow}>
-              <View style={styles.instructionStepBubble}>
-                <Text style={styles.instructionStepText}>{item.step}</Text>
+            <View
+              key={item.step}
+              style={[
+                styles.instructionRow,
+                item.step === "5" && styles.instructionRowPublish,
+              ]}
+            >
+              <View
+                style={[
+                  styles.instructionStepBubble,
+                  item.step === "5" && styles.instructionStepBubblePublish,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.instructionStepText,
+                    item.step === "5" && styles.instructionStepTextPublish,
+                  ]}
+                >
+                  {item.step}
+                </Text>
               </View>
-              <Text style={styles.instructionText}>{item.text}</Text>
+              <Text
+                style={[
+                  styles.instructionText,
+                  item.step === "5" && styles.instructionTextPublish,
+                ]}
+              >
+                {item.text}
+              </Text>
             </View>
           ))}
         </View>
@@ -430,6 +470,43 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   breadcrumb: { fontSize: 13, color: palette.light.text.muted },
+
+  publishWarning: {
+    backgroundColor: "#FFF7ED",
+    borderWidth: 2,
+    borderColor: "#F97316",
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
+  },
+  publishWarningTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#9A3412",
+  },
+  publishWarningBody: {
+    fontSize: 13,
+    color: "#7C2D12",
+    lineHeight: 20,
+  },
+
+  instructionRowPublish: {
+    backgroundColor: "#FFF7ED",
+    borderWidth: 1,
+    borderColor: "#F97316",
+    borderRadius: 10,
+    padding: 10,
+  },
+  instructionStepBubblePublish: {
+    backgroundColor: "#F97316",
+  },
+  instructionStepTextPublish: {
+    color: "#fff",
+  },
+  instructionTextPublish: {
+    fontWeight: "700",
+    color: "#9A3412",
+  },
 
   card: {
     backgroundColor: Colors.light.background,
