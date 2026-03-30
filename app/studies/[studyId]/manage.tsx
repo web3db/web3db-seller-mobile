@@ -13,12 +13,14 @@ import {
   Platform,
   ActivityIndicator,
   FlatList,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   getTrnPostingDetail,
   updateTrnPosting,
+  deleteTrnPosting,
   listMetrics,
   listHealthConditions,
   listRewardTypes,
@@ -428,6 +430,44 @@ const ManageStudy: React.FC = () => {
     router.back();
   }
 
+  const isPublished = openStatusId != null && originalStatusId === openStatusId;
+
+  async function handleDelete() {
+    if (!postingId || !user?.id) return;
+    if (isPublished) {
+      Alert.alert("Cannot delete", "Published studies cannot be deleted.");
+      return;
+    }
+
+    const doDelete = async () => {
+      try {
+        const buyerId = Number(user.id);
+        await deleteTrnPosting(buyerId, postingId);
+        router.replace("/studies");
+      } catch (err: any) {
+        Alert.alert(
+          "Delete failed",
+          err?.message ?? "Could not delete study"
+        );
+      }
+    };
+
+    if (Platform.OS === "web") {
+      if (window.confirm("Are you sure you want to delete this study? This cannot be undone.")) {
+        await doDelete();
+      }
+    } else {
+      Alert.alert(
+        "Delete Study",
+        "Are you sure you want to delete this study? This cannot be undone.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Delete", style: "destructive", onPress: doDelete },
+        ]
+      );
+    }
+  }
+
   // Determine which date is currently being edited for the picker
   const currentPickerDate =
     datePickerField === "open"
@@ -832,6 +872,14 @@ const ManageStudy: React.FC = () => {
               >
                 <Text style={styles.btnGhostText}>Cancel</Text>
               </TouchableOpacity>
+              {!isPublished && (
+                <TouchableOpacity
+                  style={[styles.btn, styles.btnDanger]}
+                  onPress={handleDelete}
+                >
+                  <Text style={styles.btnDangerText}>Delete Study</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
           <View
@@ -961,6 +1009,12 @@ const styles = StyleSheet.create({
     borderColor: palette.light.border,
   },
   btnGhostText: { color: Colors.light.text, fontWeight: "600" },
+  btnDanger: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#DC2626",
+  },
+  btnDangerText: { color: "#DC2626", fontWeight: "600" },
   disabled: { opacity: 0.5, backgroundColor: "#f5f5f5" },
   warningText: { color: "red", fontSize: 14, marginBottom: 4 },
   rewardDescription: {
