@@ -909,6 +909,7 @@ const featuredStudyData = {
 };
 
 function FeaturedStudy() {
+  const router = useRouter();
   const sectionRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -1033,7 +1034,7 @@ function FeaturedStudy() {
           <div style={webStyles.featuredStudyFooter}>
             <div style={webStyles.featuredStudyParticipants}>
               <span style={webStyles.featuredStudyParticipantsCount}>
-                {study.participantCount} enrolled &middot; {study.spotsRemaining} spots remaining
+                {study.participantCount} enrolled
               </span>
               <span style={webStyles.featuredStudyParticipantsLabel}>
                 Organized by {study.buyerDisplayName}
@@ -1042,7 +1043,10 @@ function FeaturedStudy() {
                 <div style={{ ...webStyles.featuredStudyProgressFill, width: `${enrollmentPercent}%` }} />
               </div>
             </div>
-            <span style={webStyles.featuredStudyCta}>
+            <span
+              style={{ ...webStyles.featuredStudyCta, cursor: 'pointer' }}
+              onClick={() => router.push('/login')}
+            >
               Get Started
               <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
             </span>
