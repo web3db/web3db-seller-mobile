@@ -54,6 +54,7 @@ export const LandingNavbar: React.FC = () => {
               <div style={webStyles.nav}>
                 <span style={webStyles.navLink} onClick={() => router.push('/about')}>About Us</span>
                 <span style={webStyles.navLink} onClick={() => router.push('/services')}>How It Works</span>
+                <span style={webStyles.navLink} onClick={() => router.push('/value' as any)}>What You Get</span>
                 {isSignedIn ? (
                   <>
                     <span style={webStyles.navLink} onClick={() => router.push('/studies')}>Studies</span>
@@ -76,6 +77,7 @@ export const LandingNavbar: React.FC = () => {
           <div style={webStyles.mobileMenu}>
             <span style={webStyles.mobileLink} onClick={() => { close(); router.push('/about'); }}>About Us</span>
             <span style={webStyles.mobileLink} onClick={() => { close(); router.push('/services'); }}>How It Works</span>
+            <span style={webStyles.mobileLink} onClick={() => { close(); router.push('/value' as any); }}>What You Get</span>
             {isSignedIn ? (
               <>
                 <span style={webStyles.mobileLink} onClick={() => { close(); router.push('/studies'); }}>Studies</span>
@@ -109,6 +111,9 @@ export const LandingNavbar: React.FC = () => {
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/services')}>
             <Text style={styles.navLink}>How It Works</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/value' as any)}>
+            <Text style={styles.navLink}>What You Get</Text>
           </TouchableOpacity>
           {isSignedIn ? (
             <>
