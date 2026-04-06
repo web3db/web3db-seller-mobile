@@ -27,6 +27,7 @@ const sampleStudies: StudySummary[] = [
     organizer: "Web3Health",
     spots: 500,
     rewardTypeDisplayName: "Points",
+    rewardValue: 100,
     dataCoverageDaysRequired: 28,
     minAge: 18,
     applyOpenAt: null,

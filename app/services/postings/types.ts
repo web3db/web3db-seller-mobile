@@ -23,6 +23,7 @@ export type StudySummary = {
 
   // Fields from buyers_postings_list API
   rewardTypeDisplayName: string | null;
+  rewardValue: number | null;
   dataCoverageDaysRequired: number | null;
   minAge: number | null;
   applyOpenAt: string | null;
