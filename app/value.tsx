@@ -30,7 +30,7 @@ const participantFeatures: FeatureItem[] = [
     id: 3,
     icon: 'shield-checkmark-outline',
     title: 'Privacy-First Participation',
-    description: 'You choose what to share, when to share it, and with whom. Withdraw from any study at any time.',
+    description: 'You choose what to share, when to share it, and with whom. You stay in control throughout.',
   },
   {
     id: 4,
@@ -43,6 +43,12 @@ const participantFeatures: FeatureItem[] = [
     icon: 'flask-outline',
     title: 'Contribute to Real Research',
     description: 'Join university-backed health studies and help advance science, all from your phone.',
+  },
+  {
+    id: 6,
+    icon: 'chatbox-outline',
+    title: 'Respond to Surveys',
+    description: 'Participate in researcher-created surveys alongside health data sharing for a more complete contribution.',
   },
 ];
 
@@ -77,6 +83,12 @@ const researcherFeatures: FeatureItem[] = [
     title: 'Structured Study Data',
     description: 'Data arrives organized through study enrollment with clear provenance and per-participant segmentation.',
   },
+  {
+    id: 6,
+    icon: 'chatbox-ellipses-outline',
+    title: 'Surveys and Participant Communication',
+    description: 'Collect qualitative insights alongside health data through in-app surveys dispatched directly to study participants.',
+  },
 ];
 
 const earlyAdopterPoints = [
@@ -93,7 +105,7 @@ const earlyAdopterPoints = [
   {
     icon: 'school-outline' as const,
     title: 'University-Backed Research',
-    text: 'Your contributions support peer-reviewed studies led by University of Georgia researchers.',
+    text: 'Your contributions support peer-reviewed studies led by university researchers and domain experts.',
   },
 ];
 
