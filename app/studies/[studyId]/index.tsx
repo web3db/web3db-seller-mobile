@@ -464,7 +464,9 @@ export default function StudyDetail() {
       ],
     ];
 
-    for (const sh of shares ?? []) {
+    const shareList = shares ?? [];
+    for (let idx = 0; idx < shareList.length; idx++) {
+      const sh = shareList[idx];
       const userId =
         sh.participantId ?? sh.participant_id ?? sh.userId ?? sh.user_id ?? "";
       const meta = sh.participantMeta ?? sh.participant_meta ?? {};
@@ -516,6 +518,9 @@ export default function StudyDetail() {
       }
 
       rows.push([userId, age, sex, height, weight, healthConditions]);
+      if (idx < shareList.length - 1) {
+        rows.push([]);
+      }
     }
 
     return rows;
@@ -528,30 +533,41 @@ export default function StudyDetail() {
   function buildUserDataSheetRows(
     shares: any[],
   ): (string | number | null | undefined)[][] {
-    const rows: (string | number | null | undefined)[][] = [
-      [
-        `${LABELS.CONTRIBUTOR} ID`,
-        "Metric Name",
-        "Start Time",
-        "End Time",
-        "Metric Value",
-        "Units",
-      ],
-    ];
+    const formatTimeForSheet = (utc?: string): string => {
+      if (!utc) return "";
+      try {
+        return new Date(utc).toLocaleString();
+      } catch {
+        return utc;
+      }
+    };
+
+    type MetricCol = { name: string; unit: string; header: string };
+    const metricColMap = new Map<string, MetricCol>();
+
+    type RowKey = string;
+    const rowMap = new Map<RowKey, { userId: string; start: string; end: string; values: Map<string, number | string> }>();
 
     for (const sh of shares ?? []) {
       const userId =
         sh.participantId ?? sh.participant_id ?? sh.userId ?? sh.user_id ?? "";
 
-      const segs = sh.segments ?? [];
-      for (const seg of segs) {
-        const metrics = seg.metrics ?? [];
-        for (const m of metrics) {
-          const metricName =
+      for (const seg of sh.segments ?? []) {
+        for (const m of seg.metrics ?? []) {
+          const metricName: string =
             m.metricName ??
             m.metric_name ??
             (m.metricId != null ? `Metric ${m.metricId}` : "");
-          const unitCode = m.unitCode ?? m.unit_code ?? "";
+          const unitCode: string = m.unitCode ?? m.unit_code ?? "";
+          const colKey = `${metricName}||${unitCode}`;
+
+          if (!metricColMap.has(colKey)) {
+            metricColMap.set(colKey, {
+              name: metricName,
+              unit: unitCode,
+              header: unitCode ? `${metricName} (${unitCode})` : metricName,
+            });
+          }
 
           const buckets =
             m.computedJson?.buckets ?? m.computed_json?.buckets ?? null;
@@ -559,27 +575,50 @@ export default function StudyDetail() {
 
           for (const b of buckets) {
             const start =
-              b.start ??
-              b.startUtc ??
-              b.start_utc ??
-              b.from ??
-              b.fromUtc ??
-              b.from_utc ??
-              "";
+              b.start ?? b.startUtc ?? b.start_utc ?? b.from ?? b.fromUtc ?? b.from_utc ?? "";
             const end =
-              b.end ??
-              b.endUtc ??
-              b.end_utc ??
-              b.to ??
-              b.toUtc ??
-              b.to_utc ??
-              "";
+              b.end ?? b.endUtc ?? b.end_utc ?? b.to ?? b.toUtc ?? b.to_utc ?? "";
             const value = b.value ?? b.val ?? b.data ?? "";
 
-            rows.push([userId, metricName, start, end, value, unitCode]);
+            const rowKey: RowKey = `${userId}||${start}||${end}`;
+            if (!rowMap.has(rowKey)) {
+              rowMap.set(rowKey, { userId, start, end, values: new Map() });
+            }
+            rowMap.get(rowKey)!.values.set(colKey, value);
           }
         }
       }
+    }
+
+    const metricCols = Array.from(metricColMap.entries());
+    const header: (string | number | null | undefined)[] = [
+      `${LABELS.CONTRIBUTOR} ID`,
+      "Start Time (Local)",
+      "End Time (Local)",
+      ...metricCols.map(([, col]) => col.header),
+    ];
+
+    const rows: (string | number | null | undefined)[][] = [header];
+
+    const sortedEntries = Array.from(rowMap.values()).sort((a, b) => {
+      if (a.userId < b.userId) return -1;
+      if (a.userId > b.userId) return 1;
+      return a.start < b.start ? -1 : a.start > b.start ? 1 : 0;
+    });
+
+    let previousUserId: string | null = null;
+    for (const entry of sortedEntries) {
+      if (previousUserId !== null && entry.userId !== previousUserId) {
+        rows.push([]);
+      }
+      const row: (string | number | null | undefined)[] = [
+        entry.userId,
+        formatTimeForSheet(entry.start),
+        formatTimeForSheet(entry.end),
+        ...metricCols.map(([colKey]) => entry.values.get(colKey) ?? ""),
+      ];
+      rows.push(row);
+      previousUserId = entry.userId;
     }
 
     return rows;
