@@ -464,7 +464,9 @@ export default function StudyDetail() {
       ],
     ];
 
-    for (const sh of shares ?? []) {
+    const shareList = shares ?? [];
+    for (let idx = 0; idx < shareList.length; idx++) {
+      const sh = shareList[idx];
       const userId =
         sh.participantId ?? sh.participant_id ?? sh.userId ?? sh.user_id ?? "";
       const meta = sh.participantMeta ?? sh.participant_meta ?? {};
@@ -516,6 +518,9 @@ export default function StudyDetail() {
       }
 
       rows.push([userId, age, sex, height, weight, healthConditions]);
+      if (idx < shareList.length - 1) {
+        rows.push([]);
+      }
     }
 
     return rows;
@@ -592,7 +597,11 @@ export default function StudyDetail() {
       return a.start < b.start ? -1 : a.start > b.start ? 1 : 0;
     });
 
+    let previousUserId: string | null = null;
     for (const entry of sortedEntries) {
+      if (previousUserId !== null && entry.userId !== previousUserId) {
+        rows.push([]);
+      }
       const row: (string | number | null | undefined)[] = [
         entry.userId,
         entry.start,
@@ -600,6 +609,7 @@ export default function StudyDetail() {
         ...metricCols.map(([colKey]) => entry.values.get(colKey) ?? ""),
       ];
       rows.push(row);
+      previousUserId = entry.userId;
     }
 
     return rows;
