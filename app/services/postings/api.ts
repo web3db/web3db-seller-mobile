@@ -235,6 +235,7 @@ function mapRawToStudy(raw: PostingDTO): StudySummary {
     spots: typeof anyRaw.spots === "number" ? anyRaw.spots : 0,
 
     rewardTypeDisplayName: anyRaw.rewardTypeDisplayName ?? null,
+    rewardValue: anyRaw.rewardValue != null ? Number(anyRaw.rewardValue) : null,
     dataCoverageDaysRequired:
       anyRaw.dataCoverageDaysRequired != null ? Number(anyRaw.dataCoverageDaysRequired) : null,
     minAge: anyRaw.minAge != null ? Number(anyRaw.minAge) : null,

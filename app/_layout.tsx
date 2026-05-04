@@ -65,6 +65,7 @@ function AppContent() {
     first === "reset-required" ||
     first === "about" ||
     first === "services" ||
+    first === "value" ||
     first === "privacy-policy" ||
     first === "terms-of-service";
 

@@ -27,12 +27,12 @@ const professorData = [
   },
   {
     id: 3,
-    name: 'Prof. Teaho Jung',
+    name: 'Prof. Taeho Jung',
     title: 'Research Director',
-    department: 'School of Computing',
-    affiliation: 'University of Georgia',
+    department: 'Department of Computer Science and Engineering',
+    affiliation: 'University of Notre Dame',
     initials: 'TJ',
-    bio: 'Dr. Jung is a professor in the School of Computing with expertise in distributed systems and data privacy. He leads research into consent-preserving data frameworks and institutional data governance protocols.',
+    bio: 'Dr. Jung is a professor in the Department of Computer Science and Engineering at the University of Notre Dame with expertise in data privacy, applied cryptography, and secure computing. He leads research into consent-preserving data frameworks and privacy-preserving analytics.',
   },
 ];
 
@@ -92,10 +92,11 @@ const techFocusItems = [
 ];
 
 const quickLinksData = [
-  { id: 1, title: 'University of Georgia', description: 'Our primary research institution', url: 'https://www.uga.edu', icon: 'school-outline' as const },
-  { id: 2, title: 'NSF Research Grant', description: 'National Science Foundation project', url: 'https://www.nsf.gov', icon: 'flask-outline' as const },
-  { id: 3, title: 'Center For Cyber-Physical Systems', description: 'Browse academic publications', url: 'https://cps.uga.edu/', icon: 'book-outline' as const },
-  { id: 4, title: 'Contact Us', description: 'Get in touch with the team', url: 'mailto:engr-sensorweb@uga.edu', icon: 'mail-outline' as const },
+  { id: 1, title: 'University of Georgia', description: 'Lead research institution', url: 'https://www.uga.edu', icon: 'school-outline' as const },
+  { id: 2, title: 'University of Notre Dame', description: 'Partner research institution', url: 'https://www.nd.edu', icon: 'school-outline' as const },
+  { id: 3, title: 'NSF Research Grant', description: 'National Science Foundation project', url: 'https://www.nsf.gov', icon: 'flask-outline' as const },
+  { id: 4, title: 'Center For Cyber-Physical Systems', description: 'Browse academic publications', url: 'https://cps.uga.edu/', icon: 'book-outline' as const },
+  { id: 5, title: 'Contact Us', description: 'Get in touch with the team', url: 'mailto:engr-sensorweb@uga.edu', icon: 'mail-outline' as const },
 ];
 
 // ── Web Styles ─────────────────────────────────────────────
@@ -568,6 +569,91 @@ const webStyles: Record<string, React.CSSProperties> = {
     color: '#666666',
   },
 
+  // ── FAQ ───────────────────────────────────────────────────
+  faqSection: {
+    paddingLeft: 80,
+    paddingRight: 80,
+    paddingTop: 80,
+    paddingBottom: 80,
+    backgroundColor: '#F9F9FB',
+  },
+  faqTitle: {
+    fontFamily: 'Barlow, sans-serif',
+    fontSize: 'clamp(28px, 3vw, 36px)' as any,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  faqSubtitle: {
+    fontFamily: 'Barlow, sans-serif',
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#666666',
+    textAlign: 'center',
+    marginBottom: 48,
+    maxWidth: 600,
+    margin: '0 auto 48px',
+    lineHeight: 1.6,
+  },
+  faqList: {
+    maxWidth: 820,
+    margin: '0 auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  faqItem: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    border: '1px solid rgba(0,0,0,0.06)',
+    overflow: 'hidden',
+    transition: 'box-shadow 0.25s ease',
+  },
+  faqItemOpen: {
+    boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+  },
+  faqQuestionRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '20px 24px',
+    cursor: 'pointer',
+    gap: 16,
+  },
+  faqQuestion: {
+    fontFamily: 'Barlow, sans-serif',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    flex: 1,
+    lineHeight: 1.5,
+  },
+  faqIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(178, 34, 34, 0.08)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    transition: 'transform 0.25s ease',
+  },
+  faqAnswerWrap: {
+    overflow: 'hidden',
+    transition: 'max-height 0.3s ease',
+  },
+  faqAnswer: {
+    fontFamily: 'Barlow, sans-serif',
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#555555',
+    lineHeight: 1.7,
+    padding: '0 24px 22px 24px',
+  },
+
   // ── Footer ────────────────────────────────────────────────
   footer: {
     backgroundColor: '#2D2D2D',
@@ -910,6 +996,92 @@ function QuickLinks() {
   );
 }
 
+// ── FAQ ────────────────────────────────────────────────────
+
+const faqData = [
+  {
+    q: 'What is Web3Health?',
+    a: 'Web3Health is a research platform that connects people who want to share their health and activity data with university researchers running studies. Participants stay in control of what they share, and researchers get access to consented, real-world data.',
+  },
+  {
+    q: 'Who can participate as a research participant?',
+    a: 'Anyone who meets the eligibility criteria of an active study can participate. Studies define their own age requirements, health metrics, and conditions. You can browse open studies in the app and join the ones you qualify for.',
+  },
+  {
+    q: 'Is my health data private?',
+    a: 'Yes. Your data stays on your device by default. Nothing is shared until you explicitly consent to a specific study, and you decide which metrics get shared and for how long.',
+  },
+  {
+    q: 'How are participants compensated?',
+    a: 'Each study sets its own reward, usually in the form of platform points or tokens. Early participants also receive founder-tier recognition as the platform grows.',
+  },
+  {
+    q: 'How can a researcher run a study on Web3Health?',
+    a: 'Researchers register through the platform, create a study with eligibility criteria, define which health metrics to collect, and recruit participants directly. Data arrives structured and timestamped for analysis.',
+  },
+  {
+    q: 'What kind of data can researchers collect?',
+    a: 'Studies can collect activity metrics like steps, distance, heart rate, sleep, and other health signals at up to 5-minute granularity, depending on what participants consent to share.',
+  },
+  {
+    q: 'Is Web3Health free to use?',
+    a: 'The mobile app is free for participants. Researchers running studies on the platform should reach out at engr-sensorweb@uga.edu for access details.',
+  },
+];
+
+function FAQ() {
+  const [openId, setOpenId] = useState<number | null>(0);
+
+  return (
+    <div className="about-faq" style={webStyles.faqSection}>
+      <AnimatedSection>
+        <h2 style={webStyles.faqTitle}>Frequently Asked Questions</h2>
+        <p style={webStyles.faqSubtitle}>
+          Common questions about how Web3Health works for participants and researchers.
+        </p>
+      </AnimatedSection>
+      <div style={webStyles.faqList}>
+        {faqData.map((item, i) => {
+          const isOpen = openId === i;
+          return (
+            <AnimatedSection key={item.q} delay={0.05 + i * 0.04}>
+              <div
+                style={{
+                  ...webStyles.faqItem,
+                  ...(isOpen ? webStyles.faqItemOpen : {}),
+                }}
+              >
+                <div
+                  style={webStyles.faqQuestionRow}
+                  onClick={() => setOpenId(isOpen ? null : i)}
+                >
+                  <span style={webStyles.faqQuestion}>{item.q}</span>
+                  <div
+                    style={{
+                      ...webStyles.faqIcon,
+                      transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)',
+                    }}
+                  >
+                    <Ionicons name="add" size={18} color="#B22222" />
+                  </div>
+                </div>
+                <div
+                  style={{
+                    ...webStyles.faqAnswerWrap,
+                    maxHeight: isOpen ? 400 : 0,
+                  }}
+                >
+                  <p style={webStyles.faqAnswer}>{item.a}</p>
+                </div>
+              </div>
+            </AnimatedSection>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Footer ─────────────────────────────────────────────────
 
 function Footer() {
@@ -982,11 +1154,25 @@ export default function About() {
             to   { opacity: 1; transform: translateY(0);    }
           }
 
+          /* ---- Large desktop ---- center content on big screens ---- */
+          @media (min-width: 1400px) {
+            .about-hero-inner, .about-mission-inner, .about-vision-inner,
+            .about-faq-inner {
+              max-width: 1100px !important;
+              margin-left: auto !important;
+              margin-right: auto !important;
+            }
+            .about-background-grid, .about-faculty-grid,
+            .about-tech-grid, .about-links-grid {
+              max-width: 1200px !important;
+            }
+          }
+
           /* ---- Tablet ---- */
           @media (max-width: 900px) {
             .about-hero, .about-mission, .about-vision,
             .about-background, .about-faculty,
-            .about-tech, .about-links, .about-footer {
+            .about-tech, .about-links, .about-faq, .about-footer {
               padding-left: 32px !important;
               padding-right: 32px !important;
             }
@@ -1005,7 +1191,7 @@ export default function About() {
           @media (max-width: 768px) {
             .about-hero, .about-mission, .about-vision,
             .about-background, .about-faculty,
-            .about-tech, .about-links, .about-footer {
+            .about-tech, .about-links, .about-faq, .about-footer {
               padding-left: 24px !important;
               padding-right: 24px !important;
             }
@@ -1038,7 +1224,7 @@ export default function About() {
           @media (max-width: 480px) {
             .about-hero, .about-mission, .about-vision,
             .about-background, .about-faculty,
-            .about-tech, .about-links, .about-footer {
+            .about-tech, .about-links, .about-faq, .about-footer {
               padding-left: 16px !important;
               padding-right: 16px !important;
             }
@@ -1107,7 +1293,10 @@ export default function About() {
         {/* 7. Quick Links */}
         <QuickLinks />
 
-        {/* 8. Footer */}
+        {/* 8. FAQ */}
+        <FAQ />
+
+        {/* 9. Footer */}
         <Footer />
       </div>
     );

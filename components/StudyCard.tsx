@@ -280,7 +280,11 @@ const StudyCardWeb: React.FC<StudyCardProps> = ({ study, statusLabel, onPress })
         {/* Stat boxes */}
         <div style={webStyles.statsRow}>
           <div style={webStyles.statBox}>
-            <span style={webStyles.statValue}>{study.rewardTypeDisplayName ?? "—"}</span>
+            <span style={webStyles.statValue}>
+              {study.rewardValue != null && study.rewardTypeDisplayName
+                ? `${study.rewardValue} ${study.rewardTypeDisplayName}`
+                : study.rewardTypeDisplayName ?? "—"}
+            </span>
             <span style={webStyles.statLabel}>Reward</span>
           </div>
           <div style={webStyles.statBox}>
@@ -396,7 +400,11 @@ const StudyCardNative: React.FC<StudyCardProps> = ({ study, statusLabel, onPress
       {/* Stat row */}
       <View style={nativeStyles.statsRow}>
         <View style={nativeStyles.statBox}>
-          <Text style={nativeStyles.statValue}>{study.rewardTypeDisplayName ?? "—"}</Text>
+          <Text style={nativeStyles.statValue}>
+            {study.rewardValue != null && study.rewardTypeDisplayName
+              ? `${study.rewardValue} ${study.rewardTypeDisplayName}`
+              : study.rewardTypeDisplayName ?? "—"}
+          </Text>
           <Text style={nativeStyles.statLabel}>Reward</Text>
         </View>
         <View style={nativeStyles.statBox}>
